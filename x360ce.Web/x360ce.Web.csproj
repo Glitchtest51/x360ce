@@ -257,9 +257,6 @@
     </Compile>
     <Compile Include="..\x360ce.Engine\Data\x360ceModel.Designer.cs">
       <Link>Engine\x360ceModel.Designer.cs</Link>
-    </Compile>
-    <Compile Include="..\x360ce.Engine\Data\x360ceModel.Designer.cs">
-      <Link>Engine\x360ceModel.Designer.cs</Link>
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>x360ceModel.edmx</DependentUpon>
@@ -371,9 +368,6 @@
     </Compile>
     <Compile Include="..\x360ce.Engine\JocysCom\Security\Data\SecurityEntities.cs">
       <Link>JocysCom\SecurityEntities.cs</Link>
-    </Compile>
-    <Compile Include="..\x360ce.Engine\JocysCom\Security\Data\SecurityModel.Designer.cs">
-      <Link>JocysCom\SecurityModel.Designer.cs</Link>
     </Compile>
     <Compile Include="..\x360ce.Engine\JocysCom\Security\Data\SecurityModel.Designer.cs">
       <Link>JocysCom\SecurityModel.Designer.cs</Link>
@@ -664,8 +658,8 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != ''" />
-  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="false" />
+  <Import Project="$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets" Condition="'$(VSToolsPath)' != '' And Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets')" />
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets" Condition="!Exists('$(VSToolsPath)\WebApplications\Microsoft.WebApplication.targets') And Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v10.0\WebApplications\Microsoft.WebApplication.targets')" />
   <ProjectExtensions>
     <VisualStudio>
       <FlavorProperties GUID="{349c5851-65df-11da-9384-00065b846f21}">
