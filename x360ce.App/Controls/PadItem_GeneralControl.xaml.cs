@@ -429,8 +429,8 @@ namespace x360ce.App.Controls
 			var deviceObjects = device?.GetObjects();
 			StringBuilder stringBuilder = new StringBuilder();
 
-			// Sliders.
-			var state = device.GetCurrentState();
+            // Sliders.
+            var state = (JoystickState)ud.DeviceState;
 			if (state.Sliders[0] != 0) sliders.Add(0);
 			if (state.Sliders[1] != 0) sliders.Add(1);
 			if (state.AccelerationSliders[0] != 0) sliders.Add(2);
