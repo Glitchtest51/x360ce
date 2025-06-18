@@ -164,7 +164,13 @@ namespace x360ce.App.Controls
 
 		#region Drag and Drop Menu
 
+		/// <summary>
+		/// Tracks the current drag state for UI operations. 
+		/// Used to coordinate drag and drop behavior and prevent conflicting operations.
+		/// </summary>
+#pragma warning disable CS0414 // Field is assigned but never used - intentionally tracks drag state
 		bool isDragging = false;
+#pragma warning restore CS0414
 
         private void DragAndDropMenuLabel_Source_MouseDown(object sender, MouseEventArgs e)
         {
@@ -940,4 +946,3 @@ namespace x360ce.App.Controls
 		}
 	}
 }
-

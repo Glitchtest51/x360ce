@@ -52,9 +52,9 @@
 
 	<!-- Suppress warnings for incompatible package dependencies from referenced projects -->
 
-	<!-- Suppress System.Text.Json version conflicts -->
+	<!-- Suppress warnings for incompatible package dependencies and cross-framework references -->
 	<PropertyGroup>
-		<NoWarn>$(NoWarn);MSB3277</NoWarn>
+		<NoWarn>$(NoWarn);MSB3277;NU1702</NoWarn>
 	</PropertyGroup>
 
 </Project>

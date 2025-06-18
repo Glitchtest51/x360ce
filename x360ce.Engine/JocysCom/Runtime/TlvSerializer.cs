@@ -126,7 +126,7 @@ namespace JocysCom.ClassLibrary.Runtime
 			if (error != TlvSerializerError.None)
 				return error;
 			value = new byte[length];
-			stream.Read(value, 0, length);
+			_ = stream.Read(value, 0, length);
 			return TlvSerializerError.None;
 		}
 

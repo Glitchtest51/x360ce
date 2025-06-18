@@ -11,6 +11,15 @@
     <None Include="Tools/**/*.*" />
     <None Include="Resources/*.*" />
   </ItemGroup>
+	<!-- prevents NU1503 -->
+  <Target Name="_IsProjectRestoreSupported"
+          Returns="@(_ValidProjectsForRestore)">
+    <ItemGroup>
+      <_ValidProjectsForRestore Include="$(MSBuildProjectFullPath)" />
+    </ItemGroup>
+  </Target>
+  <Target Name="Restore" />
+
   <!-- 
 
 ## Disable Building:
