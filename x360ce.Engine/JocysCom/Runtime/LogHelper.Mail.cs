@@ -153,7 +153,7 @@ namespace JocysCom.ClassLibrary.Runtime
 
 		/// <summary>
 		/// Send exception details as HTML e-mail.
-		/// Internal helper to apply headers for server-side grouping (ErrorSource, ErrorType, ErrorCode) and invoke the main <see cref="SendMail"/> logic.
+		/// Internal helper to apply headers for server-side grouping (ErrorSource, ErrorType, ErrorCode) and invoke the main <see cref="SendMail(MailMessage, SmtpClientEx, bool)"/> logic.
 		/// </summary>
 		/// <param name="ex">Exception to generate email from.</param>
 		/// <param name="subject">Use custom subject instead of generated from exception</param>

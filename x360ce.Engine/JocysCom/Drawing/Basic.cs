@@ -104,7 +104,7 @@ namespace JocysCom.ClassLibrary.Drawing
 		/// <summary>
 		/// Get color bytes. Native bitmap color byte order for 32bpp: [B,G,R,A...], 24bpp: [B,G,R...].
 		/// </summary>
-		/// <param name="destination">Allow to supply array buffer in case </param>
+		/// <param name="b">Bitmap to get bytes from</param>
 		/// <param name="count">Number of bytes to get</param>
 		public static byte[] GetImageBytes(Bitmap b, int? count = null)
 		{
@@ -117,6 +117,7 @@ namespace JocysCom.ClassLibrary.Drawing
 		/// Get color bytes. Native bitmap color byte order for 32bpp: [B,G,R,A...], 24bpp: [B,G,R...].
 		/// </summary>
 		/// <param name="destination">Allow to supply array buffer in case </param>
+		/// <param name="b">Bitmap to get bytes from</param>
 		/// <param name="count">Number of bytes to get</param>
 		public static void GetImageBytes(ref byte[] destination, Bitmap b, int? count = null)
 		{

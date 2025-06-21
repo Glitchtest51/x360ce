@@ -699,7 +699,7 @@ namespace JocysCom.ClassLibrary.Network.Sockets
 		/// <summary>
 		/// Add one message to send.
 		/// </summary>
-		/// <param name="holders">Message holder to send.</param>
+		/// <param name="holder">Message holder to send.</param>
 		/// <param name="userState">User state which will be passed to OnAddNewMessage method.</param>
 		/// <param name="index">Index in the message queue where message will be inserter.</param>
 		public void AddMessageToSend(DataHolder holder, object userState = null, int? index = null)
@@ -906,8 +906,9 @@ namespace JocysCom.ClassLibrary.Network.Sockets
 		/// Get remote end point (client's IP address and port number) from SocketAsyncEventArgs.
 		/// </summary>
 		/// <param name="args">SocketAsyncEventArgs from which remote endpoint will be extracted.</param>
-		/// <param name="remotePrefix">String prefix which shows part from which remote endpoint was extracted.</param>
-		/// <param name="remoteEndpoint">RemoteEndPoint data.</param>
+		/// <param name="accRE">AcceptSocket RemoteEndPoint data.</param>
+		/// <param name="conRE">ConnectSocket RemoteEndPoint data.</param>
+		/// <param name="argRE">Args RemoteEndPoint data.</param>
 		static void GetRemoteEndpoint(SocketAsyncEventArgs args, out IPEndPoint accRE, out IPEndPoint conRE, out IPEndPoint argRE)
 		{
 			accRE = null;
@@ -930,8 +931,8 @@ namespace JocysCom.ClassLibrary.Network.Sockets
 		/// Get local end point (IP address and port number to which client is connected on local machine) from SocketAsyncEventArgs.
 		/// </summary>
 		/// <param name="args">SocketAsyncEventArgs from which local endpoint will be extracted.</param>
-		/// <param name="remotePrefix">String prefix which shows part from which local endpoint was extracted.</param>
-		/// <param name="remoteEndpoint">LocalEndPoint data.</param>
+		/// <param name="localPrefix">String prefix which shows part from which local endpoint was extracted.</param>
+		/// <param name="localEndpoint">LocalEndPoint data.</param>
 		public static void GetLocalEndpoint(SocketAsyncEventArgs args, out string localPrefix, out IPEndPoint localEndpoint)
 		{
 			var acceptSocket = args.AcceptSocket;
@@ -2110,7 +2111,6 @@ namespace JocysCom.ClassLibrary.Network.Sockets
 		/// Dispose AcceptSocket and return back to EventArgsPool.
 		/// </summary>
 		/// <param name="args"></param>
-		/// <param name="raiseEvent"></param>
 		protected void CompleteDisconnect(SocketAsyncEventArgs args)
 		{
 			State.Increment(args.LastOperation, args.SocketError);

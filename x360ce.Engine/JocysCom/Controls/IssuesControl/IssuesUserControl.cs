@@ -71,8 +71,8 @@ namespace JocysCom.ClassLibrary.Controls.IssuesControl
 		/// <summary>
 		/// This function will run on different thread than UI. Make sure to use Invoke for interface update.
 		/// </summary>
-		/// <param name="item"></param>
-		/// <returns></returns>
+		/// <param name="sender">The source of the event.</param>
+		/// <param name="e">The event arguments.</param>
 		void queueTimer_DoWork(object sender, QueueTimerEventArgs e)
 		{
 			if (IsSuspended())

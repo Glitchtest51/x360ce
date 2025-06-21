@@ -17,7 +17,7 @@ namespace JocysCom.ClassLibrary.Network
 	{
 		/// <summary>
 		/// Original source.
-		/// https://code.msdn.microsoft.com/C-Sample-to-list-all-the-4817b58f/sourcecode?fileId=147562&pathId=62315043
+		/// https://code.msdn.microsoft.com/C-Sample-to-list-all-the-4817b58f/sourcecode?fileId=147562&amp;pathId=62315043
 		/// </summary>
 
 		public class NativeMethods
@@ -447,7 +447,7 @@ namespace JocysCom.ClassLibrary.Network
 		#region TCP socket enumerations and structures
 
 		/// <summary>
-		/// <see cref="http://msdn2.microsoft.com/en-us/library/aa366386.aspx"/>
+		/// <see href="http://msdn2.microsoft.com/en-us/library/aa366386.aspx"/>
 		/// </summary>
 		public enum TCP_TABLE_CLASS
 		{
@@ -466,7 +466,7 @@ namespace JocysCom.ClassLibrary.Network
 		/// The structure contains information that describes an IPv4 TCP connection with 
 		/// IPv4 addresses, ports used by the TCP connection, and the specific process ID 
 		/// (PID) associated with connection. 
-		/// <see cref="http://msdn2.microsoft.com/en-us/library/aa366921.aspx"/>
+		/// <see href="http://msdn2.microsoft.com/en-us/library/aa366921.aspx"/>
 		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct MIB_TCPTABLE_OWNER_PID
@@ -480,7 +480,7 @@ namespace JocysCom.ClassLibrary.Network
 		/// The structure contains information that describes an IPv4 TCP connection with 
 		/// IPv4 addresses, ports used by the TCP connection, and the specific process ID 
 		/// (PID) associated with connection. 
-		/// <see cref="http://msdn2.microsoft.com/en-us/library/aa366913.aspx"/>
+		/// <see href="http://msdn2.microsoft.com/en-us/library/aa366913.aspx"/>
 		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct MIB_TCPROW_OWNER_PID

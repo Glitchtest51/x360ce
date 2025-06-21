@@ -172,7 +172,7 @@ namespace JocysCom.ClassLibrary.Security
 		/// Decrypt string with AES-256 by using password key.
 		/// </summary>
 		/// <param name="password">String password.</param>
-		/// <param name="encryptedBytes">Encrypted bytes.</param>
+		/// <param name="bytes">Encrypted bytes.</param>
 		/// <returns>Decrypted bytes.</returns>
 		public static byte[] Decrypt(string password, byte[] bytes)
 		{

@@ -173,7 +173,7 @@ namespace JocysCom.ClassLibrary.Runtime
 		/// <param name="containsFileAndLineNumber">Outputs true if file and line number were included in the formatted string.</param>
 		/// <returns>Formatted exception string with message and stack trace.</returns>
 		/// <remarks>
-		/// When TraceFormat.Html, output is HTML-encoded and wrapped in <span class="Mono">.
+		/// When TraceFormat.Html, output is HTML-encoded and wrapped in &lt;span class="Mono"&gt;.
 		/// If ErrorUseNewStackTrace is true, includes a full stack trace from the root and skips frames in LogHelper to preserve original exception location.
 		/// </remarks>
 		private string ExceptionToString(Exception ex, bool needFileLineInfo, TraceFormat tf, out bool containsFileAndLineNumber)
@@ -298,7 +298,7 @@ namespace JocysCom.ClassLibrary.Runtime
 		/// <param name="containsFileAndLineNumber">Outputs true if any frame includes file and line number.</param>
 		/// <returns>String representation of the stack trace.</returns>
 		/// <remarks>
-		/// When TraceFormat.Html, frames are wrapped in <span class="Mono"> and include HTML styling.
+		/// When TraceFormat.Html, frames are wrapped in &lt;span class="Mono"&gt; and include HTML styling.
 		/// The output includes 'at' prefixes and encodes namespaces, types, and method names, with optional file/line details.
 		/// </remarks>
 		public static string TraceToString(StackTrace st, TraceFormat tf, int startFrameIndex, out bool containsFileAndLineNumber)

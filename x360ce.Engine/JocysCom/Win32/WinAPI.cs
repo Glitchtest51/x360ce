@@ -104,7 +104,7 @@ namespace JocysCom.ClassLibrary.Win32
 		/// <summary>
 		/// Enables the UAC shield icon for the given button control
 		/// </summary>
-		/// <param name="ButtonToEnable">
+		/// <param name="button">
 		/// Button to display shield icon on.
 		/// </param>
 		///////////////////////////////////////////////////////////////////////

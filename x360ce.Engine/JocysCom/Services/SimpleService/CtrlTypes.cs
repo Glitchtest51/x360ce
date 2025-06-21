@@ -1,9 +1,7 @@
-/// <summary>
-/// An enumerated type for the control messages sent to the handler routine.
-/// </summary>
 namespace JocysCom.ClassLibrary.Services.SimpleService
 {
 	/// <summary>
+	/// An enumerated type for the control messages sent to the handler routine.
 	/// The type of control signal received by the handler.
 	/// </summary>
 	public enum CtrlTypes

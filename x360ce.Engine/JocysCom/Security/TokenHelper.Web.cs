@@ -14,8 +14,9 @@ namespace JocysCom.ClassLibrary.Security
 		/// Get URL to page. If runs on website then host will be replaced with current request.
 		/// Use AbsoluteUri property to get full URL string.
 		/// </summary>
+		/// <param name="keyName">Key name for the token parameter.</param>
 		/// <param name="token">Token.</param>
-		/// <param name="page">Page name. Like "/Login.aspx" or "/LoginReset.aspx"</param>
+		/// <param name="url">Base URL. If null, current request URL will be used.</param>
 		/// <returns>URL string.</returns>
 		public static Uri GetUrl(string keyName, string token, Uri url = null)
 		{

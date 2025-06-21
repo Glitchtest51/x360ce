@@ -9,7 +9,7 @@ namespace JocysCom.ClassLibrary.Win32
 	public partial class UacHelper
 	{
 		/// <summary>Enables the UAC shield icon for the given button control</summary>
-		/// <param name="ButtonToEnable">Button to display shield icon on.</param>
+		/// <param name="button">Button to display shield icon on.</param>
 		public static void EnableShieldIcon(Button button)
 		{
 			// See http://msdn2.microsoft.com/en-us/library/aa361904.aspx
@@ -23,7 +23,7 @@ namespace JocysCom.ClassLibrary.Win32
 		}
 
 		/// <summary>Disable the UAC shield icon for the given button control</summary>
-		/// <param name="ButtonToEnable">Button to remove shield icon.</param>
+		/// <param name="button">Button to remove shield icon.</param>
 		public static void DisableShieldIcon(Button button)
 		{
 			int BCM_FIRST = 0x1600; // Normal button

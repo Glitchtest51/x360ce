@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace JocysCom.ClassLibrary.ComponentModel
 {
 	/// <summary>
-	/// ObservableCollection<T> that marshals collection changes and notifications to a specified synchronization context.
+	/// ObservableCollection&lt;T&gt; that marshals collection changes and notifications to a specified synchronization context.
 	/// </summary>
 	/// <remarks>
 	/// Uses a TaskScheduler (SynchronizingObject) and ControlsHelper.InvokeRequired to detect UI thread synchronization needs.

@@ -91,8 +91,8 @@ namespace JocysCom.ClassLibrary.Data
 		/// <summary>
 		/// Get list of column attributes from instance.
 		/// </summary>
-		/// <param name="instance"></param>
-		/// <returns></returns>
+		/// <param name="instanceType">The type to get column attributes from.</param>
+		/// <returns>Array of ColumnAttribute objects ordered by DataMemberAttribute.Order.</returns>
 		public static ColumnAttribute[] GetColumnsList(Type instanceType)
 		{
 			var list = new SortedDictionary<int, ColumnAttribute>();

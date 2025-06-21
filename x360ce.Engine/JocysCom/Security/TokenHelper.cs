@@ -101,7 +101,7 @@ namespace JocysCom.ClassLibrary.Security
 		/// Check if token key is valid.
 		/// </summary>
 		/// <param name="token">Token to check.</param>
-		/// <param name="userId">User id (Integer or GUID).</param>
+		/// <param name="id">User id (Integer or GUID).</param>
 		/// <param name="password">Password or secure key/hash.</param>
 		/// <param name="unit">Time unit type.</param>
 		/// <param name="count">How many units in past mus be checked.</param>
@@ -155,10 +155,10 @@ namespace JocysCom.ClassLibrary.Security
 		/// Check if token is valid.
 		/// </summary>
 		/// <param name="token">Token to check.</param>
-		/// <param name="userId">User id (Integer or GUID).</param>
-		/// <param name="password">Password or secure key/hash.</param>
+		/// <param name="value">Value which will be used to make token.</param>
 		/// <param name="unit">Time unit type.</param>
 		/// <param name="count">How many units in past mus be checked.</param>
+		/// <param name="hmacHashKey">HMAC hash key.</param>
 		/// <returns>True if token is valid, False if not valid.</returns>
 		public static bool CheckUnlockToken(string token, string value, TimeUnitType unit, int count, string hmacHashKey = null)
 		{
@@ -406,7 +406,7 @@ namespace JocysCom.ClassLibrary.Security
 		/// Check if token key is valid.
 		/// </summary>
 		/// <param name="token">Token to check.</param>
-		/// <param name="userId">User id (Integer or GUID).</param>
+		/// <param name="id">User id (Integer or GUID).</param>
 		/// <param name="password">Password or secure key/hash.</param>
 		/// <param name="unit">Time unit type.</param>
 		/// <param name="count">How many units in past mus be checked.</param>
