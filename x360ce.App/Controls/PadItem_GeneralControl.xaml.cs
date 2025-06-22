@@ -229,22 +229,20 @@ namespace x360ce.App.Controls
 		object updateLock = new object();
 		object oldState = null;
 
+		/// <summary>
+		/// Gets the CustomDiState for the specified UserDevice.
+		/// This method now uses the existing DiState property that should be populated 
+		/// by all input methods (DirectInput, XInput, GamingInput, RawInput) rather than 
+		/// trying to create a new CustomDiState from DirectInput-specific DeviceState.
+		/// This ensures drag and drop buttons are visible regardless of InputMethod.
+		/// </summary>
+		/// <param name="ud">The UserDevice to get the CustomDiState from</param>
+		/// <returns>The CustomDiState if available, null otherwise</returns>
 		public CustomDiState GetCustomDiState(UserDevice ud)
 		{
-			CustomDiState customDiState = null;
-			var state = ud?.DeviceState;
-			if (state == null || state == oldState)
-				return null;
-			lock (updateLock)
-			{
-				if (state is MouseState mState)
-					customDiState = new CustomDiState(mState);
-				else if (state is KeyboardState kState)
-					customDiState = new CustomDiState(kState);
-				else if (state is JoystickState jState)
-					customDiState = new CustomDiState(jState);
-			}
-			return customDiState;
+			// Use the existing DiState property that should be populated by all input methods
+			// instead of trying to create a new CustomDiState from DirectInput-specific DeviceState
+			return ud?.DiState;
 		}
 
 		UniformGrid PovUnifromGrid;
@@ -421,70 +419,77 @@ namespace x360ce.App.Controls
 			}
 		}
 
+		/// <summary>
+		/// Populates the lists of available device inputs (buttons, axes, POVs, sliders) 
+		/// for creating drag and drop buttons. Now works with all input methods by using 
+		/// device capabilities instead of DirectInput-specific device objects.
+		/// </summary>
+		/// <param name="ud">The UserDevice to analyze</param>
+		/// <param name="usage">Optional usage parameter (currently unused)</param>
 		private void GetDeviceObjectInstancesByObjectTypeGuid(UserDevice ud, int usage = 0)
 		{
-			if (!(ud.Device is Joystick device))
-				return;
+			// Use device capabilities instead of DirectInput-specific device introspection
+			// This approach works for all input methods (DirectInput, XInput, GamingInput, RawInput)
 
-			var deviceObjects = device?.GetObjects();
-			StringBuilder stringBuilder = new StringBuilder();
-
-            // Sliders.
-            var state = (JoystickState)ud.DeviceState;
-			if (state.Sliders[0] != 0) sliders.Add(0);
-			if (state.Sliders[1] != 0) sliders.Add(1);
-			if (state.AccelerationSliders[0] != 0) sliders.Add(2);
-			if (state.AccelerationSliders[1] != 0) sliders.Add(3);
-			if (state.ForceSliders[0] != 0) sliders.Add(4);
-			if (state.ForceSliders[1] != 0) sliders.Add(5);
-			if (state.VelocitySliders[0] != 0) sliders.Add(6);
-			if (state.VelocitySliders[1] != 0) sliders.Add(7);
-
-			// POVs.
+			// POVs - Use the capability count directly
 			for (int i = 0; i < ud.CapPovCount; i++)
 			{
 				povs.Add(i);
 			}
 
-			// Buttons, Keys.
+			// Buttons - Use the capability count directly  
 			for (int i = 0; i < ud.CapButtonCount; i++)
 			{
 				buttons.Add(i);
 			}
 
-			// Axes.
-			foreach (DeviceObjectInstance item in deviceObjects
-				.Where(x => x.ObjectType != ObjectGuid.Unknown)
-				.OrderBy(x => x.UsagePage)
-				.ThenBy(x => x.Usage)
-				.ThenBy(x => x.ObjectId.InstanceNumber))
+			// Axes - Use the capability count directly
+			for (int i = 0; i < ud.CapAxeCount; i++)
 			{
-				// Axes.
-				if (new[] { ObjectGuid.XAxis, ObjectGuid.YAxis, ObjectGuid.ZAxis, ObjectGuid.RxAxis, ObjectGuid.RyAxis, ObjectGuid.RzAxis }
-					.Contains(item.ObjectType))
-				{
-					if (ud.IsMouse)
-						axes.Add(item.ObjectId.InstanceNumber);
-					else if (CustomDiHelper.AxisUsageDictionary.TryGetValue(item.Usage, out var value))
-						axes.Add(value.Item2);
-				}
-				stringBuilder.Append($"INFO: UsagePage {item.UsagePage}. " +
-					$"Usage {item.Usage.ToString().PadLeft(2, ' ')}. " +
-					$"InstanceNumber {item.ObjectId.InstanceNumber.ToString().PadLeft(2, ' ')}. " +
-					$"Offset {item.Offset.ToString().PadLeft(2, ' ')}. " +
-					$"ObjectType {item.ObjectType} ({GetObjectTypeName(item.ObjectType)}). " +
-					$"Name {item.Name}. " +
-					$"Flags {item.ObjectId.Flags}.\n");
+				axes.Add(i);
 			}
 
-			Debug.WriteLine($"\nINFO: InstanceName {ud.InstanceName}.\n{stringBuilder}");
-			//if (ud.InstanceGuid == new Guid("2c6612a0-d772-11e7-8003-444553540000") ||
-			//	ud.InstanceGuid == new Guid("dff18ef0-139b-11ea-8001-444553540000") ||
-			//	ud.InstanceGuid == new Guid("1a36a500-7535-11ef-8001-444553540000") ||
-			//	ud.InstanceGuid == new Guid("db208ce0-e8ce-11e7-8002-444553540000"))
-			//{
-			//	var ins = ud.Device;
-			//}
+			// Sliders - For non-DirectInput modes, we can assume standard slider availability
+			// This provides a consistent interface regardless of input method
+			if (ud.InputMethod == x360ce.Engine.InputMethod.DirectInput && ud.Device is Joystick device)
+			{
+				// For DirectInput, check actual slider state to see what's available
+				try
+				{
+					var state = (JoystickState)ud.DeviceState;
+					if (state != null)
+					{
+						if (state.Sliders[0] != 0) sliders.Add(0);
+						if (state.Sliders[1] != 0) sliders.Add(1);
+						if (state.AccelerationSliders[0] != 0) sliders.Add(2);
+						if (state.AccelerationSliders[1] != 0) sliders.Add(3);
+						if (state.ForceSliders[0] != 0) sliders.Add(4);
+						if (state.ForceSliders[1] != 0) sliders.Add(5);
+						if (state.VelocitySliders[0] != 0) sliders.Add(6);
+						if (state.VelocitySliders[1] != 0) sliders.Add(7);
+					}
+				}
+				catch
+				{
+					// If DirectInput state access fails, fall back to basic slider assumption
+					for (int i = 0; i < 2; i++) // Assume basic 2 sliders for most controllers
+					{
+						sliders.Add(i);
+					}
+				}
+			}
+			else
+			{
+				// For non-DirectInput input methods, provide standard slider options
+				// Most game controllers have at least 2 slider-like inputs (triggers)
+				for (int i = 0; i < 2; i++)
+				{
+					sliders.Add(i);
+				}
+			}
+
+			Debug.WriteLine($"INFO: Device '{ud.InstanceName}' InputMethod: {ud.InputMethod}, " +
+				$"Buttons: {buttons.Count}, Axes: {axes.Count}, POVs: {povs.Count}, Sliders: {sliders.Count}");
 		}
 
 		public static string GetObjectTypeName(Guid guid)
