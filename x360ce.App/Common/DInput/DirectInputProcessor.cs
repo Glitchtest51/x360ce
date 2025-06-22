@@ -289,17 +289,16 @@ namespace x360ce.App.DInput
 			
 			for (int a = 0; a < newState.Length; a++)
 			{
-				// Get delta from original state and apply sensitivity
-				var value = (newState[a] - orgRange[a]) * sensitivity;
+				// Use ConvertHelper for mouse scaling with overflow protection
+				var value = ConvertHelper.ScaleWithSensitivity(newState[a], orgRange[a], sensitivity, ushort.MinValue, ushort.MaxValue);
 				
-				if (value < ushort.MinValue)
+				// Update original range if value hit limits
+				if (value == ushort.MinValue)
 				{
-					value = ushort.MinValue;
 					orgRange[a] = newState[a];
 				}
-				if (value > ushort.MaxValue)
+				else if (value == ushort.MaxValue)
 				{
-					value = ushort.MaxValue;
 					orgRange[a] = newState[a] - (ushort.MaxValue / sensitivity);
 				}
 				

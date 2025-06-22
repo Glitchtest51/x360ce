@@ -245,7 +245,7 @@ namespace x360ce.App
 				var diff = newValues[i] - oldValue;
 				var prefix = "";
 				// If differ by more than 10%.
-				if (Math.Abs(diff) > (ushort.MaxValue / 10))
+				if (ConvertHelper.SafeAbs(diff) > (ushort.MaxValue / 10))
 				{
 					// If value is negative then add "I" prefix.
 					if (diff < 0)

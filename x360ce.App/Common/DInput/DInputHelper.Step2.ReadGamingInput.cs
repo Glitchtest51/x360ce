@@ -188,7 +188,7 @@ namespace x360ce.App.DInput
 		private int ConvertAnalogToAxis(double analogValue)
 		{
 			// Clamp to valid range
-			analogValue = Math.Max(-1.0, Math.Min(1.0, analogValue));
+			analogValue = ConvertHelper.LimitRange((float)analogValue, -1.0f, 1.0f);
 			
 			// Convert from -1.0..1.0 to 0..65535 (center = 32767)
 			return (int)((analogValue + 1.0) * 32767.5);
@@ -199,8 +199,8 @@ namespace x360ce.App.DInput
 		/// </summary>
 		private int ConvertTriggerToAxis(double triggerValue)
 		{
-			// Clamp to valid range  
-			triggerValue = Math.Max(0.0, Math.Min(1.0, triggerValue));
+			// Clamp to valid range
+			triggerValue = ConvertHelper.LimitRange((float)triggerValue, 0.0f, 1.0f);
 			
 			// Convert from 0.0..1.0 to 0..65535
 			return (int)(triggerValue * 65535.0);
@@ -302,7 +302,7 @@ namespace x360ce.App.DInput
 				
 				return true;
 			}
-			catch (Exception ex)
+			catch
 			{
 				return false;
 			}

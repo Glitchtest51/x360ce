@@ -522,7 +522,7 @@ namespace x360ce.App.DInput
 			
 			// Parse buttons from later bytes (avoid thumbstick data)
 			// Skip the first 4-6 bytes which are likely axis data
-			int buttonStartByte = Math.Min(6, hidData.Length - 2);
+			int buttonStartByte = ConvertHelper.LimitRange(6, 0, hidData.Length - 2);
 			for (int i = buttonStartByte; i < hidData.Length && (i - buttonStartByte) * 8 < state.Buttons.Length; i++)
 			{
 				byte buttonByte = hidData[i];

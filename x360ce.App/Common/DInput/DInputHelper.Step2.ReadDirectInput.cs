@@ -159,8 +159,8 @@ namespace x360ce.App.DInput
 							{
 								var vibration = new Vibration
 								{
-									LeftMotorSpeed = (force == null) ? short.MinValue : (short)ConvertHelper.ConvertRange(force.LargeMotor, byte.MinValue, byte.MaxValue, short.MinValue, short.MaxValue),
-									RightMotorSpeed = (force == null) ? short.MinValue : (short)ConvertHelper.ConvertRange(force.SmallMotor, byte.MinValue, byte.MaxValue, short.MinValue, short.MaxValue)
+									LeftMotorSpeed = (force == null) ? short.MinValue : ConvertHelper.ConvertMotorSpeed(force.LargeMotor),
+									RightMotorSpeed = (force == null) ? short.MinValue : ConvertHelper.ConvertMotorSpeed(force.SmallMotor)
 								};
 								// For the future: Investigate device states if force feedback is not working. 
 								// var st = device.Device.GetForceFeedbackState();
@@ -188,11 +188,11 @@ namespace x360ce.App.DInput
 					// Store current values.
 					device.OrgDiState = newState;
 					device.OrgDiStateTime = _Stopwatch.ElapsedTicks;
-					// Make sure new states have zero values.
-					for (int a = 0; a < newState.Axis.Length; a++)
-						newState.Axis[a] = -short.MinValue;
-					for (int s = 0; s < newState.Sliders.Length; s++)
-						newState.Sliders[s] = -short.MinValue;
+				// Make sure new states have zero values.
+				for (int a = 0; a < newState.Axis.Length; a++)
+					newState.Axis[a] = -short.MinValue;
+				for (int s = 0; s < newState.Sliders.Length; s++)
+					newState.Sliders[s] = -short.MinValue;
 				}
 				var mouseState = new CustomDiState(new JoystickState());
 				// Clone button values.
@@ -222,18 +222,19 @@ namespace x360ce.App.DInput
 			var sensitivity = 16;
 			for (int a = 0; a < newState.Length; a++)
 			{
-				// Get delta from original state and apply sensitivity.
-				var value = (newState[a] - orgRange[a]) * sensitivity;
-				if (value < ushort.MinValue)
+				// Use ConvertHelper for mouse scaling with overflow protection
+				var value = ConvertHelper.ScaleWithSensitivity(newState[a], orgRange[a], sensitivity, ushort.MinValue, ushort.MaxValue);
+				
+				// Update original range if value hit limits
+				if (value == ushort.MinValue)
 				{
-					value = ushort.MinValue;
 					orgRange[a] = newState[a];
 				}
-				if (value > ushort.MaxValue)
+				else if (value == ushort.MaxValue)
 				{
-					value = ushort.MaxValue;
 					orgRange[a] = newState[a] - (ushort.MaxValue / sensitivity);
 				}
+				
 				mouseState[a] = value;
 			}
 		}

@@ -58,10 +58,10 @@ namespace x360ce.App.DInput
 			var max = values.Max();
 			// If both positive then return maximum.
 			if (min > 0 && max > 0)
-				return Math.Max(min, max);
+				return max; // max is already the maximum value
 			// If both negative then return minimum.
 			if (min < 0 && max < 0)
-				return Math.Min(min, max);
+				return min; // min is already the minimum value
 			// If on opposite sides then cancel each other.
 			return (short)(min + max);
 		}

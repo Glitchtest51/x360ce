@@ -209,8 +209,8 @@ namespace x360ce.App.DInput
 				// Create XInput Vibration structure with the provided values
 				var vibration = new Vibration
 				{
-					LeftMotorSpeed = (short)Math.Min(leftMotorSpeed, short.MaxValue),
-					RightMotorSpeed = (short)Math.Min(rightMotorSpeed, short.MaxValue)
+					LeftMotorSpeed = ConvertHelper.LimitRange((short)leftMotorSpeed, short.MinValue, short.MaxValue),
+					RightMotorSpeed = ConvertHelper.LimitRange((short)rightMotorSpeed, short.MinValue, short.MaxValue)
 				};
 
 				// Apply vibration to XInput controller
@@ -251,19 +251,11 @@ namespace x360ce.App.DInput
 		private Vibration ConvertToXInputVibration(short leftMotorSpeed, short rightMotorSpeed)
 		{
 			// Convert from signed 16-bit (-32768 to 32767) to unsigned 16-bit (0 to 65535)
-			// Take absolute value and scale to full unsigned range
-			// Handle edge case where Math.Abs(short.MinValue) would overflow
-			int leftAbs = leftMotorSpeed == short.MinValue ? 32768 : Math.Abs(leftMotorSpeed);
-			int rightAbs = rightMotorSpeed == short.MinValue ? 32768 : Math.Abs(rightMotorSpeed);
-			
-			// Scale to full ushort range and ensure no overflow
-			int leftScaled = Math.Min(leftAbs * 2, ushort.MaxValue);
-			int rightScaled = Math.Min(rightAbs * 2, ushort.MaxValue);
-
+			// Use ConvertHelper for safe conversion with overflow protection
 			return new Vibration
 			{
-				LeftMotorSpeed = (short)Math.Min(leftScaled, short.MaxValue),
-				RightMotorSpeed = (short)Math.Min(rightScaled, short.MaxValue)
+				LeftMotorSpeed = ConvertHelper.ConvertMotorSpeedScaled(leftMotorSpeed),
+				RightMotorSpeed = ConvertHelper.ConvertMotorSpeedScaled(rightMotorSpeed)
 			};
 		}
 

@@ -1,7 +1,6 @@
 using SharpDX.XInput;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using x360ce.Engine;
 using x360ce.Engine.Data;
@@ -168,7 +167,7 @@ namespace x360ce.App.DInput
 					}
 				}
 			}
-			catch (Exception ex)
+			catch
 			{
 				// Force feedback errors are not critical - continue processing
 			}
@@ -325,7 +324,7 @@ namespace x360ce.App.DInput
 				
 				return true;
 			}
-			catch (Exception ex)
+			catch
 			{
 				return false;
 			}
