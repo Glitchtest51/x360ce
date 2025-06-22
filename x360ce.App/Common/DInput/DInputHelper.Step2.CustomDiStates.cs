@@ -84,27 +84,10 @@ namespace x360ce.App.DInput
 					{
 						newState = ProcessGamingInputDevice(device);
 					}
-					// Handle other input methods using the processor pattern
-					else if (device.InputMethod != InputMethod.DirectInput && device.InputMethod != 0)
+					// Handle Raw Input devices using dedicated Raw Input processor
+					else if (device.InputMethod == InputMethod.RawInput)
 					{
-						// Use the appropriate input processor based on device's selected input method
-						var processor = GetInputProcessor(device);
-						
-						// Validate device compatibility with selected input method
-						var validation = processor.ValidateDevice(device);
-						if (!validation.IsValid)
-						{
-							continue;
-						}
-
-						// Read device state using the selected input method
-						newState = processor.ReadState(device);
-
-						// Handle force feedback if the device supports it
-						if (device.FFState != null)
-						{
-							processor.HandleForceFeedback(device, device.FFState);
-						}
+						newState = ProcessRawInputDevice(device);
 					}
 				}
 				catch (InputMethodException ex)

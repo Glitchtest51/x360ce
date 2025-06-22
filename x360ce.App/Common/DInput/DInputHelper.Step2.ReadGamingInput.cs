@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Windows.Gaming.Input;
 using SharpDX.DirectInput;
@@ -14,20 +13,6 @@ namespace x360ce.App.DInput
 		#region Gaming Input State Processing (Windows.Gaming.Input)
 
 		/// <summary>
-		/// Public wrapper for Gaming Input processing to enable processor pattern access.
-		/// </summary>
-		/// <param name="device">The Gaming Input device to process</param>
-		/// <returns>CustomDiState for the device</returns>
-		/// <remarks>
-		/// This public method enables the GamingInputProcessor to access the existing
-		/// Gaming Input implementation while maintaining the processor pattern architecture.
-		/// </remarks>
-		public CustomDiState ProcessGamingInputDevicePublic(UserDevice device)
-		{
-			return ProcessGamingInputDevice(device);
-		}
-
-		/// <summary>
 		/// Processes Gaming Input devices using direct method (same performance pattern as DirectInput/XInput).
 		/// </summary>
 		/// <param name="device">The Gaming Input device to process</param>
@@ -38,7 +23,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// CustomDiState mapping matches DirectInput/XInput exactly for UI compatibility.
 		/// </remarks>
-		private CustomDiState ProcessGamingInputDevice(UserDevice device)
+		public CustomDiState ProcessGamingInputDevice(UserDevice device)
 		{
 			if (device == null)
 				return null;
@@ -189,7 +174,6 @@ namespace x360ce.App.DInput
 		{
 			// Clamp to valid range
 			analogValue = ConvertHelper.LimitRange((float)analogValue, -1.0f, 1.0f);
-			
 			// Convert from -1.0..1.0 to 0..65535 (center = 32767)
 			return (int)((analogValue + 1.0) * 32767.5);
 		}
@@ -201,7 +185,6 @@ namespace x360ce.App.DInput
 		{
 			// Clamp to valid range
 			triggerValue = ConvertHelper.LimitRange((float)triggerValue, 0.0f, 1.0f);
-			
 			// Convert from 0.0..1.0 to 0..65535
 			return (int)(triggerValue * 65535.0);
 		}

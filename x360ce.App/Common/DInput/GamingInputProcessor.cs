@@ -87,7 +87,7 @@ namespace x360ce.App.DInput
 			{
 				// Delegate to the existing Gaming Input implementation in DInputHelper
 				// This ensures we use the tested, working Gaming Input code path
-				var result = helper.ProcessGamingInputDevicePublic(device);
+				var result = helper.ProcessGamingInputDevice(device);
 				
 				if (result == null)
 				{
