@@ -71,6 +71,9 @@ namespace x360ce.App.DInput
 				LiveXiStates[i] = new State();
 				LiveXiControllers[i] = new Controller((UserIndex)i);
 			}
+
+			// Set current instance for processors to access
+			SetCurrent(this);
 		}
 
 		//===============================================================================================
