@@ -161,7 +161,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to read from</param>
 		/// <returns>CustomDiState representing the current controller state</returns>
 		/// <exception cref="InputMethodException">Thrown when Raw Input encounters errors</exception>
-		public CustomDiState ReadState(UserDevice device)
+		public static CustomDiState ReadState(UserDevice device)
 		{
 			if (device == null)
 				return new CustomDiState();
@@ -189,7 +189,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to send force feedback to</param>
 		/// <param name="ffState">The force feedback state to apply</param>
-		public void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState)
+		public static void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState)
 		{
 			// Raw Input is INPUT-ONLY and does not support force feedback output
 			// This is a fundamental limitation of the Raw Input API
@@ -680,7 +680,7 @@ namespace x360ce.App.DInput
 		/// This populates the same properties that DirectInput sets so the PAD UI works.
 		/// </summary>
 		/// <param name="device">The device to ensure properties for</param>
-		private void EnsureDevicePropertiesForUI(UserDevice device)
+		private static void EnsureDevicePropertiesForUI(UserDevice device)
 		{
 			// Set device objects if not already set (required for UI to show button/axis mapping)
 			if (device.DeviceObjects == null)

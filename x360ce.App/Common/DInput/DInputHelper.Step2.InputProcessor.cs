@@ -8,9 +8,6 @@ namespace x360ce.App.DInput
 	{
 		#region Input Processor Registry
 
-		RawInputProcessor rawInputProcessor => new RawInputProcessor();
-		XInputProcessor xInputProcessor => new XInputProcessor();
-
 		/// <summary>
 		/// Validates that a device can be processed with its selected input method.
 		/// </summary>

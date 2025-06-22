@@ -94,7 +94,7 @@ namespace x360ce.App.DInput
 			// Check if we have available XInput slots
 			var assignedSlots = _deviceToSlotMapping.Values.ToHashSet();
 			var availableSlots = Enumerable.Range(0, MaxControllers).Where(i => !assignedSlots.Contains(i));
-			
+
 			// Device can be processed if it already has a slot or if there's an available slot
 			return _deviceToSlotMapping.ContainsKey(device.InstanceGuid) || availableSlots.Any();
 		}
@@ -105,7 +105,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to read from</param>
 		/// <returns>CustomDiState representing the current controller state</returns>
 		/// <exception cref="InputMethodException">Thrown when XInput encounters errors</exception>
-		public CustomDiState ReadState(UserDevice device)
+		public static CustomDiState ReadState(UserDevice device)
 		{
 			if (device == null)
 				throw new InputMethodException(InputMethod.XInput, device, "Device is null");
@@ -136,7 +136,7 @@ namespace x360ce.App.DInput
 
 				// Convert XInput Gamepad to CustomDiState
 				var customState = ConvertGamepadToCustomDiState(xinputState.Gamepad);
-				
+
 				// Store the XInput state for potential use by other parts of the system
 				device.DeviceState = xinputState.Gamepad;
 
@@ -170,7 +170,7 @@ namespace x360ce.App.DInput
 			// Force feedback for XInput is handled through integration with DInputHelper
 			// The actual vibration values come from the virtual Xbox controllers via ViGEm
 			// This method is called from the main UpdateDiStates coordinator
-			
+
 			// Note: XInput force feedback integration is handled in the main DInputHelper
 			// through the ProcessXInputDevice method which calls ApplyXInputVibration
 			Debug.WriteLine($"XInput: Force feedback processing delegated to main coordinator for {device.DisplayName}");
@@ -190,7 +190,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// Called from DInputHelper.Step2.UpdateXiStates.ProcessXInputDevice
 		/// </remarks>
-		public bool ApplyXInputVibration(UserDevice device, ushort leftMotorSpeed, ushort rightMotorSpeed)
+		public static bool ApplyXInputVibration(UserDevice device, ushort leftMotorSpeed, ushort rightMotorSpeed)
 		{
 			if (device == null)
 				return false;
@@ -267,7 +267,7 @@ namespace x360ce.App.DInput
 		/// This method provides a way to stop XInput vibration, similar to
 		/// ForceFeedbackState.StopDeviceForces for DirectInput devices.
 		/// </remarks>
-		public void StopVibration(UserDevice device)
+		public static void StopVibration(UserDevice device)
 		{
 			if (device == null)
 				return;
@@ -326,14 +326,14 @@ namespace x360ce.App.DInput
 			// Check XInput controller limit
 			var assignedSlots = _deviceToSlotMapping.Values.ToHashSet();
 			var availableSlots = Enumerable.Range(0, MaxControllers).Where(i => !assignedSlots.Contains(i));
-			
+
 			// If device already has a slot, it's valid
 			if (_deviceToSlotMapping.ContainsKey(device.InstanceGuid))
 			{
 				var slotIndex = _deviceToSlotMapping[device.InstanceGuid];
 				return ValidationResult.Success($"XInput compatible - assigned to slot {slotIndex + 1}/4");
 			}
-			
+
 			// Check if slots are available
 			if (!availableSlots.Any())
 			{
@@ -354,7 +354,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to get/assign a slot for</param>
 		/// <returns>The slot index (0-3)</returns>
 		/// <exception cref="InputMethodException">Thrown when no slots are available</exception>
-		private int GetOrAssignSlot(UserDevice device)
+		private static int GetOrAssignSlot(UserDevice device)
 		{
 			// If device already has a slot, return it
 			if (_deviceToSlotMapping.TryGetValue(device.InstanceGuid, out int existingSlot))
@@ -363,14 +363,14 @@ namespace x360ce.App.DInput
 			// Find an available slot
 			var assignedSlots = _deviceToSlotMapping.Values.ToHashSet();
 			var availableSlots = Enumerable.Range(0, MaxControllers).Where(i => !assignedSlots.Contains(i));
-			
+
 			if (!availableSlots.Any())
 				throw new InputMethodException(InputMethod.XInput, device, $"XInput maximum {MaxControllers} controllers already in use");
 
 			// Assign the first available slot
 			int newSlot = availableSlots.First();
 			_deviceToSlotMapping[device.InstanceGuid] = newSlot;
-			
+
 			Debug.WriteLine($"XInput: Assigned device {device.DisplayName} to slot {newSlot + 1}");
 			return newSlot;
 		}
@@ -380,7 +380,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to check</param>
 		/// <returns>The slot index if assigned, -1 if not assigned</returns>
-		private int GetAssignedSlot(UserDevice device)
+		private static int GetAssignedSlot(UserDevice device)
 		{
 			return _deviceToSlotMapping.TryGetValue(device.InstanceGuid, out int slot) ? slot : -1;
 		}
@@ -405,7 +405,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// For XInput, we map to the most common DirectInput pattern for Xbox controllers.
 		/// </remarks>
-		private CustomDiState ConvertGamepadToCustomDiState(Gamepad gamepad)
+		private static CustomDiState ConvertGamepadToCustomDiState(Gamepad gamepad)
 		{
 			var customState = new CustomDiState();
 
@@ -421,13 +421,13 @@ namespace x360ce.App.DInput
 			customState.Buttons[7] = gamepad.Buttons.HasFlag(GamepadButtonFlags.Start);       // Button 7: Start
 			customState.Buttons[8] = gamepad.Buttons.HasFlag(GamepadButtonFlags.LeftThumb);   // Button 8: LS
 			customState.Buttons[9] = gamepad.Buttons.HasFlag(GamepadButtonFlags.RightThumb);  // Button 9: RS
-			
+
 			// D-Pad mapping to buttons (DirectInput POV often mapped to buttons for Xbox controllers)
 			customState.Buttons[10] = gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadUp);     // Button 10: D-Up
 			customState.Buttons[11] = gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadRight);  // Button 11: D-Right
 			customState.Buttons[12] = gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadDown);   // Button 12: D-Down
 			customState.Buttons[13] = gamepad.Buttons.HasFlag(GamepadButtonFlags.DPadLeft);   // Button 13: D-Left
-			
+
 			// Guide button (when available) - not always accessible via DirectInput
 			customState.Buttons[14] = gamepad.Buttons.HasFlag(GamepadButtonFlags.Guide);      // Button 14: Guide
 
@@ -453,7 +453,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="triggerValue">Trigger value from XInput (0-255)</param>
 		/// <returns>Axis value (0-32767)</returns>
-		private int ConvertTriggerToAxis(byte triggerValue)
+		private static int ConvertTriggerToAxis(byte triggerValue)
 		{
 			// Convert 0-255 range to 0-32767 range
 			// Using positive range only since triggers don't have negative values
@@ -507,14 +507,14 @@ namespace x360ce.App.DInput
 		/// This populates the same properties that DirectInput sets so the PAD UI works.
 		/// </summary>
 		/// <param name="device">The device to ensure properties for</param>
-		private void EnsureDevicePropertiesForUI(UserDevice device)
+		private static void EnsureDevicePropertiesForUI(UserDevice device)
 		{
 			// Set device objects if not already set (required for UI to show button/axis mapping)
 			if (device.DeviceObjects == null)
 			{
 				// Create Xbox controller device objects that match what DirectInput would provide
 				var deviceObjects = new List<DeviceObjectItem>();
-				
+
 				// Add button objects (A, B, X, Y, LB, RB, Back, Start, LS, RS, DPad, Guide)
 				for (int i = 0; i < 15; i++)
 				{
@@ -527,7 +527,7 @@ namespace x360ce.App.DInput
 						GetXboxButtonName(i) // name
 					));
 				}
-				
+
 				// Add axis objects (Left Stick X/Y, Right Stick X/Y, Left Trigger, Right Trigger)
 				string[] axisNames = { "Left Stick X", "Left Stick Y", "Right Stick X", "Right Stick Y", "Left Trigger", "Right Trigger" };
 				for (int i = 0; i < 6; i++)
@@ -541,17 +541,17 @@ namespace x360ce.App.DInput
 						axisNames[i] // name
 					));
 				}
-				
+
 				device.DeviceObjects = deviceObjects.ToArray();
 			}
-			
+
 			// Set axis mask (which axes are available) - required for UI
 			if (device.DiAxeMask == 0)
 			{
 				// XInput Xbox controllers have 6 axes: Left Stick X/Y, Right Stick X/Y, Left/Right Triggers
 				device.DiAxeMask = 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20; // First 6 axes
 			}
-			
+
 			// Set device effects (required for force feedback UI)
 			if (device.DeviceEffects == null)
 			{
@@ -562,19 +562,19 @@ namespace x360ce.App.DInput
 				};
 			}
 		}
-		
+
 		/// <summary>
 		/// Gets the display name for Xbox controller buttons.
 		/// </summary>
 		/// <param name="buttonIndex">Button index (0-14)</param>
 		/// <returns>Button name</returns>
-		private string GetXboxButtonName(int buttonIndex)
+		private static string GetXboxButtonName(int buttonIndex)
 		{
 			string[] buttonNames = {
 				"A", "B", "X", "Y", "LB", "RB", "Back", "Start", "LS", "RS",
 				"D-Up", "D-Right", "D-Down", "D-Left", "Guide"
 			};
-			
+
 			return buttonIndex < buttonNames.Length ? buttonNames[buttonIndex] : $"Button {buttonIndex}";
 		}
 

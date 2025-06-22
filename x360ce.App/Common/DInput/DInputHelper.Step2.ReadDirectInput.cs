@@ -243,7 +243,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The DirectInput device to get buffered data for</param>
 		/// <returns>Array of CustomDiUpdate objects, or null if no buffered data</returns>
-		private CustomDiUpdate[] GetBufferedUpdates(UserDevice device)
+		private static CustomDiUpdate[] GetBufferedUpdates(UserDevice device)
 		{
 			if (device.Device == null || device.InputMethod != InputMethod.DirectInput)
 				return null;

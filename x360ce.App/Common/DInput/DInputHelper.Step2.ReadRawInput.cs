@@ -74,12 +74,12 @@ namespace x360ce.App.DInput
 				if (!validation.IsValid)
 					return null;
 				// Read device state using Raw Input
-				var customState = rawInputProcessor.ReadState(device);
+				var customState = RawInputProcessor.ReadState(device);
 
 				// Handle force feedback (Raw Input doesn't support output, just log)
 				if (device.FFState != null)
 				{
-					rawInputProcessor.HandleForceFeedback(device, device.FFState);
+					RawInputProcessor.HandleForceFeedback(device, device.FFState);
 				}
 				return customState;
 			}

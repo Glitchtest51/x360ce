@@ -76,10 +76,10 @@ namespace x360ce.App.DInput
 					return null;
 
 				// Read device state using XInput
-				var customState = xInputProcessor.ReadState(device);
+				var customState = XInputProcessor.ReadState(device);
 
 				// Handle XInput force feedback integration with existing system
-				HandleXInputForceFeedback(device, xInputProcessor);
+				HandleXInputForceFeedback(device);
 
 				return customState;
 			}
@@ -124,7 +124,7 @@ namespace x360ce.App.DInput
 		/// This maintains compatibility with existing force feedback configuration while
 		/// providing the reliability advantages of XInput vibration for Xbox controllers.
 		/// </remarks>
-		private void HandleXInputForceFeedback(UserDevice device, XInputProcessor processor)
+		private void HandleXInputForceFeedback(UserDevice device)
 		{
 			try
 			{
@@ -153,13 +153,13 @@ namespace x360ce.App.DInput
 							var rightMotorSpeed = (force == null) ? (ushort)0 : ConvertByteToUshort(force.SmallMotor);
 							
 							// Apply XInput vibration
-							processor.ApplyXInputVibration(device, leftMotorSpeed, rightMotorSpeed);
+						 XInputProcessor.ApplyXInputVibration(device, leftMotorSpeed, rightMotorSpeed);
 						}
 					}
 					else if (device.FFState != null)
 					{
 						// Force feedback disabled - stop vibration
-						processor.StopVibration(device);
+						XInputProcessor.StopVibration(device);
 						device.FFState = null;
 					}
 				}
