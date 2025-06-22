@@ -70,19 +70,16 @@ namespace x360ce.App.DInput
 
 			try
 			{
-				// Use the XInputProcessor for actual processing
-				var processor = new XInputProcessor();
-				
 				// Validate device compatibility
-				var validation = processor.ValidateDevice(device);
+				var validation = XInputProcessor.ValidateDevice(device);
 				if (!validation.IsValid)
 					return null;
 
 				// Read device state using XInput
-				var customState = processor.ReadState(device);
+				var customState = xInputProcessor.ReadState(device);
 
 				// Handle XInput force feedback integration with existing system
-				HandleXInputForceFeedback(device, processor);
+				HandleXInputForceFeedback(device, xInputProcessor);
 
 				return customState;
 			}
@@ -221,8 +218,7 @@ namespace x360ce.App.DInput
 			// Use XInputProcessor for detailed validation
 			try
 			{
-				var processor = new XInputProcessor();
-				return processor.ValidateDevice(device);
+				return XInputProcessor.ValidateDevice(device);
 			}
 			catch (Exception ex)
 			{

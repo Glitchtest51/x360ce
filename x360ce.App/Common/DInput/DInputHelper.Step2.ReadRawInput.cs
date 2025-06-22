@@ -66,26 +66,21 @@ namespace x360ce.App.DInput
 		{
 			if (device == null)
 				return null;
-
 			try
 			{
 				// Use the RawInputProcessor for actual processing
-				var processor = new RawInputProcessor();
-				
 				// Validate device compatibility
-				var validation = processor.ValidateDevice(device);
+				var validation = RawInputProcessor.ValidateDevice(device);
 				if (!validation.IsValid)
 					return null;
-
 				// Read device state using Raw Input
-				var customState = processor.ReadState(device);
+				var customState = rawInputProcessor.ReadState(device);
 
 				// Handle force feedback (Raw Input doesn't support output, just log)
 				if (device.FFState != null)
 				{
-					processor.HandleForceFeedback(device, device.FFState);
+					rawInputProcessor.HandleForceFeedback(device, device.FFState);
 				}
-
 				return customState;
 			}
 			catch (InputMethodException ex)
@@ -138,8 +133,7 @@ namespace x360ce.App.DInput
 			try
 			{
 				// Use RawInputProcessor for detailed validation
-				var processor = new RawInputProcessor();
-				return processor.ValidateDevice(device);
+				return RawInputProcessor.ValidateDevice(device);
 			}
 			catch (Exception ex)
 			{

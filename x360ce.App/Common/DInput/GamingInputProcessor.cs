@@ -13,7 +13,7 @@ namespace x360ce.App.DInput
 	/// rather than reimplementing the functionality. Gaming Input requires special integration
 	/// with the DInputHelper due to its UWP bridging requirements and device enumeration complexity.
 	/// </remarks>
-	public class GamingInputProcessor : IInputProcessor
+	public class GamingInputProcessor
 	{
 		/// <summary>
 		/// Gets the input method supported by this processor.
@@ -49,7 +49,7 @@ namespace x360ce.App.DInput
 		/// • Device mapping validation
 		/// • Background access limitation warnings
 		/// </remarks>
-		public ValidationResult ValidateDevice(UserDevice device)
+		public static ValidationResult ValidateDevice(UserDevice device)
 		{
 			var helper = DInputHelper.Current;
 			if (helper == null)

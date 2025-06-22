@@ -33,7 +33,7 @@ namespace x360ce.App.DInput
 	/// ✅ **Direct hardware access**
 	/// ✅ **True Raw Input implementation**
 	/// </remarks>
-	public class RawInputProcessor : IInputProcessor
+	public class RawInputProcessor
 	{
 		#region Windows Raw Input API
 
@@ -200,7 +200,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to validate</param>
 		/// <returns>ValidationResult indicating compatibility and limitations</returns>
-		public ValidationResult ValidateDevice(UserDevice device)
+		public static ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");

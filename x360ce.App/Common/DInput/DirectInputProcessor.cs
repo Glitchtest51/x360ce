@@ -31,7 +31,7 @@ namespace x360ce.App.DInput
 	/// This processor maps DirectInput JoystickState to CustomDiState preserving
 	/// the original x360ce DirectInput behavior and mapping patterns.
 	/// </remarks>
-	public class DirectInputProcessor : IInputProcessor
+	public class DirectInputProcessor
 	{
 		#region IInputProcessor Implementation
 
@@ -186,7 +186,7 @@ namespace x360ce.App.DInput
 		/// • Limited Xbox controller features (triggers, Guide button, rumble)
 		/// • General compatibility with all device types
 		/// </remarks>
-		public ValidationResult ValidateDevice(UserDevice device)
+		public static ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");

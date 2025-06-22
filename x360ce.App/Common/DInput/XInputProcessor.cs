@@ -37,7 +37,7 @@ namespace x360ce.App.DInput
 	/// • Axis[4]: Left Trigger (0 to 32767, converted from 0-255 byte range)
 	/// • Axis[5]: Right Trigger (0 to 32767, converted from 0-255 byte range)
 	/// </remarks>
-	public class XInputProcessor : IInputProcessor
+	public class XInputProcessor
 	{
 		#region Static Controller Management
 
@@ -312,7 +312,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to validate</param>
 		/// <returns>ValidationResult indicating compatibility and any limitations</returns>
-		public ValidationResult ValidateDevice(UserDevice device)
+		public static ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");

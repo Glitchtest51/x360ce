@@ -1,8 +1,6 @@
 using JocysCom.ClassLibrary.IO;
 using SharpDX;
-using SharpDX.DirectInput;
 using System;
-using System.Diagnostics;
 using System.Linq;
 using x360ce.Engine;
 using x360ce.Engine.Data;
