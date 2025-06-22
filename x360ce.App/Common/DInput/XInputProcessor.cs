@@ -152,10 +152,127 @@ namespace x360ce.App.DInput
 		/// <remarks>
 		/// XInput provides excellent vibration support for Xbox controllers.
 		/// This is much more reliable than DirectInput force feedback for Xbox controllers.
+		/// 
+		/// XInput vibration uses a simple two-motor system:
+		/// • LeftMotorSpeed: Large motor for rough, low-frequency vibration (0-65535)
+		/// • RightMotorSpeed: Small motor for precise, high-frequency vibration (0-65535)
+		/// 
+		/// This method integrates with the existing force feedback system by getting
+		/// vibration values from the ViGEm virtual controllers (same as DirectInput).
 		/// </remarks>
 		public void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState)
 		{
-			if (device == null || ffState == null)
+			// Force feedback for XInput is handled through integration with DInputHelper
+			// The actual vibration values come from the virtual Xbox controllers via ViGEm
+			// This method is called from the main UpdateDiStates coordinator
+			
+			// Note: XInput force feedback integration is handled in the main DInputHelper
+			// through the ProcessXInputDevice method which calls ApplyXInputVibration
+			Debug.WriteLine($"XInput: Force feedback processing delegated to main coordinator for {device.DisplayName}");
+		}
+
+		/// <summary>
+		/// Applies XInput vibration to the device using values from the force feedback system.
+		/// This method is called by the main DInputHelper with actual vibration values.
+		/// </summary>
+		/// <param name="device">The device to apply vibration to</param>
+		/// <param name="leftMotorSpeed">Left motor speed (0-65535)</param>
+		/// <param name="rightMotorSpeed">Right motor speed (0-65535)</param>
+		/// <returns>True if vibration was applied successfully</returns>
+		/// <remarks>
+		/// This method applies the actual XInput vibration after the main force feedback
+		/// system has processed the values from the virtual controllers.
+		/// 
+		/// Called from DInputHelper.Step2.UpdateXiStates.ProcessXInputDevice
+		/// </remarks>
+		public bool ApplyXInputVibration(UserDevice device, ushort leftMotorSpeed, ushort rightMotorSpeed)
+		{
+			if (device == null)
+				return false;
+
+			try
+			{
+				// Get the assigned XInput slot
+				if (!_deviceToSlotMapping.TryGetValue(device.InstanceGuid, out int slotIndex))
+				{
+					Debug.WriteLine($"XInput: No slot assigned for vibration on device {device.DisplayName}");
+					return false;
+				}
+
+				var controller = _xinputControllers[slotIndex];
+
+				// Create XInput Vibration structure with the provided values
+				var vibration = new Vibration
+				{
+					LeftMotorSpeed = (short)Math.Min(leftMotorSpeed, short.MaxValue),
+					RightMotorSpeed = (short)Math.Min(rightMotorSpeed, short.MaxValue)
+				};
+
+				// Apply vibration to XInput controller
+				var result = controller.SetVibration(vibration);
+
+				if (result.Success)
+				{
+					Debug.WriteLine($"XInput: Vibration applied to {device.DisplayName} - L:{leftMotorSpeed}, R:{rightMotorSpeed}");
+					return true;
+				}
+				else
+				{
+					Debug.WriteLine($"XInput: Failed to set vibration for {device.DisplayName}: {result}");
+					return false;
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"XInput vibration error for {device.DisplayName}: {ex.Message}");
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Converts force feedback motor speeds to XInput Vibration structure.
+		/// </summary>
+		/// <param name="leftMotorSpeed">Left motor speed (-32768 to 32767)</param>
+		/// <param name="rightMotorSpeed">Right motor speed (-32768 to 32767)</param>
+		/// <returns>XInput Vibration structure with converted values</returns>
+		/// <remarks>
+		/// Converts the force feedback system's 16-bit signed values to XInput's
+		/// 16-bit unsigned values (0-65535 range).
+		/// 
+		/// XInput vibration motors:
+		/// • LeftMotorSpeed: Large motor (low frequency, strong rumble)
+		/// • RightMotorSpeed: Small motor (high frequency, subtle rumble)
+		/// </remarks>
+		private Vibration ConvertToXInputVibration(short leftMotorSpeed, short rightMotorSpeed)
+		{
+			// Convert from signed 16-bit (-32768 to 32767) to unsigned 16-bit (0 to 65535)
+			// Take absolute value and scale to full unsigned range
+			// Handle edge case where Math.Abs(short.MinValue) would overflow
+			int leftAbs = leftMotorSpeed == short.MinValue ? 32768 : Math.Abs(leftMotorSpeed);
+			int rightAbs = rightMotorSpeed == short.MinValue ? 32768 : Math.Abs(rightMotorSpeed);
+			
+			// Scale to full ushort range and ensure no overflow
+			int leftScaled = Math.Min(leftAbs * 2, ushort.MaxValue);
+			int rightScaled = Math.Min(rightAbs * 2, ushort.MaxValue);
+
+			return new Vibration
+			{
+				LeftMotorSpeed = (short)Math.Min(leftScaled, short.MaxValue),
+				RightMotorSpeed = (short)Math.Min(rightScaled, short.MaxValue)
+			};
+		}
+
+		/// <summary>
+		/// Stops all vibration on the specified device.
+		/// </summary>
+		/// <param name="device">The device to stop vibration on</param>
+		/// <remarks>
+		/// This method provides a way to stop XInput vibration, similar to
+		/// ForceFeedbackState.StopDeviceForces for DirectInput devices.
+		/// </remarks>
+		public void StopVibration(UserDevice device)
+		{
+			if (device == null)
 				return;
 
 			try
@@ -163,24 +280,33 @@ namespace x360ce.App.DInput
 				// Get the assigned XInput slot
 				if (!_deviceToSlotMapping.TryGetValue(device.InstanceGuid, out int slotIndex))
 				{
-					Debug.WriteLine($"XInput: No slot assigned for force feedback on device {device.DisplayName}");
+					Debug.WriteLine($"XInput: No slot assigned for stopping vibration on device {device.DisplayName}");
 					return;
 				}
 
 				var controller = _xinputControllers[slotIndex];
-				
-				// XInput vibration uses Vibration structure with left/right motor speeds
-				// This should integrate with the existing force feedback system
-				// For now, we'll log that force feedback is available
-				Debug.WriteLine($"XInput: Force feedback available for {device.DisplayName} in slot {slotIndex}");
-				
-				// TODO: Integrate with existing ForceFeedbackState.SetDeviceForces logic
-				// This would involve converting the ffState to XInput Vibration structure
+
+				// Stop vibration by setting both motors to 0
+				var vibration = new Vibration
+				{
+					LeftMotorSpeed = 0,
+					RightMotorSpeed = 0
+				};
+
+				var result = controller.SetVibration(vibration);
+
+				if (result.Success)
+				{
+					Debug.WriteLine($"XInput: Vibration stopped for {device.DisplayName}");
+				}
+				else
+				{
+					Debug.WriteLine($"XInput: Failed to stop vibration for {device.DisplayName}: {result}");
+				}
 			}
 			catch (Exception ex)
 			{
-				// Log force feedback errors but don't throw - force feedback is optional
-				Debug.WriteLine($"XInput force feedback error for {device.DisplayName}: {ex.Message}");
+				Debug.WriteLine($"XInput stop vibration error for {device.DisplayName}: {ex.Message}");
 			}
 		}
 

@@ -91,11 +91,8 @@ namespace x360ce.App.DInput
 				// Read device state using XInput
 				var customState = processor.ReadState(device);
 
-				// Handle force feedback if the device supports it
-				if (device.FFState != null)
-				{
-					processor.HandleForceFeedback(device, device.FFState);
-				}
+				// Handle XInput force feedback integration with existing system
+				HandleXInputForceFeedback(device, processor);
 
 				return customState;
 			}
@@ -116,6 +113,87 @@ namespace x360ce.App.DInput
 				Debug.WriteLine($"Unexpected XInput error for {device.DisplayName}: {ex.Message}");
 				return null;
 			}
+		}
+
+		/// <summary>
+		/// Handles XInput force feedback integration with the existing force feedback system.
+		/// </summary>
+		/// <param name="device">The Xbox device to handle force feedback for</param>
+		/// <param name="processor">The XInput processor instance</param>
+		/// <remarks>
+		/// This method integrates XInput vibration with the existing force feedback system:
+		/// 1. Gets force feedback values from ViGEm virtual controllers (same as DirectInput)
+		/// 2. Converts ViGEm values to XInput vibration format
+		/// 3. Applies vibration to the physical Xbox controller via XInput
+		/// 
+		/// This maintains compatibility with existing force feedback configuration while
+		/// providing the reliability advantages of XInput vibration for Xbox controllers.
+		/// </remarks>
+		private void HandleXInputForceFeedback(UserDevice device, XInputProcessor processor)
+		{
+			try
+			{
+				// Get setting related to user device (same logic as DirectInput)
+				var setting = SettingsManager.UserSettings.ItemsToArraySynchronized()
+					.FirstOrDefault(x => x.InstanceGuid == device.InstanceGuid);
+				
+				if (setting != null && setting.MapTo > (int)MapTo.None)
+				{
+					// Get pad setting attached to device
+					var ps = SettingsManager.GetPadSetting(setting.PadSettingChecksum);
+					if (ps != null && ps.ForceEnable == "1")
+					{
+						// Initialize force feedback state if needed
+						device.FFState = device.FFState ?? new Engine.ForceFeedbackState();
+						
+						// Get force feedback from virtual controllers (same source as DirectInput)
+						var feedbacks = CopyAndClearFeedbacks();
+						var force = feedbacks[setting.MapTo - 1];
+						
+						if (force != null || device.FFState.Changed(ps))
+						{
+							// Convert ViGEm feedback values to XInput vibration format
+							// Use same conversion logic as existing DirectInput code
+							var leftMotorSpeed = (force == null) ? (ushort)0 : ConvertByteToUshort(force.LargeMotor);
+							var rightMotorSpeed = (force == null) ? (ushort)0 : ConvertByteToUshort(force.SmallMotor);
+							
+							// Apply XInput vibration
+							var success = processor.ApplyXInputVibration(device, leftMotorSpeed, rightMotorSpeed);
+							
+							if (success)
+							{
+								Debug.WriteLine($"XInput: Applied vibration to {device.DisplayName} - L:{leftMotorSpeed}, R:{rightMotorSpeed}");
+							}
+							else
+							{
+								Debug.WriteLine($"XInput: Failed to apply vibration to {device.DisplayName}");
+							}
+						}
+					}
+					else if (device.FFState != null)
+					{
+						// Force feedback disabled - stop vibration
+						processor.StopVibration(device);
+						device.FFState = null;
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"XInput force feedback integration error for {device.DisplayName}: {ex.Message}");
+				// Force feedback errors are not critical - continue processing
+			}
+		}
+
+		/// <summary>
+		/// Converts ViGEm byte motor speed (0-255) to XInput ushort motor speed (0-65535).
+		/// </summary>
+		/// <param name="byteValue">Motor speed from ViGEm (0-255)</param>
+		/// <returns>Motor speed for XInput (0-65535)</returns>
+		private ushort ConvertByteToUshort(byte byteValue)
+		{
+			// Convert 0-255 range to 0-65535 range
+			return (ushort)(byteValue * 257); // 257 = 65535 / 255 (rounded)
 		}
 
 		/// <summary>
