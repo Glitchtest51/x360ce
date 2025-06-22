@@ -14,56 +14,8 @@ namespace x360ce.App.DInput
 {
 	public partial class DInputHelper
 	{
-		#region Input Processor Management
-
-		/// <summary>
-		/// Registry of available input processors.
-		/// </summary>
-		private static readonly Dictionary<InputMethod, IInputProcessor> _processors = new Dictionary<InputMethod, IInputProcessor>
-		{
-			{ InputMethod.DirectInput, new DirectInputProcessor() },
-			{ InputMethod.XInput, new XInputProcessor() },
-			// Gaming Input and Raw Input processors will be added when implemented
-		};
-
-		/// <summary>
-		/// Gets the appropriate input processor for the specified device.
-		/// </summary>
-		/// <param name="device">The device to get a processor for</param>
-		/// <returns>The input processor for the device's selected input method</returns>
-		/// <exception cref="NotSupportedException">Thrown when the input method is not supported</exception>
-		private IInputProcessor GetInputProcessor(UserDevice device)
-		{
-			var inputMethod = device.InputMethod;
-			
-			if (_processors.TryGetValue(inputMethod, out var processor))
-				return processor;
-				
-			throw new NotSupportedException($"Input method {inputMethod} is not yet implemented");
-		}
-
-		/// <summary>
-		/// Validates that a device can be processed with its selected input method.
-		/// </summary>
-		/// <param name="device">The device to validate</param>
-		/// <returns>ValidationResult indicating compatibility</returns>
-		public ValidationResult ValidateDeviceInputMethod(UserDevice device)
-		{
-			if (device == null)
-				return ValidationResult.Error("Device is null");
-
-			try
-			{
-				var processor = GetInputProcessor(device);
-				return processor.ValidateDevice(device);
-			}
-			catch (NotSupportedException ex)
-			{
-				return ValidationResult.Error(ex.Message);
-			}
-		}
-
-		#endregion
+		// Input Processor Registry moved to DInputHelper.Step2.InputProcessor.cs
+		// XInput processing moved to DInputHelper.Step2.UpdateXiStates.cs
 
 		#region Fields
 
@@ -127,7 +79,12 @@ namespace x360ce.App.DInput
 					{
 						newState = ProcessDirectInputDevice(device, detector, out newUpdates);
 					}
-					// Handle non-DirectInput devices using processors
+					// Handle XInput devices using separated XInput method
+					else if (device.InputMethod == InputMethod.XInput)
+					{
+						newState = ProcessXInputDevice(device);
+					}
+					// Handle other non-DirectInput devices using processors
 					else if (device.InputMethod != InputMethod.DirectInput)
 					{
 						// Use the appropriate input processor based on device's selected input method
