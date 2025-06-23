@@ -57,6 +57,41 @@ namespace x360ce.App.DInput
 		private static Dictionary<Guid, int> _deviceToSlotMapping = new Dictionary<Guid, int>();
 
 		/// <summary>
+		/// Tracks the last applied vibration values for each device to prevent redundant calls.
+		/// Key: Device GUID, Value: Tuple of (LeftMotorSpeed, RightMotorSpeed)
+		/// </summary>
+		private static Dictionary<Guid, (ushort Left, ushort Right)> _lastVibrationValues = new Dictionary<Guid, (ushort, ushort)>();
+
+		/// <summary>
+		/// Tracks the previous button states for each device to detect changes.
+		/// Key: Device GUID, Value: Array of 15 boolean values for buttons
+		/// </summary>
+		private static Dictionary<Guid, bool[]> _previousButtonStates = new Dictionary<Guid, bool[]>();
+
+		/// <summary>
+		/// Tracks the previous axis values for each device to detect significant changes.
+		/// Key: Device GUID, Value: Array of 6 integer values for axes
+		/// </summary>
+		private static Dictionary<Guid, int[]> _previousAxisValues = new Dictionary<Guid, int[]>();
+
+		/// <summary>
+		/// Tracks the last PacketNumber for each device to detect if controller is responding.
+		/// Key: Device GUID, Value: Last PacketNumber from XInput
+		/// </summary>
+		private static Dictionary<Guid, uint> _lastPacketNumbers = new Dictionary<Guid, uint>();
+
+		/// <summary>
+		/// Tracks when each device was first assigned to give controllers time to respond before flagging as unresponsive.
+		/// Key: Device GUID, Value: Environment.TickCount when controller was first assigned
+		/// </summary>
+		private static Dictionary<Guid, int> _controllerStartTimes = new Dictionary<Guid, int>();
+
+		/// <summary>
+		/// Minimum axis change threshold (10% of axis range) to prevent debug flooding.
+		/// </summary>
+		private const int AxisChangeThreshold = 3277; // 10% of 32767
+
+		/// <summary>
 		/// Initialize static XInput controllers.
 		/// </summary>
 		static XInputProcessor()
@@ -126,16 +161,40 @@ namespace x360ce.App.DInput
 				// Read XInput state
 				State xinputState;
 				bool isConnected = controller.GetState(out xinputState);
-
+				
 				if (!isConnected)
 				{
-					// Controller disconnected - remove from slot mapping
+					Debug.WriteLine($"XInput: Controller disconnected - removing {device.DisplayName} from slot mapping");
 					_deviceToSlotMapping.Remove(device.InstanceGuid);
 					return null;
 				}
 
+				// DIAGNOSTIC: Track PacketNumber changes to detect if controller is responding
+				if (!_lastPacketNumbers.ContainsKey(device.InstanceGuid))
+				{
+					_lastPacketNumbers[device.InstanceGuid] = (uint)xinputState.PacketNumber;
+					Debug.WriteLine($"XInput: Initial PacketNumber for {device.DisplayName}: {xinputState.PacketNumber}");
+				}
+				else
+				{
+					var lastPacket = _lastPacketNumbers[device.InstanceGuid];
+					if ((uint)xinputState.PacketNumber != lastPacket)
+					{
+						Debug.WriteLine($"XInput: PacketNumber changed for {device.DisplayName}: {lastPacket} → {xinputState.PacketNumber}");
+						_lastPacketNumbers[device.InstanceGuid] = (uint)xinputState.PacketNumber;
+					}
+					else
+					{
+						// Generic detection of unresponsive XInput implementations
+						DetectUnresponsiveXInputController(device, xinputState.PacketNumber);
+					}
+				}
+
 				// Convert XInput Gamepad to CustomDiState
-				var customState = ConvertGamepadToCustomDiState(xinputState.Gamepad);
+				var customState = ConvertGamepadToCustomDiState(xinputState.Gamepad, device);
+
+				// Log input changes for debugging
+				LogInputChanges(device, customState);
 
 				// Store the XInput state for potential use by other parts of the system
 				device.DeviceState = xinputState.Gamepad;
@@ -145,6 +204,7 @@ namespace x360ce.App.DInput
 			catch (Exception ex)
 			{
 				var message = $"XInput read error: {ex.Message}\nDevice: {device.DisplayName}\nSlot: {GetAssignedSlot(device)}";
+				Debug.WriteLine($"XInput: Exception in ReadState - {message}");
 				throw new InputMethodException(InputMethod.XInput, device, message, ex);
 			}
 		}
@@ -179,6 +239,7 @@ namespace x360ce.App.DInput
 		/// <summary>
 		/// Applies XInput vibration to the device using values from the force feedback system.
 		/// This method is called by the main DInputHelper with actual vibration values.
+		/// Only applies vibration and logs debug messages when values actually change.
 		/// </summary>
 		/// <param name="device">The device to apply vibration to</param>
 		/// <param name="leftMotorSpeed">Left motor speed (0-65535)</param>
@@ -187,6 +248,11 @@ namespace x360ce.App.DInput
 		/// <remarks>
 		/// This method applies the actual XInput vibration after the main force feedback
 		/// system has processed the values from the virtual controllers.
+		/// 
+		/// Change detection prevents:
+		/// • Redundant XInput API calls when values haven't changed
+		/// • Debug message flooding in Visual Studio Output window
+		/// • Unnecessary processing overhead
 		/// 
 		/// Called from DInputHelper.Step2.UpdateXiStates.ProcessXInputDevice
 		/// </remarks>
@@ -204,6 +270,17 @@ namespace x360ce.App.DInput
 					return false;
 				}
 
+				// Check if vibration values have changed since last application
+				var currentValues = (leftMotorSpeed, rightMotorSpeed);
+				if (_lastVibrationValues.TryGetValue(device.InstanceGuid, out var lastValues))
+				{
+					// If values haven't changed, skip XInput call and debug logging
+					if (lastValues.Left == leftMotorSpeed && lastValues.Right == rightMotorSpeed)
+					{
+						return true; // Return success since vibration is already at desired values
+					}
+				}
+
 				var controller = _xinputControllers[slotIndex];
 
 				// Create XInput Vibration structure with the provided values
@@ -218,6 +295,10 @@ namespace x360ce.App.DInput
 
 				if (result.Success)
 				{
+					// Store the new vibration values to prevent redundant calls
+					_lastVibrationValues[device.InstanceGuid] = currentValues;
+					
+					// Only log when values actually change
 					Debug.WriteLine($"XInput: Vibration applied to {device.DisplayName} - L:{leftMotorSpeed}, R:{rightMotorSpeed}");
 					return true;
 				}
@@ -235,37 +316,16 @@ namespace x360ce.App.DInput
 		}
 
 		/// <summary>
-		/// Converts force feedback motor speeds to XInput Vibration structure.
-		/// </summary>
-		/// <param name="leftMotorSpeed">Left motor speed (-32768 to 32767)</param>
-		/// <param name="rightMotorSpeed">Right motor speed (-32768 to 32767)</param>
-		/// <returns>XInput Vibration structure with converted values</returns>
-		/// <remarks>
-		/// Converts the force feedback system's 16-bit signed values to XInput's
-		/// 16-bit unsigned values (0-65535 range).
-		/// 
-		/// XInput vibration motors:
-		/// • LeftMotorSpeed: Large motor (low frequency, strong rumble)
-		/// • RightMotorSpeed: Small motor (high frequency, subtle rumble)
-		/// </remarks>
-		private Vibration ConvertToXInputVibration(short leftMotorSpeed, short rightMotorSpeed)
-		{
-			// Convert from signed 16-bit (-32768 to 32767) to unsigned 16-bit (0 to 65535)
-			// Use ConvertHelper for safe conversion with overflow protection
-			return new Vibration
-			{
-				LeftMotorSpeed = ConvertHelper.ConvertMotorSpeedScaled(leftMotorSpeed),
-				RightMotorSpeed = ConvertHelper.ConvertMotorSpeedScaled(rightMotorSpeed)
-			};
-		}
-
-		/// <summary>
 		/// Stops all vibration on the specified device.
+		/// Uses change detection to prevent redundant calls.
 		/// </summary>
 		/// <param name="device">The device to stop vibration on</param>
 		/// <remarks>
 		/// This method provides a way to stop XInput vibration, similar to
 		/// ForceFeedbackState.StopDeviceForces for DirectInput devices.
+		/// 
+		/// Uses the same change detection mechanism as ApplyXInputVibration
+		/// to prevent redundant XInput API calls and debug message flooding.
 		/// </remarks>
 		public static void StopVibration(UserDevice device)
 		{
@@ -281,6 +341,15 @@ namespace x360ce.App.DInput
 					return;
 				}
 
+				// Check if vibration is already stopped (0,0) to prevent redundant calls
+				if (_lastVibrationValues.TryGetValue(device.InstanceGuid, out var lastValues))
+				{
+					if (lastValues.Left == 0 && lastValues.Right == 0)
+					{
+						return; // Vibration is already stopped
+					}
+				}
+
 				var controller = _xinputControllers[slotIndex];
 
 				// Stop vibration by setting both motors to 0
@@ -294,6 +363,10 @@ namespace x360ce.App.DInput
 
 				if (result.Success)
 				{
+					// Update stored vibration values to (0,0)
+					_lastVibrationValues[device.InstanceGuid] = (0, 0);
+					
+					// Only log when actually stopping vibration
 					Debug.WriteLine($"XInput: Vibration stopped for {device.DisplayName}");
 				}
 				else
@@ -371,7 +444,10 @@ namespace x360ce.App.DInput
 			int newSlot = availableSlots.First();
 			_deviceToSlotMapping[device.InstanceGuid] = newSlot;
 
-			Debug.WriteLine($"XInput: Assigned device {device.DisplayName} to slot {newSlot + 1}");
+			// Record when this controller was first assigned for grace period tracking
+			_controllerStartTimes[device.InstanceGuid] = Environment.TickCount;
+
+			Debug.WriteLine($"XInput: Assigned device {device.DisplayName} to slot {newSlot} (display as {newSlot + 1}/4)");
 			return newSlot;
 		}
 
@@ -390,6 +466,7 @@ namespace x360ce.App.DInput
 		/// CRITICAL: Must match DirectInput's mapping pattern for Xbox controllers.
 		/// </summary>
 		/// <param name="gamepad">The XInput Gamepad state</param>
+		/// <param name="device">The device for debug logging (optional)</param>
 		/// <returns>CustomDiState with mapped values matching DirectInput pattern</returns>
 		/// <remarks>
 		/// This mapping MUST match how DirectInput would map the same Xbox controller
@@ -405,7 +482,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// For XInput, we map to the most common DirectInput pattern for Xbox controllers.
 		/// </remarks>
-		private static CustomDiState ConvertGamepadToCustomDiState(Gamepad gamepad)
+		private static CustomDiState ConvertGamepadToCustomDiState(Gamepad gamepad, UserDevice device = null)
 		{
 			var customState = new CustomDiState();
 
@@ -461,6 +538,87 @@ namespace x360ce.App.DInput
 		}
 
 		/// <summary>
+		/// Logs XInput button and axis changes for debugging.
+		/// Only logs when values actually change to prevent debug output flooding.
+		/// </summary>
+		/// <param name="device">The device to track changes for</param>
+		/// <param name="customState">The current CustomDiState to check for changes</param>
+		private static void LogInputChanges(UserDevice device, CustomDiState customState)
+		{
+			if (device?.InstanceGuid == null || customState == null)
+				return;
+
+			var deviceGuid = device.InstanceGuid;
+
+			// Initialize tracking arrays if this is the first time we see this device
+			if (!_previousButtonStates.ContainsKey(deviceGuid))
+			{
+				_previousButtonStates[deviceGuid] = new bool[15];
+				_previousAxisValues[deviceGuid] = new int[6];
+				
+				// CRITICAL FIX: Initialize previous axis values to current values to prevent false change detection
+				// This prevents logging of "changes" from initialized zero values to actual controller state
+				for (int i = 0; i < 6; i++)
+				{
+					_previousAxisValues[deviceGuid][i] = customState.Axis[i];
+				}
+				
+				// Count actual controller capabilities
+				int buttonCount = GetControllerButtonCount(device, customState);
+				int axisCount = GetControllerAxisCount(device, customState);
+				
+				Debug.WriteLine($"XInput: Started tracking input changes for {device.DisplayName} - Buttons: {buttonCount}, Axes: {axisCount} - Initial axis values: [{customState.Axis[0]}, {customState.Axis[1]}, {customState.Axis[2]}, {customState.Axis[3]}, {customState.Axis[4]}, {customState.Axis[5]}]");
+				return; // Skip logging changes on first initialization
+			}
+
+			var prevButtons = _previousButtonStates[deviceGuid];
+			var prevAxes = _previousAxisValues[deviceGuid];
+
+			// Check for button changes
+			string[] buttonNames = { "A", "B", "X", "Y", "LB", "RB", "Back", "Start", "LS", "RS", "D-Up", "D-Right", "D-Down", "D-Left", "Guide" };
+			
+			for (int i = 0; i < 15; i++)
+			{
+				bool currentState = customState.Buttons[i];
+				if (currentState != prevButtons[i])
+				{
+					string action = currentState ? "pressed" : "released";
+					Debug.WriteLine($"XInput: Button {buttonNames[i]} {action} on {device.DisplayName}");
+					prevButtons[i] = currentState;
+				}
+			}
+
+			// Check for axis changes (only log significant changes)
+			string[] axisNames = { "Left Stick X", "Left Stick Y", "Right Stick X", "Right Stick Y", "Left Trigger", "Right Trigger" };
+			
+			for (int i = 0; i < 6; i++)
+			{
+				int currentValue = customState.Axis[i];
+				int previousValue = prevAxes[i];
+				int delta = Math.Abs(currentValue - previousValue);
+				
+				// Only log if change is significant (≥10% of axis range)
+				if (delta >= AxisChangeThreshold)
+				{
+					// Additional validation: Check if we're getting extreme oscillations (likely data corruption)
+					bool isExtremeOscillation = (Math.Abs(currentValue) >= 32000 && Math.Abs(previousValue) <= 1000) ||
+												(Math.Abs(currentValue) <= 1000 && Math.Abs(previousValue) >= 32000);
+					
+					if (isExtremeOscillation)
+					{
+						Debug.WriteLine($"XInput: WARNING - Extreme axis oscillation detected on {axisNames[i]} for {device.DisplayName}: {previousValue} → {currentValue} (possible data corruption or device issue)");
+					}
+					else
+					{
+						Debug.WriteLine($"XInput: Axis {axisNames[i]} changed to {currentValue} on {device.DisplayName} (delta: {currentValue - previousValue})");
+					}
+					
+					prevAxes[i] = currentValue;
+				}
+			}
+		}
+
+		/// <summary>
 		/// Gets the current number of assigned XInput controllers.
 		/// </summary>
 		/// <returns>Number of currently assigned controllers (0-4)</returns>
@@ -480,6 +638,7 @@ namespace x360ce.App.DInput
 
 		/// <summary>
 		/// Releases the XInput slot for a specific device.
+		/// Also clears vibration tracking and input change tracking for the device.
 		/// </summary>
 		/// <param name="deviceGuid">The device GUID to release</param>
 		/// <returns>True if a slot was released, false if device wasn't assigned</returns>
@@ -487,6 +646,19 @@ namespace x360ce.App.DInput
 		{
 			if (_deviceToSlotMapping.Remove(deviceGuid))
 			{
+				// Also remove vibration tracking for this device
+				_lastVibrationValues.Remove(deviceGuid);
+				
+				// Remove input change tracking for this device
+				_previousButtonStates.Remove(deviceGuid);
+				_previousAxisValues.Remove(deviceGuid);
+				
+				// Remove PacketNumber tracking for this device
+				_lastPacketNumbers.Remove(deviceGuid);
+				
+				// Remove start time tracking for this device
+				_controllerStartTimes.Remove(deviceGuid);
+				
 				Debug.WriteLine($"XInput: Released slot for device {deviceGuid}");
 				return true;
 			}
@@ -495,10 +667,17 @@ namespace x360ce.App.DInput
 
 		/// <summary>
 		/// Clears all XInput slot assignments.
+		/// Also clears all vibration tracking and input change tracking.
 		/// </summary>
 		public static void ClearAllSlots()
 		{
 			_deviceToSlotMapping.Clear();
+			_lastVibrationValues.Clear();
+			_previousButtonStates.Clear();
+			_previousAxisValues.Clear();
+			_lastPacketNumbers.Clear();
+			_controllerStartTimes.Clear();
+			
 			Debug.WriteLine("XInput: Cleared all slot assignments");
 		}
 
@@ -576,6 +755,113 @@ namespace x360ce.App.DInput
 			};
 
 			return buttonIndex < buttonNames.Length ? buttonNames[buttonIndex] : $"Button {buttonIndex}";
+		}
+
+		/// <summary>
+		/// Detects controllers with unresponsive XInput implementations.
+		/// Provides generic detection for any controller with stuck PacketNumber.
+		/// Includes grace period to prevent false positives for controllers that need time to respond.
+		/// </summary>
+		/// <param name="device">The device to check for unresponsive behavior</param>
+		/// <param name="currentPacketNumber">The current PacketNumber from XInput</param>
+		private static void DetectUnresponsiveXInputController(UserDevice device, int currentPacketNumber)
+		{
+			var deviceGuid = device.InstanceGuid;
+			var now = Environment.TickCount;
+			
+			// Grace period: Don't warn immediately after controller assignment
+			// Give controllers 10 seconds to respond before flagging as unresponsive
+			if (_controllerStartTimes.TryGetValue(deviceGuid, out int startTime))
+			{
+				var timeSinceAssignment = now - startTime;
+				if (timeSinceAssignment < 10000) // 10 seconds grace period
+				{
+					return; // Still within grace period, don't warn yet
+				}
+			}
+			
+			// Track when we last warned about unresponsive behavior to prevent spam
+			if (!_lastUnresponsiveWarnings.ContainsKey(deviceGuid))
+			{
+				_lastUnresponsiveWarnings[deviceGuid] = 0;
+			}
+			
+			var lastWarning = _lastUnresponsiveWarnings[deviceGuid];
+			
+			// Only warn every 30 seconds to avoid debug spam
+			if (now - lastWarning >= 30000)
+			{
+				_lastUnresponsiveWarnings[deviceGuid] = now;
+				
+				Debug.WriteLine($"XInput: {device.DisplayName} has unresponsive XInput implementation - PacketNumber stuck at {currentPacketNumber}");
+				Debug.WriteLine($"XInput: Controller appears connected but PacketNumber never changes, indicating broken XInput support");
+				Debug.WriteLine($"XInput: Recommendation: Switch to DirectInput for this controller model");
+			}
+		}
+
+		/// <summary>
+		/// Tracks when we last warned about unresponsive controllers to prevent debug spam.
+		/// </summary>
+		private static Dictionary<Guid, int> _lastUnresponsiveWarnings = new Dictionary<Guid, int>();
+
+		/// <summary>
+		/// Gets the number of buttons available on the controller.
+		/// For XInput controllers, this returns the standard XInput button count.
+		/// </summary>
+		/// <param name="device">The device to count buttons for</param>
+		/// <param name="customState">The current state (used to validate button functionality)</param>
+		/// <returns>Number of available buttons</returns>
+		private static int GetControllerButtonCount(UserDevice device, CustomDiState customState)
+		{
+			// XInput has a standard set of 15 buttons: A, B, X, Y, LB, RB, Back, Start, LS, RS, DPad (4), Guide
+			int standardXInputButtons = 15;
+			
+			// If device has DeviceObjects, count them for verification (simple length check)
+			if (device.DeviceObjects != null && device.DeviceObjects.Length > 0)
+			{
+				// Count DeviceObjects that might be buttons (simple approach)
+				int deviceObjectCount = device.DeviceObjects.Length;
+				Debug.WriteLine($"XInput: Device reports {deviceObjectCount} total objects via DeviceObjects");
+				
+				// For XInput, we expect at least 21 objects (15 buttons + 6 axes), but return standard count
+				return standardXInputButtons;
+			}
+			
+			// For XInput controllers, return standard button count
+			return standardXInputButtons;
+		}
+
+		/// <summary>
+		/// Gets the number of axes available on the controller.
+		/// For XInput controllers, this returns the standard XInput axis count.
+		/// </summary>
+		/// <param name="device">The device to count axes for</param>
+		/// <param name="customState">The current state (used to validate axis functionality)</param>
+		/// <returns>Number of available axes</returns>
+		private static int GetControllerAxisCount(UserDevice device, CustomDiState customState)
+		{
+			// XInput has a standard set of 6 axes: Left Stick X/Y, Right Stick X/Y, Left/Right Triggers
+			int standardXInputAxes = 6;
+			
+			// Check DiAxeMask if available (most reliable method)
+			if (device.DiAxeMask != 0)
+			{
+				int maskAxisCount = 0;
+				for (int i = 0; i < 32; i++) // Check first 32 possible axes
+				{
+					if ((device.DiAxeMask & (1 << i)) != 0)
+						maskAxisCount++;
+				}
+				
+				if (maskAxisCount > 0)
+				{
+					Debug.WriteLine($"XInput: Device reports {maskAxisCount} axes via DiAxeMask");
+					return Math.Max(standardXInputAxes, maskAxisCount);
+				}
+			}
+			
+			// For XInput controllers, return standard axis count
+			return standardXInputAxes;
 		}
 
 		#endregion

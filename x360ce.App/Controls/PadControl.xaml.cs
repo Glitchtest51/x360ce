@@ -124,6 +124,7 @@ namespace x360ce.App.Controls
 				var udNotNull = ud != null;
 				var instanceGuid = udNotNull ? ud.InstanceGuid : Guid.Empty;
 				var isOnline = udNotNull ? ud.IsOnline : false;
+				var currentInputMethod = udNotNull ? ud.InputMethod : InputMethod.DirectInput;
 
 				ControlsHelper.SetEnabled(PadFootPanel.RemapAllButton, udNotNull && ud.DiState != null);
 				PadItemPanel.SetEnabled(udNotNull);
@@ -133,6 +134,7 @@ namespace x360ce.App.Controls
 					//if (instanceGuid != Guid.Empty && ud?.DeviceState != null)
 					//{
 					_InstanceGuid = instanceGuid;
+					_lastInputMethod = currentInputMethod; // Update tracking when device changes
 					GeneralPanel.ResetDiMenuStrip(udNotNull && ud.IsOnline ? ud : null);
 					//}
 				}
@@ -140,6 +142,13 @@ namespace x360ce.App.Controls
 				if (!Equals(_isOnline, isOnline))
 				{
 					_isOnline = isOnline;
+					GeneralPanel.ResetDiMenuStrip(udNotNull && ud.IsOnline ? ud : null);
+				}
+
+				// Check for InputMethod changes
+				if (!Equals(_lastInputMethod, currentInputMethod))
+				{
+					_lastInputMethod = currentInputMethod;
 					GeneralPanel.ResetDiMenuStrip(udNotNull && ud.IsOnline ? ud : null);
 				}
 				// Update direct input form and return actions (pressed Buttons/DPads, turned Axis/Sliders).
@@ -470,6 +479,7 @@ namespace x360ce.App.Controls
 
 		//XINPUT_GAMEPAD GamePad;
 		Guid _InstanceGuid;
+		InputMethod _lastInputMethod = InputMethod.DirectInput;
 
 		///// <summary>
 		///// Get PadSetting from currently selected device.
