@@ -75,10 +75,7 @@ namespace x360ce.App
 		{
 			var items = new List<DeviceObjectItem>();
 			if (device == null)
-			{
-				ud.DeviceObjects = items.ToArray();
 				return items.ToArray();
-			}
 
 			// UserDevice force feedback actuators.
 			ud.DiAxeMask = 0;
@@ -148,7 +145,6 @@ namespace x360ce.App
 			//{
 			//	buttons[i].DiIndex = i;
 			//}
-			ud.DeviceObjects = items.ToArray();
 			return items.ToArray();
 		}
 

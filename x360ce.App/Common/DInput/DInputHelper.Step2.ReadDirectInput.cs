@@ -112,19 +112,19 @@ namespace x360ce.App.DInput
 			// Fill device objects force feedback actuator masks.
 			if (device.DeviceObjects == null)
 			{
-				// var item = AppHelper.GetDeviceObjects(device, device.Device);
-				// device.DeviceObjects = item;
+				var deviceObjects = AppHelper.GetDeviceObjects(device, device.Device);
+				device.DeviceObjects = deviceObjects;
 				//// Update masks.
 				//int axisMask = 0;
 				//int actuatorMask = 0;
 				//int actuatorCount = 0;
 				//if (device.Device is Mouse mDevice2)
 				//{
-				//	CustomDiState.GetMouseAxisMask(item, mDevice2, out axisMask);
+				//	CustomDiState.GetMouseAxisMask(deviceObjects, mDevice2, out axisMask);
 				//}
 				//else if (device.Device is Joystick jDevice)
 				//{
-				//	CustomDiState.GetJoystickAxisMask(item, jDevice, out axisMask, out actuatorMask, out actuatorCount);
+				//	CustomDiState.GetJoystickAxisMask(deviceObjects, jDevice, out axisMask, out actuatorMask, out actuatorCount);
 				//}
 				//device.DiAxeMask = axisMask;
 				//// Contains information about which axis have force feedback actuator attached.
