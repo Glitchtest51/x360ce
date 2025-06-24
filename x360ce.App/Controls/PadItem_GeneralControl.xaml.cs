@@ -612,12 +612,13 @@ namespace x360ce.App.Controls
 			}
 
 			// Stick axes.
-			const int DragAndDropAxisDeadzone = 8000;
+			if (ud == null || ud.InputMethod == null) return;
+            const int DragAndDropAxisDeadzone = 8000;
 			foreach (var kvp in AxisDictionary)
 			{
 				int aDS = ud.DiState.Axis[kvp.Key];
-				bool active = aDS < 32767 - DragAndDropAxisDeadzone || aDS > 32767 + DragAndDropAxisDeadzone;
-				AxisDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
+				bool active = (ud.InputMethod == x360ce.Engine.InputMethod.XInput) ? aDS > DragAndDropAxisDeadzone : aDS < 32767 - DragAndDropAxisDeadzone || aDS > 32767 + DragAndDropAxisDeadzone;
+                AxisDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
 				HAxisDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
 
 				AxisDictionary[kvp.Key].Item2.Content = aDS;
@@ -633,7 +634,7 @@ namespace x360ce.App.Controls
 			}
 
 			// Slider axes.
-			const int DragAndDropSliderDeadzone = 16000;
+			const int DragAndDropSliderDeadzone = 8000;
 			foreach (var kvp in SliderDictionary)
 			{
 				int sDS = ud.DiState.Sliders[kvp.Key];

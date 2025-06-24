@@ -162,7 +162,11 @@
 								<engine:InputMethod>RawInput</engine:InputMethod>
 							</ComboBox>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal">
+                                <Label Content="Available"/>
+                                <Label Name="AvailableInputs" Opacity="0.5" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal">
                                 <Label Content="Vendor"/>
                                 <Label Name="VendorName" Opacity="0.5" />
 						</StackPanel>

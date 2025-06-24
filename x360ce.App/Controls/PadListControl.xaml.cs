@@ -10,6 +10,7 @@ using System.Windows.Media;
 using x360ce.App.Converters;
 using x360ce.Engine;
 using x360ce.Engine.Data;
+using x360ce.Engine.Common;
 
 namespace x360ce.App.Controls
 {
@@ -485,6 +486,24 @@ namespace x360ce.App.Controls
 					InputMethodComboBox.SelectedItem = InputMethod.DirectInput; // Default fallback
 				}
 
+				// Update Available Inputs using InputMethodDetector
+				if (ud != null)
+				{
+					var availableInputs = InputMethodDetector.GetAvailableInputMethodsText(ud);
+					AvailableInputs.Content = availableInputs;
+					
+					// Add detailed tooltip with capabilities and recommendations
+					var detailedInfo = InputMethodDetector.GetDetailedCapabilitiesText(ud);
+					var recommendations = InputMethodDetector.GetInputMethodRecommendations(ud);
+					var fullTooltip = $"{detailedInfo}\n\nRecommendations:\n{recommendations}";
+					AvailableInputs.ToolTip = fullTooltip;
+				}
+				else
+				{
+					AvailableInputs.Content = "Unknown";
+					AvailableInputs.ToolTip = "Device information not available";
+				}
+
 				var imageSource = ConnectionClassToImageConverter.Convert(selected.InstanceGuid);
 				ConnectionClassImage.Source = imageSource;
 				ConnectionClassImage.ToolTip = imageSource.ToString();
@@ -501,6 +520,8 @@ namespace x360ce.App.Controls
 				ConnectionClassImage.Source = null;
 				Completion.Content = "";
 				InputMethodComboBox.SelectedItem = null;
+				AvailableInputs.Content = "";
+				AvailableInputs.ToolTip = null;
 			}
 		}
 
