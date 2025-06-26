@@ -76,7 +76,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// The method maintains backward compatibility with existing configurations.
 		/// </remarks>
-		public CustomDiState ReadState(UserDevice device)
+		public CustomDeviceState ReadState(UserDevice device)
 		{
 			if (device == null)
 				throw new InputMethodException(InputMethod.DirectInput, device, "Device is null");
@@ -91,7 +91,7 @@ namespace x360ce.App.DInput
 				// If the device does not require polling, calling this method has no effect.
 				device.Device.Poll();
 
-				CustomDiState newState = null;
+				CustomDeviceState newState = null;
 
 				// Use switch based on pattern matching for supported device types.
 				switch (device.Device)
@@ -99,21 +99,21 @@ namespace x360ce.App.DInput
 					case Mouse mDevice:
 						{
 							var state = mDevice.GetCurrentState();
-							newState = new CustomDiState(state);
+							newState = new CustomDeviceState(state);
 							device.DeviceState = state;
 						}
 						break;
 					case Keyboard kDevice:
 						{
 							var state = kDevice.GetCurrentState();
-							newState = new CustomDiState(state);
+							newState = new CustomDeviceState(state);
 							device.DeviceState = state;
 						}
 						break;
 					case Joystick jDevice:
 						{
 							var state = jDevice.GetCurrentState();
-							newState = new CustomDiState(state);
+							newState = new CustomDeviceState(state);
 							device.DeviceState = state;
 						}
 						break;
@@ -246,7 +246,7 @@ namespace x360ce.App.DInput
 		/// NOTE: Mouse coordinate processing for DirectInput is handled by the main DInputHelper
 		/// in the ProcessDirectInputDevice method. This method serves as a reference implementation.
 		/// </remarks>
-		private CustomDiState ProcessMouseCoordinates(UserDevice device, CustomDiState newState)
+		private CustomDeviceState ProcessMouseCoordinates(UserDevice device, CustomDeviceState newState)
 		{
 			// If original state is missing then store current values
 			if (device.OrgDiState == null)
@@ -261,7 +261,7 @@ namespace x360ce.App.DInput
 					newState.Sliders[s] = -short.MinValue;
 			}
 
-			var mouseState = new CustomDiState(new JoystickState());
+			var mouseState = new CustomDeviceState(new JoystickState());
 			
 			// Clone button values
 			Array.Copy(newState.Buttons, mouseState.Buttons, mouseState.Buttons.Length);
@@ -316,7 +316,7 @@ namespace x360ce.App.DInput
 		/// applications that need to process individual input events rather than
 		/// just polling the current state.
 		/// </remarks>
-		public CustomDiUpdate[] GetBufferedUpdates(UserDevice device)
+		public CustomDeviceUpdate[] GetBufferedUpdates(UserDevice device)
 		{
 			if (device?.Device == null)
 				return null;
@@ -333,11 +333,11 @@ namespace x360ce.App.DInput
 				switch (device.Device)
 				{
 					case Mouse mDevice:
-						return mDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return mDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					case Keyboard kDevice:
-						return kDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return kDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					case Joystick jDevice:
-						return jDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return jDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					default:
 						return null;
 				}

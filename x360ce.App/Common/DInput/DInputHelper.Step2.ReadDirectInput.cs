@@ -26,7 +26,7 @@ namespace x360ce.App.DInput
 		/// <param name="detector">Device detector for acquisition</param>
 		/// <param name="newUpdates">Output parameter for buffered updates</param>
 		/// <returns>CustomDiState for the device</returns>
-		private CustomDiState ProcessDirectInputDevice(UserDevice device, DeviceDetector detector, out CustomDiUpdate[] newUpdates)
+		private CustomDeviceState ProcessDirectInputDevice(UserDevice device, DeviceDetector detector, out CustomDeviceUpdate[] newUpdates)
 		{
 			newUpdates = null;
 
@@ -67,32 +67,32 @@ namespace x360ce.App.DInput
 			// events (if buffered data is enabled), and set notification events (if notification is enabled).
 			device.Device.Poll();
 
-			CustomDiState newState = null;
+			CustomDeviceState newState = null;
 
 			// Use switch based on pattern matching for supported device types.
 			switch (device.Device)
 			{
 				case Mouse mDevice:
-					newUpdates = useData ? mDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray() : null;
+					newUpdates = useData ? mDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray() : null;
 					{
 						var state = mDevice.GetCurrentState();
-						newState = new CustomDiState(state);
+						newState = new CustomDeviceState(state);
 						device.DeviceState = state;
 					}
 					break;
 				case Keyboard kDevice:
-					newUpdates = useData ? kDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray() : null;
+					newUpdates = useData ? kDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray() : null;
 					{
 						var state = kDevice.GetCurrentState();
-						newState = new CustomDiState(state);
+						newState = new CustomDeviceState(state);
 						device.DeviceState = state;
 					}
 					break;
 				case Joystick jDevice:
-					newUpdates = useData ? jDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray() : null;
+					newUpdates = useData ? jDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray() : null;
 					{
 						var state = jDevice.GetCurrentState();
-						newState = new CustomDiState(state);
+						newState = new CustomDeviceState(state);
 
 						// Test if button 0 was pressed.
 						var oldState = device.DeviceState as JoystickState;
@@ -120,11 +120,11 @@ namespace x360ce.App.DInput
 				int actuatorCount = 0;
 				if (device.Device is Mouse mDevice2)
 				{
-					CustomDiState.GetMouseAxisMask(deviceObjects, mDevice2, out axisMask);
+					CustomDeviceState.GetMouseAxisMask(deviceObjects, mDevice2, out axisMask);
 				}
 				else if (device.Device is Joystick jDevice)
 				{
-					CustomDiState.GetJoystickAxisMask(deviceObjects, jDevice, out axisMask, out actuatorMask, out actuatorCount);
+					CustomDeviceState.GetJoystickAxisMask(deviceObjects, jDevice, out axisMask, out actuatorMask, out actuatorCount);
 				}
 				device.DiAxeMask = axisMask;
 				// Contains information about which axis have force feedback actuator attached.
@@ -192,7 +192,7 @@ namespace x360ce.App.DInput
 				for (int s = 0; s < newState.Sliders.Length; s++)
 					newState.Sliders[s] = -short.MinValue;
 				}
-				var mouseState = new CustomDiState(new JoystickState());
+				var mouseState = new CustomDeviceState(new JoystickState());
 				// Clone button values.
 				Array.Copy(newState.Buttons, mouseState.Buttons, mouseState.Buttons.Length);
 
@@ -243,7 +243,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The DirectInput device to get buffered data for</param>
 		/// <returns>Array of CustomDiUpdate objects, or null if no buffered data</returns>
-		private static CustomDiUpdate[] GetBufferedUpdates(UserDevice device)
+		private static CustomDeviceUpdate[] GetBufferedUpdates(UserDevice device)
 		{
 			if (device.Device == null || device.InputMethod != InputMethod.DirectInput)
 				return null;
@@ -260,11 +260,11 @@ namespace x360ce.App.DInput
 				switch (device.Device)
 				{
 					case Mouse mDevice:
-						return mDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return mDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					case Keyboard kDevice:
-						return kDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return kDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					case Joystick jDevice:
-						return jDevice.GetBufferedData()?.Select(x => new CustomDiUpdate(x)).ToArray();
+						return jDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
 					default:
 						return null;
 				}

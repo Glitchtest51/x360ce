@@ -179,25 +179,25 @@ namespace x360ce.Engine.Data
 
 		/// <summary>X360CE custom DirectInput state used for configuration.</summary>
 		[XmlIgnore, NonSerialized]
-		public CustomDiState DiState;
+		public CustomDeviceState DiState;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDiUpdate[] DiUpdates;
+		public CustomDeviceUpdate[] DiUpdates;
 
 		[XmlIgnore, NonSerialized]
 		public long DiStateTime;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDiState OldDiState;
+		public CustomDeviceState OldDiState;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDiUpdate[] OldDiUpdates;
+		public CustomDeviceUpdate[] OldDiUpdates;
 
 		[XmlIgnore, NonSerialized]
 		public long OldDiStateTime;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDiState OrgDiState;
+		public CustomDeviceState OrgDiState;
 
 		[XmlIgnore, NonSerialized]
 		public long OrgDiStateTime;

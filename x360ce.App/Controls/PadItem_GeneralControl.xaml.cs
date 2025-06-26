@@ -236,7 +236,7 @@ namespace x360ce.App.Controls
 		/// </summary>
 		/// <param name="ud">The UserDevice to get the CustomDiState from</param>
 		/// <returns>The CustomDiState if available, null otherwise</returns>
-		public CustomDiState GetCustomDiState(UserDevice ud)
+		public CustomDeviceState GetCustomDiState(UserDevice ud)
 		{
 			// Use the existing DiState property that should be populated by all input methods
 			// instead of trying to create a new CustomDiState from DirectInput-specific DeviceState

@@ -382,7 +382,7 @@ namespace x360ce.App.Controls
 				return;
 			if (state == oldKState)
 				return;
-			var cds = new CustomDiState(state);
+			var cds = new CustomDeviceState(state);
 			UpdateButtonsTable(cds.Buttons);
 			ControlsHelper.SetVisible(DiAxisDataGridView, false);
 			ControlsHelper.SetVisible(DiSlidersDataGridView, false);

@@ -162,9 +162,6 @@
     <Compile Include="..\x360ce.Engine\Common\ConvertHelper.cs">
       <Link>Engine\ConvertHelper.cs</Link>
     </Compile>
-    <Compile Include="..\x360ce.Engine\Common\CustomDiState.cs">
-      <Link>Engine\CustomDiState.cs</Link>
-    </Compile>
     <Compile Include="..\x360ce.Engine\Common\CustomDiUpdate.cs">
       <Link>Engine\CustomDiUpdate.cs</Link>
     </Compile>

@@ -56,8 +56,8 @@ namespace x360ce.App.DInput
 				if (options.TestEnabled && !options.TestGetDInputStates) 
 					continue;
 
-				CustomDiState newState = null;
-				CustomDiUpdate[] newUpdates = null;
+				CustomDeviceState newState = null;
+				CustomDeviceUpdate[] newUpdates = null;
 
 				try
 				{
@@ -154,7 +154,7 @@ namespace x360ce.App.DInput
 		/// • State history management (old/new state tracking)
 		/// • Timestamp tracking for input timing analysis
 		/// </remarks>
-		private void UpdateDeviceState(UserDevice device, CustomDiState newState, CustomDiUpdate[] newUpdates)
+		private void UpdateDeviceState(UserDevice device, CustomDeviceState newState, CustomDeviceUpdate[] newUpdates)
 		{
 			// Handle button state analysis for buffered data
 			if (newUpdates != null && newUpdates.Count(x => x.Type == MapType.Button) > 1 && device.DiState != null)
@@ -193,7 +193,7 @@ namespace x360ce.App.DInput
 		/// Test devices provide simulated controller input for testing purposes.
 		/// They generate consistent CustomDiState output without requiring physical hardware.
 		/// </remarks>
-		private CustomDiState ProcessTestDevice(UserDevice device)
+		private CustomDeviceState ProcessTestDevice(UserDevice device)
 		{
 			// Fill device objects and update masks for test devices
 			if (device.DeviceObjects == null)
@@ -205,7 +205,7 @@ namespace x360ce.App.DInput
 			device.DeviceEffects = device.DeviceEffects ?? new DeviceEffectItem[0];
 			
 			var state = TestDeviceHelper.GetCurrentState(device);
-			var customState = new CustomDiState(state);
+			var customState = new CustomDeviceState(state);
 			device.DeviceState = state;
 			
 			return customState;

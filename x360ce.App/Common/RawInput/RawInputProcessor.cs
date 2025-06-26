@@ -162,10 +162,10 @@ namespace x360ce.App.RawInput
 		/// <param name="device">The device to read from</param>
 		/// <returns>CustomDiState representing the current controller state</returns>
 		/// <exception cref="InputMethodException">Thrown when Raw Input encounters errors</exception>
-		public static CustomDiState ReadState(UserDevice device)
+		public static CustomDeviceState ReadState(UserDevice device)
 		{
 			if (device == null)
-				return new CustomDiState();
+				return new CustomDeviceState();
 
 			// CRITICAL: Set device properties required for UI to display mapping controls
 			// This ensures the PAD UI shows buttons/axes for Raw Input devices just like DirectInput
@@ -174,15 +174,15 @@ namespace x360ce.App.RawInput
 			// Use the same caching pattern as DirectInput - check if Raw Input device is already mapped
 			var rawInputHandle = GetOrCreateRawInputMapping(device);
 			if (rawInputHandle == IntPtr.Zero)
-				return new CustomDiState();
+				return new CustomDeviceState();
 
 			// Get the tracked device info
 			if (!_trackedDevices.TryGetValue(rawInputHandle, out var deviceInfo))
-				return new CustomDiState();
+				return new CustomDeviceState();
 
 			// Return the cached state (similar to how DirectInput uses device.DiState)
 			// The state is updated by WM_INPUT messages in the background
-			return deviceInfo.LastState ?? new CustomDiState();
+			return deviceInfo.LastState ?? new CustomDeviceState();
 		}
 
 		/// <summary>
@@ -364,7 +364,7 @@ namespace x360ce.App.RawInput
 							ProductId = hidInfo.dwProductId,
 							UsagePage = hidInfo.usUsagePage,
 							Usage = hidInfo.usUsage,
-							LastState = new CustomDiState(),
+							LastState = new CustomDeviceState(),
 							IsXboxController = IsXboxController(hidInfo.dwVendorId, hidInfo.dwProductId)
 						};
 
@@ -415,7 +415,7 @@ namespace x360ce.App.RawInput
 		/// <param name="buffer">Raw input buffer</param>
 		/// <param name="bufferSize">Buffer size</param>
 		/// <returns>CustomDiState or null if parsing failed</returns>
-		private static CustomDiState ParseHidReport(RawInputDeviceInfo deviceInfo, IntPtr buffer, uint bufferSize)
+		private static CustomDeviceState ParseHidReport(RawInputDeviceInfo deviceInfo, IntPtr buffer, uint bufferSize)
 		{
 			try
 			{
@@ -432,7 +432,7 @@ namespace x360ce.App.RawInput
 				byte[] hidData = new byte[hidDataSize];
 				Marshal.Copy(hidDataPtr, hidData, 0, hidDataSize);
 
-				var state = new CustomDiState();
+				var state = new CustomDeviceState();
 
 				if (deviceInfo.IsXboxController)
 				{
@@ -457,7 +457,7 @@ namespace x360ce.App.RawInput
 		/// </summary>
 		/// <param name="hidData">HID report data</param>
 		/// <param name="state">CustomDiState to populate</param>
-		private static void ParseXboxHidReport(byte[] hidData, CustomDiState state)
+		private static void ParseXboxHidReport(byte[] hidData, CustomDeviceState state)
 		{
 			if (hidData.Length < 14)
 				return;
@@ -503,7 +503,7 @@ namespace x360ce.App.RawInput
 		/// </summary>
 		/// <param name="hidData">HID report data</param>
 		/// <param name="state">CustomDiState to populate</param>
-		private static void ParseGenericHidReport(byte[] hidData, CustomDiState state)
+		private static void ParseGenericHidReport(byte[] hidData, CustomDeviceState state)
 		{
 			if (hidData.Length < 6)
 				return;
@@ -790,7 +790,7 @@ namespace x360ce.App.RawInput
 		/// • No built-in controller abstraction (custom profiles needed)
 		/// • Complex setup and device registration required
 		/// </remarks>
-		public CustomDiState GetCustomState(UserDevice device)
+		public CustomDeviceState GetCustomState(UserDevice device)
 		{
 			if (device == null)
 				return null;

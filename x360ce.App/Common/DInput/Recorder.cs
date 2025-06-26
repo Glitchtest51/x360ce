@@ -57,14 +57,14 @@ namespace x360ce.App
 		}
 
 		/// <summary>Initial Direct Input activity state</summary>
-		CustomDiState recordingSnapshot;
+		CustomDeviceState recordingSnapshot;
 
 		/// <summary>
 		/// Called when recording is in progress.
 		/// </summary>
 		/// <param name="state">Current direct input activity.</param>
 		/// <returns>True if recording stopped, otherwise false.</returns>
-		public bool StopRecording(CustomDiState state = null)
+		public bool StopRecording(CustomDeviceState state = null)
 		{
 			lock (recordingLock)
 			{
@@ -181,7 +181,7 @@ namespace x360ce.App
 		/// <summary>
 		/// Compare to another state.
 		/// </summary>
-		public static string[] CompareTo(CustomDiState oldState, CustomDiState newState, MapCode mappingTo)
+		public static string[] CompareTo(CustomDeviceState oldState, CustomDeviceState newState, MapCode mappingTo)
 		{
 			if (oldState == null)
 				throw new ArgumentNullException(nameof(oldState));

@@ -61,7 +61,7 @@ namespace x360ce.App.DInput
 		/// The delegation approach ensures Gaming Input continues to work with existing
 		/// implementation while providing processor pattern compatibility for UI selection.
 		/// </remarks>
-		public CustomDiState ReadState(UserDevice device)
+		public CustomDeviceState ReadState(UserDevice device)
 		{
 			if (device == null)
 				throw new InputMethodException(InputMethod.GamingInput, device, "Device is null");
@@ -226,7 +226,7 @@ namespace x360ce.App.DInput
 		/// 
 		/// CustomDiState mapping matches DirectInput/XInput exactly for UI compatibility.
 		/// </remarks>
-		public CustomDiState GetCustomState(UserDevice device)
+		public CustomDeviceState GetCustomState(UserDevice device)
 		{
 			if (device == null)
 				return null;
@@ -302,7 +302,7 @@ namespace x360ce.App.DInput
 				device.DeviceEffects = device.DeviceEffects ?? new DeviceEffectItem[0];
 
 				// Create and populate CustomDiState
-				var newState = new CustomDiState();
+				var newState = new CustomDeviceState();
 				ConvertGamingInputToCustomDiState(reading, newState);
 
 				// Store the reading as device state for debugging/monitoring
@@ -325,7 +325,7 @@ namespace x360ce.App.DInput
 		/// Convert Windows.Gaming.Input GamepadReading to x360ce CustomDiState format.
 		/// Ensures exact mapping consistency with DirectInput and XInput processors.
 		/// </summary>
-		private void ConvertGamingInputToCustomDiState(GamepadReading reading, CustomDiState diState)
+		private void ConvertGamingInputToCustomDiState(GamepadReading reading, CustomDeviceState diState)
 		{
 			if (diState == null) return;
 

@@ -141,7 +141,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to read from</param>
 		/// <returns>CustomDiState representing the current controller state</returns>
 		/// <exception cref="InputMethodException">Thrown when XInput encounters errors</exception>
-		public static CustomDiState ReadState(UserDevice device)
+		public static CustomDeviceState ReadState(UserDevice device)
 		{
 			if (device == null)
 				throw new InputMethodException(InputMethod.XInput, device, "Device is null");
@@ -483,9 +483,9 @@ namespace x360ce.App.DInput
 		/// 
 		/// For XInput, we map to the most common DirectInput pattern for Xbox controllers.
 		/// </remarks>
-		private static CustomDiState ConvertGamepadToCustomDiState(Gamepad gamepad, UserDevice device = null)
+		private static CustomDeviceState ConvertGamepadToCustomDiState(Gamepad gamepad, UserDevice device = null)
 		{
-			var customState = new CustomDiState();
+			var customState = new CustomDeviceState();
 
 			// Map buttons to match DirectInput button enumeration for Xbox controllers
 			// Button mapping follows how DirectInput typically enumerates Xbox controller buttons
@@ -544,7 +544,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to track changes for</param>
 		/// <param name="customState">The current CustomDiState to check for changes</param>
-		private static void LogInputChanges(UserDevice device, CustomDiState customState)
+		private static void LogInputChanges(UserDevice device, CustomDeviceState customState)
 		{
 			if (device?.InstanceGuid == null || customState == null)
 				return;
@@ -812,7 +812,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to count buttons for</param>
 		/// <param name="customState">The current state (used to validate button functionality)</param>
 		/// <returns>Number of available buttons</returns>
-		private static int GetControllerButtonCount(UserDevice device, CustomDiState customState)
+		private static int GetControllerButtonCount(UserDevice device, CustomDeviceState customState)
 		{
 			// XInput has a standard set of 15 buttons: A, B, X, Y, LB, RB, Back, Start, LS, RS, DPad (4), Guide
 			int standardXInputButtons = 15;
@@ -839,7 +839,7 @@ namespace x360ce.App.DInput
 		/// <param name="device">The device to count axes for</param>
 		/// <param name="customState">The current state (used to validate axis functionality)</param>
 		/// <returns>Number of available axes</returns>
-		private static int GetControllerAxisCount(UserDevice device, CustomDiState customState)
+		private static int GetControllerAxisCount(UserDevice device, CustomDeviceState customState)
 		{
 			// XInput has a standard set of 6 axes: Left Stick X/Y, Right Stick X/Y, Left/Right Triggers
 			int standardXInputAxes = 6;

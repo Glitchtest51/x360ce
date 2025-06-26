@@ -191,7 +191,7 @@ namespace x360ce.App.Controls
         //    return true; // Value has changed.
         //}
 
-        public void DrawState(ImageInfo ii, Gamepad gp, CustomDiState ds)
+        public void DrawState(ImageInfo ii, Gamepad gp, CustomDeviceState ds)
 		{
 			short stickLDeadzone = Gamepad.LeftThumbDeadZone;
 			short stickRDeadzone = Gamepad.RightThumbDeadZone;

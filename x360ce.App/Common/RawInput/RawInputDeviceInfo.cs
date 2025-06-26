@@ -14,6 +14,6 @@ namespace x360ce.App.RawInput
 		public ushort UsagePage { get; set; }
 		public ushort Usage { get; set; }
 		public bool IsXboxController { get; set; }
-		public CustomDiState LastState { get; set; }
+		public CustomDeviceState LastState { get; set; }
 	}
 }

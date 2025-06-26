@@ -59,7 +59,7 @@ namespace x360ce.App.DInput
 		/// • Cannot activate extra 2 rumble motors in Xbox One controller triggers
 		/// • No support for generic gamepads or specialized controllers
 		/// </remarks>
-		private CustomDiState ProcessXInputDevice(UserDevice device)
+		private CustomDeviceState ProcessXInputDevice(UserDevice device)
 		{
 			if (device == null)
 				return null;
