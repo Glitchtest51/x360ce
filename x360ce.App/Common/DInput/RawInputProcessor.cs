@@ -148,7 +148,7 @@ namespace x360ce.App.DInput
 				return false;
 
 			// Check if Raw Input is available on the system
-			if (!IsRawInputAvailable())
+			if (!IsAvailable())
 				return false;
 
 			// Raw Input works with HID devices
@@ -201,7 +201,7 @@ namespace x360ce.App.DInput
 		/// </summary>
 		/// <param name="device">The device to validate</param>
 		/// <returns>ValidationResult indicating compatibility and limitations</returns>
-		public static ValidationResult ValidateDevice(UserDevice device)
+		public ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");
@@ -209,7 +209,7 @@ namespace x360ce.App.DInput
 			if (!device.IsOnline)
 				return ValidationResult.Error("Device is offline");
 
-			if (!IsRawInputAvailable())
+			if (!IsAvailable())
 				return ValidationResult.Error("Raw Input is not available on this system");
 
 			if (device.IsXboxCompatible)
@@ -615,7 +615,7 @@ namespace x360ce.App.DInput
 		/// Checks if Raw Input is available on the current system.
 		/// </summary>
 		/// <returns>True if Raw Input API is available</returns>
-		public static bool IsRawInputAvailable()
+		public bool IsAvailable()
 		{
 			try
 			{
@@ -651,7 +651,7 @@ namespace x360ce.App.DInput
 		/// Gets diagnostic information about Raw Input system status.
 		/// </summary>
 		/// <returns>String containing Raw Input diagnostic information</returns>
-		public static string GetRawInputDiagnosticInfo()
+		public string GetRawInputDiagnosticInfo()
 		{
 			var info = new System.Text.StringBuilder();
 			
@@ -660,7 +660,7 @@ namespace x360ce.App.DInput
 				var osVersion = Environment.OSVersion.Version;
 				var isWindowsXPPlus = osVersion.Major >= 5;
 				
-				info.AppendLine($"Raw Input Available: {IsRawInputAvailable()}");
+				info.AppendLine($"Raw Input Available: {IsAvailable()}");
 				info.AppendLine($"Windows XP+ Required: {isWindowsXPPlus}");
 				info.AppendLine($"Operating System: {Environment.OSVersion}");
 				info.AppendLine($"Tracked Devices: {_trackedDevices.Count}");

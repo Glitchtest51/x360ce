@@ -50,12 +50,12 @@ namespace x360ce.App.DInput
 				result.XInputSlotsAvailable = 4 - result.XInputControllerCount;
 
 				// Check Gaming Input availability (Windows 10+ requirement)
-				result.GamingInputAvailable = DInputHelper.Current.gamingInputProcessor.IsGamingInputAvailable();
+				result.GamingInputAvailable = DInputHelper.Current.gamingInputProcessor.IsAvailable();
 				result.WindowsVersion = Environment.OSVersion.Version;
 				result.IsWindows10Plus = result.WindowsVersion.Major >= 10;
 
 				// Check Raw Input availability
-				result.RawInputAvailable = CheckRawInputAvailability();
+				result.RawInputAvailable = DInputHelper.Current.rawInputProcessor.IsAvailable();
 
 				// Overall system status
 				result.IsSystemCompatible = result.DirectInputAvailable || result.XInputAvailable;
@@ -215,15 +215,6 @@ namespace x360ce.App.DInput
 		{
 			var helper = DInputHelper.Current;
 			return helper?.IsXInputAvailable() ?? false;
-		}
-
-		/// <summary>
-		/// Checks if Raw Input API is available on the current system.
-		/// </summary>
-		/// <returns>True if Raw Input is available</returns>
-		private static bool CheckRawInputAvailability()
-		{
-			return RawInputProcessor.IsRawInputAvailable();
 		}
 
 		/// <summary>

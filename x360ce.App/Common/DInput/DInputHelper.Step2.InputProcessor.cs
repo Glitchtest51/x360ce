@@ -49,7 +49,7 @@ namespace x360ce.App.DInput
 					case InputMethod.GamingInput:
 						return gamingInputProcessor.ValidateDevice(device);
 					case InputMethod.RawInput:
-						return RawInputProcessor.ValidateDevice(device);
+						return rawInputProcessor.ValidateDevice(device);
 					default:
 						return ValidationResult.Error($"Unknown InputMethod: {device.InputMethod}");
 				}

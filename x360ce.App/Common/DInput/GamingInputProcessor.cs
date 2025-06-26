@@ -131,7 +131,7 @@ namespace x360ce.App.DInput
 		/// Checks if Gaming Input is available on the current system.
 		/// </summary>
 		/// <returns>True if Gaming Input is available and functional</returns>
-		public bool IsGamingInputAvailable()
+		public bool IsAvailable()
 		{
 			try
 			{
@@ -169,7 +169,7 @@ namespace x360ce.App.DInput
 			{
 				var osVersion = Environment.OSVersion.Version;
 				var isWindows10Plus = osVersion.Major >= 10;
-				var isAvailable = IsGamingInputAvailable();
+				var isAvailable = IsAvailable();
 
 				info.AppendLine($"Gaming Input Available: {isAvailable}");
 				info.AppendLine($"Windows 10+ Required: {isWindows10Plus}");
@@ -233,7 +233,7 @@ namespace x360ce.App.DInput
 
 			try
 			{
-				if (!IsGamingInputAvailable())
+				if (!IsAvailable())
 					return null;
 
 				// Get setting related to user device - using same pattern as XInput
@@ -439,7 +439,7 @@ namespace x360ce.App.DInput
 				return ValidationResult.Error("Device is offline");
 
 			// Check Gaming Input availability (this includes Windows version check)
-			if (!IsGamingInputAvailable())
+			if (!IsAvailable())
 			{
 				return ValidationResult.Error("Gaming Input is not available on this system");
 			}

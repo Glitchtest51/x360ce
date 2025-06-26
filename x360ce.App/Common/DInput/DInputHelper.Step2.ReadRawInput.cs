@@ -70,7 +70,7 @@ namespace x360ce.App.DInput
 			{
 				// Use the RawInputProcessor for actual processing
 				// Validate device compatibility
-				var validation = RawInputProcessor.ValidateDevice(device);
+				var validation = rawInputProcessor.ValidateDevice(device);
 				if (!validation.IsValid)
 					return null;
 				// Read device state using Raw Input
@@ -133,7 +133,7 @@ namespace x360ce.App.DInput
 			try
 			{
 				// Use RawInputProcessor for detailed validation
-				return RawInputProcessor.ValidateDevice(device);
+				return rawInputProcessor.ValidateDevice(device);
 			}
 			catch (Exception ex)
 			{
