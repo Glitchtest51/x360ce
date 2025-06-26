@@ -612,7 +612,7 @@ namespace x360ce.App.Controls
 			}
 
 			// Stick axes.
-			if (ud == null || ud.InputMethod == null) return;
+			if (ud == null) return;
             const int DragAndDropAxisDeadzone = 8000;
 			foreach (var kvp in AxisDictionary)
 			{

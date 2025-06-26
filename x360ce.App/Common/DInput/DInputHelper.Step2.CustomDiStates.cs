@@ -66,23 +66,18 @@ namespace x360ce.App.DInput
 					{
 						newState = ProcessTestDevice(device);
 					}
-					// Handle DirectInput devices using dedicated DirectInput processor
-					// DEFAULT TO DIRECTINPUT for backward compatibility when InputMethod is not set
-					else if ((device.InputMethod == InputMethod.DirectInput || device.InputMethod == 0) && device.Device != null)
+					else if (device.InputMethod == InputMethod.DirectInput)
 					{
 						newState = ProcessDirectInputDevice(device, detector, out newUpdates);
 					}
-					// Handle XInput devices using dedicated XInput processor
 					else if (device.InputMethod == InputMethod.XInput)
 					{
 						newState = ProcessXInputDevice(device);
 					}
-					// Handle Gaming Input devices using dedicated Gaming Input processor
 					else if (device.InputMethod == InputMethod.GamingInput)
 					{
 						newState = ProcessGamingInputDevice(device);
 					}
-					// Handle Raw Input devices using dedicated Raw Input processor
 					else if (device.InputMethod == InputMethod.RawInput)
 					{
 						newState = ProcessRawInputDevice(device);
