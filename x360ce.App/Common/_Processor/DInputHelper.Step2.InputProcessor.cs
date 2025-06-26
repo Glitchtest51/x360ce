@@ -1,4 +1,6 @@
 using System;
+using x360ce.App.XInput;
+using x360ce.App.GamingInput;
 using x360ce.App.RawInput;
 using x360ce.Engine;
 using x360ce.Engine.Data;

@@ -72,7 +72,7 @@ namespace x360ce.App.DInput
 					}
 					else if (device.InputMethod == InputMethod.XInput)
 					{
-						newState = ProcessXInputDevice(device);
+						newState = xInputProcessor.ProcessXInputDevice(device);
 					}
 					else if (device.InputMethod == InputMethod.GamingInput)
 					{

@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using x360ce.App.XInput;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 
@@ -45,8 +46,8 @@ namespace x360ce.App.DInput
 				result.DirectInputAvailable = CheckDirectInputAvailability();
 
 				// Check XInput availability and controller count
-				result.XInputAvailable = CheckXInputAvailability();
-				result.XInputControllerCount = XInputProcessor.GetAssignedControllerCount();
+				result.XInputAvailable = DInputHelper.Current.xInputProcessor.IsAvailable();
+				result.XInputControllerCount = DInputHelper.Current.xInputProcessor.GetAssignedControllerCount();
 				result.XInputSlotsAvailable = 4 - result.XInputControllerCount;
 
 				// Check Gaming Input availability (Windows 10+ requirement)
@@ -103,7 +104,7 @@ namespace x360ce.App.DInput
 						return ValidateDirectInputDevice(device);
 
 					case InputMethod.XInput:
-						return helper.ValidateXInputDevice(device);
+						return helper.xInputProcessor.ValidateXInputDevice(device);
 
 					case InputMethod.GamingInput:
 						return helper.gamingInputProcessor.ValidateDevice(device);
@@ -208,16 +209,6 @@ namespace x360ce.App.DInput
 				Debug.WriteLine($"DirectInput availability check failed: {ex.Message}");
 				return false;
 			}
-		}
-
-		/// <summary>
-		/// Checks if XInput API is available on the current system.
-		/// </summary>
-		/// <returns>True if XInput is available</returns>
-		private static bool CheckXInputAvailability()
-		{
-			var helper = DInputHelper.Current;
-			return helper?.IsXInputAvailable() ?? false;
 		}
 
 		/// <summary>

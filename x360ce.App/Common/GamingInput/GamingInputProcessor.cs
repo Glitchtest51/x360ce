@@ -3,10 +3,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windows.Gaming.Input;
+using x360ce.App.DInput;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.GamingInput
 {
 	/// <summary>
 	/// Gaming Input processor for Windows.Gaming.Input API (Windows 10+).
