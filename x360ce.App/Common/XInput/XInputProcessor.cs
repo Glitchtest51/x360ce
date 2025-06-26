@@ -103,12 +103,12 @@ namespace x360ce.App.XInput
 			try
 			{
 				// Validate device compatibility
-				var validation = XInputProcessor.ValidateDevice(device);
+				var validation = ValidateDevice(device);
 				if (!validation.IsValid)
 					return null;
 
 				// Read device state using XInput
-				var customState = XInputProcessor.ReadState(device);
+				var customState = ReadState(device);
 
 				// Handle XInput force feedback integration with existing system
 				HandleXInputForceFeedback(device);
@@ -250,7 +250,7 @@ namespace x360ce.App.XInput
 			// Use XInputProcessor for detailed validation
 			try
 			{
-				return XInputProcessor.ValidateDevice(device);
+				return ValidateDevice(device);
 			}
 			catch (Exception ex)
 			{
@@ -688,7 +688,7 @@ namespace x360ce.App.XInput
 		/// </summary>
 		/// <param name="device">The device to validate</param>
 		/// <returns>ValidationResult indicating compatibility and any limitations</returns>
-		public static ValidationResult ValidateDevice(UserDevice device)
+		public ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");

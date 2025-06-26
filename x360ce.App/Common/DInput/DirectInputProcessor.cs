@@ -479,7 +479,7 @@ namespace x360ce.App.DInput
 		/// • Limited Xbox controller features (triggers, Guide button, rumble)
 		/// • General compatibility with all device types
 		/// </remarks>
-		public static ValidationResult ValidateDevice(UserDevice device)
+		public ValidationResult ValidateDevice(UserDevice device)
 		{
 			if (device == null)
 				return ValidationResult.Error("Device is null");

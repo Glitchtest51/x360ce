@@ -1,4 +1,5 @@
 using x360ce.Engine;
+using x360ce.Engine.Data;
 //using x360ce.Engine.Data;
 
 namespace x360ce.App.DInput
@@ -13,7 +14,7 @@ namespace x360ce.App.DInput
         /// </summary>
         InputMethod SupportedMethod { get; }
 
-        /*
+		/*
 
         /// <summary>
         /// Determines if this processor can handle the specified device.
@@ -37,13 +38,14 @@ namespace x360ce.App.DInput
         /// <param name="ffState">The force feedback state to apply</param>
         void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState);
 
-        /// <summary>
-        /// Validates if the device can be used with this input method.
-        /// </summary>
-        /// <param name="device">The device to validate</param>
-        /// <returns>ValidationResult indicating compatibility and any limitations</returns>
-        ValidationResult ValidateDevice(UserDevice device);
-
+        
         */
+
+		/// <summary>
+		/// Validates if the device can be used with this input method.
+		/// </summary>
+		/// <param name="device">The device to validate</param>
+		/// <returns>ValidationResult indicating compatibility and any limitations</returns>
+		ValidationResult ValidateDevice(UserDevice device);
     }
 }

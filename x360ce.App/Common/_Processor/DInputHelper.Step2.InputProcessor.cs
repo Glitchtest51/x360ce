@@ -46,9 +46,9 @@ namespace x360ce.App.DInput
 				switch (device.InputMethod)
 				{
 					case InputMethod.DirectInput:
-						return DirectInputProcessor.ValidateDevice(device);
+						return directInputProcessor.ValidateDevice(device);
 					case InputMethod.XInput:
-						return XInputProcessor.ValidateDevice(device);
+						return xInputProcessor.ValidateDevice(device);
 					case InputMethod.GamingInput:
 						return gamingInputProcessor.ValidateDevice(device);
 					case InputMethod.RawInput:
