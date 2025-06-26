@@ -14,7 +14,7 @@ namespace x360ce.App.DInput
 		UserDevice[] mappedDevices = new UserDevice[0];
 		UserGame currentGame = SettingsManager.CurrentGame;
 		Options options = SettingsManager.Options;
-		Boolean isVirtual = false;
+		public bool isVirtual = false;
 
 		#endregion
 
@@ -68,7 +68,7 @@ namespace x360ce.App.DInput
 					}
 					else if (device.InputMethod == InputMethod.DirectInput)
 					{
-						newState = ProcessDirectInputDevice(device, detector, out newUpdates);
+						newState = directInputProcessor.ProcessDirectInputDevice(device, detector, options, out newUpdates);
 					}
 					else if (device.InputMethod == InputMethod.XInput)
 					{

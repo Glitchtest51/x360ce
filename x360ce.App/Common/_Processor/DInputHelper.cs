@@ -111,7 +111,7 @@ namespace x360ce.App.DInput
 		/// <summary>
 		/// _Stopwatch time is used to calculate the actual update frequency in Hz per second.
 		/// </summary>
-		private Stopwatch _Stopwatch = new Stopwatch();
+		public Stopwatch _Stopwatch = new Stopwatch();
 		private object timerLock = new object();
 		private bool _AllowThreadToRun;
 
