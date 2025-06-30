@@ -45,7 +45,14 @@
                         <Hyperlink NavigateUri="https://github.com/nefarius/HidHide/releases" TextDecorations="None" RequestNavigate="HyperLink_RequestNavigate">github.com/nefarius/HidHide/releases</Hyperlink>
                         </TextBlock>
 
-                        <Button
+                    <Button
+                        Name="HidHideOpenButton"
+                        Grid.Column="2"
+                        Width="60"
+                        Click="HidHideOpenButton_Click"
+                        Content="Open" />
+
+                    <Button
                         Name="HidHideRefreshButton"
                         Grid.Column="3"
                         Width="60"

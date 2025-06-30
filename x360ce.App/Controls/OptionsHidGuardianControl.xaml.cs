@@ -168,5 +168,10 @@ namespace x360ce.App.Controls
                 MessageBox.Show(other.Message);
             }
         }
+
+        private void HidHideOpenButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }
