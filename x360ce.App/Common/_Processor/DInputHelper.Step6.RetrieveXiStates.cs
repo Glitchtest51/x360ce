@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper
+	public partial class InputOrchestrator
 	{
 
 		public Controller[] LiveXiControllers;

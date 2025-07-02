@@ -19,7 +19,7 @@ using System.Threading;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper : IDisposable
+	public partial class InputOrchestrator : IDisposable
 	{
 
 		// --------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ namespace x360ce.App.DInput
 
 
 		// Constructor
-		public DInputHelper()
+		public InputOrchestrator()
 		{
 			CombinedXiConnected = new bool[4];
 			LiveXiConnected = new bool[4];
@@ -329,7 +329,7 @@ namespace x360ce.App.DInput
 			disposed = true;
 		}
 
-		~DInputHelper()
+		~InputOrchestrator()
 		{
 			Dispose(false);
 		}

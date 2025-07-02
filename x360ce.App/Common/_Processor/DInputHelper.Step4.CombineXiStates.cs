@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper
+	public partial class InputOrchestrator
 	{
 
 		public State[] CombinedXiStates;

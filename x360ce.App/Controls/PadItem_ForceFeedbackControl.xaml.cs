@@ -193,7 +193,7 @@ namespace x360ce.App.Controls
                 // Convert TrackBar value (0-100) to MotorSpeed (0-255).
                 var leftMotor = (byte)ConvertHelper.ConvertRange(leftTestValue, 0, 100, byte.MinValue, byte.MaxValue);
                 var rightMotor = (byte)ConvertHelper.ConvertRange(rightTestValue, 0, 100, byte.MinValue, byte.MaxValue);
-                Global.DHelper.SetVibration(index, leftMotor, rightMotor, 0);
+                Global.Orchestrator.SetVibration(index, leftMotor, rightMotor, 0);
 
                 // [TEST] --------------------------------------------------------------------------------
                 //SetVibration(index, leftTestValue, rightTestValue);
@@ -203,13 +203,13 @@ namespace x360ce.App.Controls
 			{
 				lock (Controller.XInputLock)
 				{
-					var isConnected = Global.DHelper.LiveXiConnected[index];
+					var isConnected = Global.Orchestrator.LiveXiConnected[index];
 					if (Controller.IsLoaded && isConnected)
 					{
                         // Convert TrackBar value (0-100) to MotorSpeed (-32768-32767).
                         var leftMotor = (short)ConvertHelper.ConvertRange(leftTestValue, 0, 100, short.MinValue, short.MaxValue);
                         var rightMotor = (short)ConvertHelper.ConvertRange(rightTestValue, 0, 100, short.MinValue, short.MaxValue);
-                        var gamePad = Global.DHelper.LiveXiControllers[index];
+                        var gamePad = Global.Orchestrator.LiveXiControllers[index];
                         var vibration = new Vibration();
                         vibration.LeftMotorSpeed = leftMotor;
                         vibration.RightMotorSpeed = rightMotor;

@@ -125,7 +125,7 @@ JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
 // For slot limit errors, mark devices as needing update
 if (ex.Message.Contains("maximum") || ex.Message.Contains("controllers already in use"))
 {
-  DInputHelper.Current.DevicesNeedUpdating = true;
+  InputOrchestrator.Current.DevicesNeedUpdating = true;
 }
 
 return null;
@@ -173,7 +173,7 @@ return null;
 						device.FFState = device.FFState ?? new Engine.ForceFeedbackState();
 
 						// Get force feedback from virtual controllers (same source as DirectInput)
-						var feedbacks = DInputHelper.Current.CopyAndClearFeedbacks();
+						var feedbacks = InputOrchestrator.Current.CopyAndClearFeedbacks();
 						var force = feedbacks[setting.MapTo - 1];
 
 						if (force != null || device.FFState.Changed(ps))

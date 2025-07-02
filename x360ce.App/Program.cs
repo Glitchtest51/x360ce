@@ -133,7 +133,7 @@ namespace x360ce.App
 			Global.InitializeServices();
 			Global.InitializeCloudClient();
 			// Initialize DInput Helper.
-			Global.DHelper = new DInput.DInputHelper();
+			Global.Orchestrator = new DInput.InputOrchestrator();
 			if (ic.Parameters.ContainsKey("Exit"))
 			{
 				// Close all x360ce apps.

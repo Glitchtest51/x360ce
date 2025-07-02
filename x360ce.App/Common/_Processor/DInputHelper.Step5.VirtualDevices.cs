@@ -11,7 +11,7 @@ using x360ce.Engine.Data;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper
+	public partial class InputOrchestrator
 	{
 
 		/// <summary>

@@ -8,7 +8,7 @@ using x360ce.Engine.Data;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper
+	public partial class InputOrchestrator
 	{
 		#region Shared Fields for All Input Methods
 
@@ -37,7 +37,7 @@ namespace x360ce.App.DInput
 		void UpdateDiStates(UserGame game, DeviceDetector detector)
 		{
 			// Get all mapped user devices for the specified game (if game or devices changed).
-			if (Global.DHelper.SettingsChanged)
+			if (Global.Orchestrator.SettingsChanged)
 			{
 				currentGame = game;
 				options = SettingsManager.Options;
@@ -224,13 +224,13 @@ continue;
 		/// <summary>
 		/// Gets the current DInputHelper instance for processors that need access to helper methods.
 		/// </summary>
-		public static DInputHelper Current { get; private set; }
+		public static InputOrchestrator Current { get; private set; }
 
 		/// <summary>
 		/// Sets the current DInputHelper instance.
 		/// </summary>
 		/// <param name="helper">The helper instance to set</param>
-		public static void SetCurrent(DInputHelper helper)
+		public static void SetCurrent(InputOrchestrator helper)
 		{
 			Current = helper;
 		}

@@ -273,7 +273,7 @@ namespace x360ce.App
 				return;
 			ControlsHelper.BeginInvoke(() =>
 			{
-				Global.DHelper.SettingsChanged = true;
+				Global.Orchestrator.SettingsChanged = true;
 				UpdateTimer.Start();
 			});
 		}
@@ -304,8 +304,8 @@ namespace x360ce.App
 				{
 					//if (PadControls[i].LeftMotorTestTrackBar.Value > 0 || PadControls[i].RightMotorTestTrackBar.Value > 0)
 					//{
-					var gamePad = Global.DHelper.LiveXiControllers[i];
-					var isConected = Global.DHelper.LiveXiConnected[i];
+					var gamePad = Global.Orchestrator.LiveXiControllers[i];
+					var isConected = Global.Orchestrator.LiveXiConnected[i];
 					if (Controller.IsLoaded && isConected)
 					{
 						// Stop vibration.
@@ -363,7 +363,7 @@ namespace x360ce.App
 					update3Enabled = false;
 					// Use this property to make sure that DHelper never starts unless all steps are fully initialized.
 					Global.AllowDHelperStart = true;
-					Global.DHelper.StartDInputService();
+					Global.Orchestrator.StartDInputService();
 				}
 			}
 			UpdateTimer.Start();
@@ -604,7 +604,7 @@ namespace x360ce.App
 				return;
 			}
 			SettingsManager.RefreshDeviceIsOnlineValueOnSettings(SettingsManager.UserSettings.Items.ToArray());
-			ControlsHelper.SetText(MainPanel.UpdateDevicesStatusLabel, "D: {0}", Global.DHelper.RefreshDevicesCount);
+			ControlsHelper.SetText(MainPanel.UpdateDevicesStatusLabel, "D: {0}", Global.Orchestrator.RefreshDevicesCount);
 		}
 
 		private bool UpdateCompletedBusy;
@@ -666,7 +666,7 @@ namespace x360ce.App
 				ControlsHelper.BeginInvoke(method, new object[] { sender, e });
 				return;
 			}
-			ControlsHelper.SetText(MainPanel.UpdateFrequencyLabel, "Hz: {0}", Global.DHelper.CurrentUpdateFrequency);
+			ControlsHelper.SetText(MainPanel.UpdateFrequencyLabel, "Hz: {0}", Global.Orchestrator.CurrentUpdateFrequency);
 		}
 
 		#endregion
@@ -724,7 +724,7 @@ namespace x360ce.App
 			ControlsHelper.AutoSizeByOpenForms(win);
 			win.Width = Math.Min(1450, SystemParameters.WorkArea.Width - 200);
 			// Suspend displaying cloud queue results, because ShowDialog locks UI updates in the back.
-			Global.DHelper.StopDInputService();
+			Global.Orchestrator.StopDInputService();
 			FormEventsEnabled = false;
 			MainBodyPanel.CloudPanel.EnableDataSource(false);
 			win.ErrorReportPanel.SendMessages += win.ErrorReportPanel_SendMessages;
@@ -738,7 +738,7 @@ namespace x360ce.App
 			if (Global.AllowDHelperStart)
 			{
 				FormEventsEnabled = true;
-				Global.DHelper.StartDInputService();
+				Global.Orchestrator.StartDInputService();
 			}
 		}
 
@@ -780,11 +780,11 @@ namespace x360ce.App
 			AppHelper.InitializeHidGuardian();
 			if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
 				System.Threading.Thread.CurrentThread.Name = "MainFormThread";
-			Global.DHelper.DevicesUpdated += DHelper_DevicesUpdated;
-			Global.DHelper.UpdateCompleted += DHelper_UpdateCompleted;
-			Global.DHelper.FrequencyUpdated += DHelper_FrequencyUpdated;
-			Global.DHelper.StatesRetrieved += DHelper_StatesRetrieved;
-			Global.DHelper.XInputReloaded += DHelper_XInputReloaded;
+			Global.Orchestrator.DevicesUpdated += DHelper_DevicesUpdated;
+			Global.Orchestrator.UpdateCompleted += DHelper_UpdateCompleted;
+			Global.Orchestrator.FrequencyUpdated += DHelper_FrequencyUpdated;
+			Global.Orchestrator.StatesRetrieved += DHelper_StatesRetrieved;
+			Global.Orchestrator.XInputReloaded += DHelper_XInputReloaded;
 			MainBodyPanel.SettingsPanel.MainDataGrid.SelectionMode = System.Windows.Controls.DataGridSelectionMode.Extended;
 			MainBodyPanel.SettingsPanel.InitPanel();
 			// NotifySettingsChange will be called on event suspension and resume.
@@ -843,11 +843,11 @@ namespace x360ce.App
 			SettingsManager.Current.SettingChanged -= Current_SettingChanged;
 			SettingsManager.Summaries.Items.ListChanged -= Summaries_ListChanged;
 			SettingsManager.Current.ConfigLoaded -= Current_ConfigLoaded;
-			Global.DHelper.DevicesUpdated -= DHelper_DevicesUpdated;
-			Global.DHelper.UpdateCompleted -= DHelper_UpdateCompleted;
-			Global.DHelper.FrequencyUpdated -= DHelper_FrequencyUpdated;
-			Global.DHelper.StatesRetrieved -= DHelper_StatesRetrieved;
-			Global.DHelper.XInputReloaded -= DHelper_XInputReloaded;
+			Global.Orchestrator.DevicesUpdated -= DHelper_DevicesUpdated;
+			Global.Orchestrator.UpdateCompleted -= DHelper_UpdateCompleted;
+			Global.Orchestrator.FrequencyUpdated -= DHelper_FrequencyUpdated;
+			Global.Orchestrator.StatesRetrieved -= DHelper_StatesRetrieved;
+			Global.Orchestrator.XInputReloaded -= DHelper_XInputReloaded;
 			SettingsManager.Current.NotifySettingsStatus = null;
 			SettingsManager.SetSynchronizingObject(null);
 			IssuesPanel.IsSuspended = null;

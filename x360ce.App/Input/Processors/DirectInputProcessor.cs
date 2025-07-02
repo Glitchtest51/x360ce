@@ -73,7 +73,7 @@ namespace x360ce.App.Input.Processors
 			// Exclusive mode required only if force feedback is available and device is virtual or there is no info about effects.
 			var hasForceFeedback = device.Device.Capabilities.Flags.HasFlag(DeviceFlags.ForceFeedback);
 			var exclusiveRequired = acquireMappedDevicesInExclusiveMode ||
-				(hasForceFeedback && (DInputHelper.Current.isVirtual || device.DeviceEffects == null));
+				(hasForceFeedback && (InputOrchestrator.Current.isVirtual || device.DeviceEffects == null));
 
 			// Check if the current mode is unknown or differs from the desired, then reacquire the device.
 			if (!device.IsExclusiveMode.HasValue || device.IsExclusiveMode.Value != exclusiveRequired)
@@ -176,7 +176,7 @@ namespace x360ce.App.Input.Processors
 						{
 							device.FFState = device.FFState ?? new Engine.ForceFeedbackState();
 							// If force update supplied then...
-							var force = DInputHelper.Current.CopyAndClearFeedbacks()[setting.MapTo - 1];
+							var force = InputOrchestrator.Current.CopyAndClearFeedbacks()[setting.MapTo - 1];
 							if (force != null || device.FFState.Changed(ps))
 							{
 								var vibration = new SharpDX.XInput.Vibration
@@ -209,7 +209,7 @@ namespace x360ce.App.Input.Processors
 				{
 					// Store current values.
 					device.OrgDiState = newState;
-					device.OrgDiStateTime = DInputHelper.Current._Stopwatch.ElapsedTicks;
+					device.OrgDiStateTime = InputOrchestrator.Current._Stopwatch.ElapsedTicks;
 					// Make sure new states have zero values.
 					for (int a = 0; a < newState.Axis.Length; a++)
 						newState.Axis[a] = -short.MinValue;

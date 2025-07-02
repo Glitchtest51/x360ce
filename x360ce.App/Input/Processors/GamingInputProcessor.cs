@@ -67,8 +67,8 @@ namespace x360ce.App.Input.Processors
 			if (device == null)
 				throw new InputMethodException(InputMethod.GamingInput, device, "Device is null");
 
-			var helper = DInputHelper.Current;
-			if (helper == null)
+			var orchestrator = InputOrchestrator.Current;
+			if (orchestrator == null)
 				throw new InputMethodException(InputMethod.GamingInput, device, "DInputHelper not available for Gaming Input processing");
 
 			try

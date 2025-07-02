@@ -193,11 +193,11 @@ namespace x360ce.App.Controls
 			var i = (int)MappedTo - 1;
 			var getXInputStates = SettingsManager.Options.GetXInputStates;
 			newState = getXInputStates
-				? Global.DHelper.LiveXiStates[i]
-				: Global.DHelper.CombinedXiStates[i];
+				? Global.Orchestrator.LiveXiStates[i]
+				: Global.Orchestrator.CombinedXiStates[i];
 			newConnected = getXInputStates
-				? Global.DHelper.LiveXiConnected[i]
-				: Global.DHelper.CombinedXiConnected[i];
+				? Global.Orchestrator.LiveXiConnected[i]
+				: Global.Orchestrator.CombinedXiConnected[i];
 			// If device is not connected and was not connected then return.
 			if (!newConnected && !oldConnected)
 				return;

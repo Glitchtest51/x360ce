@@ -169,7 +169,7 @@ namespace x360ce.App
 		private static void _ResumeTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
 		{
 			if (Global.AllowDHelperStart)
-				Global.DHelper.StartDInputService();
+				Global.Orchestrator.StartDInputService();
 		}
 
 		//------------------------------------------------------------------------
@@ -179,7 +179,7 @@ namespace x360ce.App
 			if (msg == WM_SETTINGCHANGE)
 			{
 				// Must stop all updates or interface will freeze during screen updates.
-				Global.DHelper.StopDInputService();
+				Global.Orchestrator.StopDInputService();
 				_ResumeTimer.Stop();
 				_ResumeTimer.Start();
 			}
@@ -233,7 +233,7 @@ namespace x360ce.App
 				$"{DateTime.Now:HH:mm:ss.fff} {guid} {CleanPath(path, guid)} ({GetInterfaceClassName(guid)})");
 
 			// 6) Update devices.
-			Global.DHelper.DevicesNeedUpdating = true;
+			Global.Orchestrator.DevicesNeedUpdating = true;
 		}
 
 		//-----------------------------------------------------------------------

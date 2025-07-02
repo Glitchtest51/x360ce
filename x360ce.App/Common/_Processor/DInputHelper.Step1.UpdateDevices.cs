@@ -10,7 +10,7 @@ using x360ce.Engine.Data;
 
 namespace x360ce.App.DInput
 {
-	public partial class DInputHelper
+	public partial class InputOrchestrator
 	{
 		public int RefreshDevicesCount = 0;
 		// Keeps track of previously detected device InstanceGuids.

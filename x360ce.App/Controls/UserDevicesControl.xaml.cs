@@ -169,7 +169,7 @@ namespace x360ce.App.Controls
                 var ud = TestDeviceHelper.NewUserDevice();
                 lock (SettingsManager.UserDevices.SyncRoot)
                     SettingsManager.UserDevices.Items.Add(ud);
-                Global.DHelper.DevicesNeedUpdating = true;
+                Global.Orchestrator.DevicesNeedUpdating = true;
             });
         }
 

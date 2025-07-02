@@ -46,17 +46,17 @@ namespace x360ce.App.Input.Processors
 				result.DirectInputAvailable = CheckDirectInputAvailability();
 
 				// Check XInput availability and controller count
-				result.XInputAvailable = DInputHelper.Current.xInputProcessor.IsAvailable();
-				result.XInputControllerCount = DInputHelper.Current.xInputProcessor.GetAssignedControllerCount();
+				result.XInputAvailable = InputOrchestrator.Current.xInputProcessor.IsAvailable();
+				result.XInputControllerCount = InputOrchestrator.Current.xInputProcessor.GetAssignedControllerCount();
 				result.XInputSlotsAvailable = 4 - result.XInputControllerCount;
 
 				// Check Gaming Input availability (Windows 10+ requirement)
-				result.GamingInputAvailable = DInputHelper.Current.gamingInputProcessor.IsAvailable();
+				result.GamingInputAvailable = InputOrchestrator.Current.gamingInputProcessor.IsAvailable();
 				result.WindowsVersion = Environment.OSVersion.Version;
 				result.IsWindows10Plus = result.WindowsVersion.Major >= 10;
 
 				// Check Raw Input availability
-				result.RawInputAvailable = DInputHelper.Current.rawInputProcessor.IsAvailable();
+				result.RawInputAvailable = InputOrchestrator.Current.rawInputProcessor.IsAvailable();
 
 				// Overall system status
 				result.IsSystemCompatible = result.DirectInputAvailable || result.XInputAvailable;
@@ -94,8 +94,8 @@ namespace x360ce.App.Input.Processors
 			try
 			{
 				// Get the appropriate processor for validation
-				var helper = DInputHelper.Current;
-				if (helper == null)
+				var orchestrator = InputOrchestrator.Current;
+				if (orchestrator == null)
 					return ValidationResult.Error("DInputHelper not available");
 
 				switch (inputMethod)
@@ -104,13 +104,13 @@ namespace x360ce.App.Input.Processors
 						return ValidateDirectInputDevice(device);
 
 					case InputMethod.XInput:
-						return helper.xInputProcessor.ValidateXInputDevice(device);
+						return orchestrator.xInputProcessor.ValidateXInputDevice(device);
 
 					case InputMethod.GamingInput:
-						return helper.gamingInputProcessor.ValidateDevice(device);
+						return orchestrator.gamingInputProcessor.ValidateDevice(device);
 
 					case InputMethod.RawInput:
-						return helper.rawInputProcessor.ValidateDevice(device);
+						return orchestrator.rawInputProcessor.ValidateDevice(device);
 
 					default:
 						return ValidationResult.Error($"Unknown input method: {inputMethod}");

@@ -177,7 +177,7 @@ namespace x360ce.App.Controls
 			{
                 // Change dragging status.
                 isDragging = true;
-                Global.DHelper.StopDInputService();
+                Global.Orchestrator.StopDInputService();
 				label.Background = colorRecord;
 
                 try
@@ -189,7 +189,7 @@ namespace x360ce.App.Controls
 				{
                     // In any case, dragging ended or stopped (successful or not).
                     isDragging = false;
-                    Global.DHelper.StartDInputService();
+                    Global.Orchestrator.StartDInputService();
 					label.Background = Brushes.Transparent;
                 }
 			}

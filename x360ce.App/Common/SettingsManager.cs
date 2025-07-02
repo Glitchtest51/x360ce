@@ -66,7 +66,7 @@ namespace x360ce.App
 					game.PropertyChanged += CurrentGame_PropertyChanged;
 				// Assign new game.
 				CurrentGame = game;
-				Global.DHelper.SettingsChanged = true;
+				Global.Orchestrator.SettingsChanged = true;
 				CurrentGame_PropertyChanged?.Invoke(null, null);
 				//// If pad controls not initializes yet then return.
 				//if (PadControls == null)

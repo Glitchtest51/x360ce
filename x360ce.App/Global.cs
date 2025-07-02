@@ -119,7 +119,7 @@ namespace x360ce.App
 			switch (e.PropertyName)
 			{
 				case nameof(Options.PollingRate):
-					DHelper.Frequency = o.PollingRate;
+					Orchestrator.Frequency = o.PollingRate;
 					break;
 				case nameof(Options.RemoteEnabled):
 					// If UDP server must be enabled then...
@@ -140,7 +140,7 @@ namespace x360ce.App
 
 		public static bool AllowDHelperStart;
 
-		public static DInput.DInputHelper DHelper;
+		public static DInput.InputOrchestrator Orchestrator;
 
 		#endregion
 
