@@ -8,9 +8,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using x360ce.Engine.Data;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
-	public partial class InputOrchestrator
+public partial class InputOrchestrator
 	{
 		public int RefreshDevicesCount = 0;
 		// Keeps track of previously detected device InstanceGuids.
@@ -198,7 +198,7 @@ namespace x360ce.App.DInput
 			do
 			{
 				current = devInfos.FirstOrDefault(x => x.DeviceId == current.ParentDeviceId);
-				if (current != null && VirtualDriverInstaller.ViGEmBusHardwareIds.Any(
+				if (current != null && DInput.VirtualDriverInstaller.ViGEmBusHardwareIds.Any(
 					id => string.Equals(current.HardwareIds, id, StringComparison.OrdinalIgnoreCase)))
 				{
 					return true;

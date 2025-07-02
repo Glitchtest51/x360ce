@@ -17,7 +17,7 @@ using System.Threading;
 //using System.Windows.Interop;
 //using System.Windows.Input;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
 	public partial class InputOrchestrator : IDisposable
 	{

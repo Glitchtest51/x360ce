@@ -140,7 +140,7 @@ namespace x360ce.App
 
 		public static bool AllowDHelperStart;
 
-		public static DInput.InputOrchestrator Orchestrator;
+public static Input.Orchestration.InputOrchestrator Orchestrator;
 
 		#endregion
 

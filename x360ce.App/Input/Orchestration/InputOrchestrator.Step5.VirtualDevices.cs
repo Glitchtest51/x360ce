@@ -9,9 +9,9 @@ using System.Windows.Input;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
-	public partial class InputOrchestrator
+public partial class InputOrchestrator
 	{
 
 		/// <summary>

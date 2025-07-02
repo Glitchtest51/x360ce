@@ -38,7 +38,7 @@ namespace x360ce.App.Controls
 			ControlsHelper.BeginInvoke(() =>
 			{
 				StatusTextBox.Text = "Installing. Please Wait...";
-				DInput.InputOrchestrator.CheckInstallVirtualDriver();
+				Input.Orchestration.InputOrchestrator.CheckInstallVirtualDriver();
 				RefreshStatus();
 			});
 		}
@@ -55,7 +55,7 @@ namespace x360ce.App.Controls
 				StatusTextBox.Text = "Uninstalling. Please Wait...";
 				// Disable Virtual mode first.
 				Global._MainWindow.ChangeCurrentGameEmulationType(EmulationType.None);
-				DInput.InputOrchestrator.CheckUnInstallVirtualDriver();
+				Input.Orchestration.InputOrchestrator.CheckUnInstallVirtualDriver();
 				RefreshStatus();
 			});
 		}

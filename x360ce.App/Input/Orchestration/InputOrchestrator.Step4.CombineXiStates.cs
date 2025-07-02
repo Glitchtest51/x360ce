@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
-	public partial class InputOrchestrator
+public partial class InputOrchestrator
 	{
 
 		public State[] CombinedXiStates;

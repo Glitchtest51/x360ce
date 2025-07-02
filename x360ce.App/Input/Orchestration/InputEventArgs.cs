@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
 	public class DInputEventArgs : EventArgs
 	{

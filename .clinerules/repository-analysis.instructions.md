@@ -150,6 +150,38 @@ This section maps the codebase organization to help developers navigate and unde
 - **Output Type**: Windows Executable (WinExe)
 - **Assembly Name**: x360ce
 - **Key Features**: Controller configuration, mapping interface, cloud synchronization
+- **Input Processing**: Organized input handling through InputOrchestrator and specialized processors
+
+##### Input Processing Architecture
+The x360ce.App project features a sophisticated input processing system organized into:
+
+```
+x360ce.App/Input/
+├── Orchestration/           # Main coordination logic
+│   ├── InputOrchestrator.cs                    # Primary orchestrator class
+│   ├── InputOrchestrator.Step1.UpdateDevices.cs    # Device detection and management
+│   ├── InputOrchestrator.Step2.CustomDiStates.cs   # State processing coordination
+│   ├── InputOrchestrator.Step2.InputProcessor.cs   # Processor registry
+│   ├── InputOrchestrator.Step3.UpdateXiStates.cs   # XInput state conversion
+│   ├── InputOrchestrator.Step4.CombineXiStates.cs  # State combination logic
+│   ├── InputOrchestrator.Step5.VirtualDevices.cs   # Virtual device management
+│   ├── InputOrchestrator.Step6.RetrieveXiStates.cs # State retrieval
+│   ├── InputOrchestrator.XInputLibrary.cs          # XInput library management
+│   └── InputEventArgs.cs                           # Event argument classes
+└── Processors/              # Individual input method handlers
+    ├── DirectInputProcessor.cs     # Microsoft DirectInput API handler
+    ├── XInputProcessor.cs          # Microsoft XInput API handler
+    ├── GamingInputProcessor.cs     # Windows Gaming Input API handler
+    ├── RawInputProcessor.cs        # Windows Raw Input API handler
+    ├── InputMethodValidator.cs     # Cross-method validation service
+    └── IInputProcessor.cs          # Common processor interface
+```
+
+**Key Architectural Decisions:**
+- **Orchestration Pattern**: InputOrchestrator coordinates all input processing while individual processors handle method-specific logic
+- **Step-Based Processing**: Input processing follows a clear 6-step workflow for maintainability
+- **Processor Interface**: All input methods implement IInputProcessor for consistent behavior
+- **Namespace Organization**: Clear separation between orchestration (`x360ce.App.Input.Orchestration`) and processing (`x360ce.App.Input.Processors`)
 
 #### x360ce.Engine  
 - **Purpose**: Core business logic library shared across all applications
@@ -385,6 +417,15 @@ The project uses Entity Framework with code-first approach:
 - **SQL Server Database Project**: Maintains schema through Visual Studio database tools
 - **Entity Framework Models**: Generated from database schema for type safety
 - **Stored Procedures**: Complex business logic implemented in database layer
+
+### Input Processing Architecture Decision
+The project implements a sophisticated orchestration pattern for input processing:
+- **Orchestration Pattern**: `InputOrchestrator` coordinates all input processing while specialized processors handle method-specific logic
+- **Namespace Organization**: Clear separation between orchestration (`x360ce.App.Input.Orchestration`) and processing (`x360ce.App.Input.Processors`)
+- **Step-Based Processing**: Input processing follows a clear 6-step workflow for maintainability
+- **Processor Interface**: All input methods implement `IInputProcessor` for consistent behavior and extensibility
+- **File Organization**: Step-based orchestration files and individual processor classes for logical code organization
+- **Benefits**: Improved maintainability, clearer separation of concerns, easier testing, simplified debugging, enhanced extensibility for new input methods
 
 ### Driver Integration Approach
 The application integrates with system-level drivers through managed wrappers:

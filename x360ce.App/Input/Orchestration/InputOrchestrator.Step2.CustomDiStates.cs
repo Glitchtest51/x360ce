@@ -6,9 +6,9 @@ using x360ce.App.Input.Processors;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
-	public partial class InputOrchestrator
+public partial class InputOrchestrator
 	{
 		#region Shared Fields for All Input Methods
 
@@ -36,8 +36,8 @@ namespace x360ce.App.DInput
 		/// </remarks>
 		void UpdateDiStates(UserGame game, DeviceDetector detector)
 		{
-			// Get all mapped user devices for the specified game (if game or devices changed).
-			if (Global.Orchestrator.SettingsChanged)
+// Get all mapped user devices for the specified game (if game or devices changed).
+if (Global.Orchestrator.SettingsChanged)
 			{
 				currentGame = game;
 				options = SettingsManager.Options;

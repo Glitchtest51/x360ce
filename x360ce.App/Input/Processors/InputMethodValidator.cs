@@ -1,6 +1,6 @@
 using System;
 using System.Diagnostics;
-using x360ce.App.DInput;
+using x360ce.App.Input.Orchestration;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 

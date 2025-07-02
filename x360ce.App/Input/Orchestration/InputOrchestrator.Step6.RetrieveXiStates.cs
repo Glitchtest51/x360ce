@@ -3,9 +3,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace x360ce.App.DInput
+namespace x360ce.App.Input.Orchestration
 {
-	public partial class InputOrchestrator
+public partial class InputOrchestrator
 	{
 
 		public Controller[] LiveXiControllers;

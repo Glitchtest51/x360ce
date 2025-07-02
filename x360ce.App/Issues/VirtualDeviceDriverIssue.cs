@@ -29,7 +29,7 @@ namespace x360ce.App.Issues
 		}
 		public override void FixTask()
 		{
-            DInput.InputOrchestrator.CheckInstallVirtualDriver();
+            Input.Orchestration.InputOrchestrator.CheckInstallVirtualDriver();
 		}
 
 	}

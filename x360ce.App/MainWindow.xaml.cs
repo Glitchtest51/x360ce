@@ -91,7 +91,7 @@ namespace x360ce.App
 			Close();
 		}
 
-		private void DHelper_XInputReloaded(object sender, DInput.DInputEventArgs e)
+private void DHelper_XInputReloaded(object sender, Input.Orchestration.DInputEventArgs e)
 		{
 			ControlsHelper.BeginInvoke(() =>
 			{
@@ -133,7 +133,7 @@ namespace x360ce.App
 			}
 		}
 
-		private void DHelper_StatesRetrieved(object sender, DInput.DInputEventArgs e)
+private void DHelper_StatesRetrieved(object sender, Input.Orchestration.DInputEventArgs e)
 		{
 			if (e.Error != null)
 			{

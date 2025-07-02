@@ -132,8 +132,8 @@ namespace x360ce.App
 				NativeMethods.SetProcessDPIAware();
 			Global.InitializeServices();
 			Global.InitializeCloudClient();
-			// Initialize DInput Helper.
-			Global.Orchestrator = new DInput.InputOrchestrator();
+// Initialize DInput Helper.
+Global.Orchestrator = new Input.Orchestration.InputOrchestrator();
 			if (ic.Parameters.ContainsKey("Exit"))
 			{
 				// Close all x360ce apps.
