@@ -608,6 +608,31 @@ namespace x360ce.App.Input.Processors
 		/// This method tests DirectInput availability by attempting to create
 		/// a DirectInput instance. Used for system compatibility checking.
 		/// </remarks>
+		public bool IsAvailable()
+		{
+			try
+			{
+				using (var directInput = new SharpDX.DirectInput.DirectInput())
+				{
+					// If we can create the instance, DirectInput is available
+					return true;
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"DirectInput availability check failed: {ex.Message}");
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Checks if DirectInput is available on the current system.
+		/// </summary>
+		/// <returns>True if DirectInput can be initialized</returns>
+		/// <remarks>
+		/// This method tests DirectInput availability by attempting to create
+		/// a DirectInput instance. Used for system compatibility checking.
+		/// </remarks>
 		public static bool IsDirectInputAvailable()
 		{
 			try

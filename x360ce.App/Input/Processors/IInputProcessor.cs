@@ -1,6 +1,5 @@
 using x360ce.Engine;
 using x360ce.Engine.Data;
-//using x360ce.Engine.Data;
 
 namespace x360ce.App.Input.Processors
 {
@@ -14,8 +13,6 @@ namespace x360ce.App.Input.Processors
         /// </summary>
         InputMethod SupportedMethod { get; }
 
-		/*
-
         /// <summary>
         /// Determines if this processor can handle the specified device.
         /// </summary>
@@ -27,9 +24,9 @@ namespace x360ce.App.Input.Processors
         /// Reads the current state from the device using the processor's input method.
         /// </summary>
         /// <param name="device">The device to read from</param>
-        /// <returns>CustomDiState representing the current controller state</returns>
+        /// <returns>CustomDeviceState representing the current controller state</returns>
         /// <exception cref="InputMethodException">Thrown when the input method encounters errors</exception>
-        CustomDiState ReadState(UserDevice device);
+        CustomDeviceState ReadState(UserDevice device);
 
         /// <summary>
         /// Handles force feedback for the specified device.
@@ -38,14 +35,17 @@ namespace x360ce.App.Input.Processors
         /// <param name="ffState">The force feedback state to apply</param>
         void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState);
 
-        
-        */
+        /// <summary>
+        /// Checks if this input method is available on the current system.
+        /// </summary>
+        /// <returns>True if the input method is available and functional</returns>
+        bool IsAvailable();
 
-		/// <summary>
-		/// Validates if the device can be used with this input method.
-		/// </summary>
-		/// <param name="device">The device to validate</param>
-		/// <returns>ValidationResult indicating compatibility and any limitations</returns>
-		ValidationResult ValidateDevice(UserDevice device);
+        /// <summary>
+        /// Validates if the device can be used with this input method.
+        /// </summary>
+        /// <param name="device">The device to validate</param>
+        /// <returns>ValidationResult indicating compatibility and any limitations</returns>
+        ValidationResult ValidateDevice(UserDevice device);
     }
 }
