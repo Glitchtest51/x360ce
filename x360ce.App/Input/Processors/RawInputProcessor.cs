@@ -653,7 +653,7 @@ namespace x360ce.App.Input.Processors
 		/// Gets diagnostic information about Raw Input system status.
 		/// </summary>
 		/// <returns>String containing Raw Input diagnostic information</returns>
-		public string GetRawInputDiagnosticInfo()
+		public string GetDiagnosticInfo()
 		{
 			var info = new System.Text.StringBuilder();
 

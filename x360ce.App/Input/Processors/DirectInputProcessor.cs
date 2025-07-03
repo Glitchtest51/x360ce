@@ -657,6 +657,37 @@ namespace x360ce.App.Input.Processors
 		/// <remarks>
 		/// This method provides detailed information for troubleshooting DirectInput issues.
 		/// </remarks>
+		public string GetDiagnosticInfo()
+		{
+			var info = new System.Text.StringBuilder();
+
+			try
+			{
+				info.AppendLine($"DirectInput Available: {IsAvailable()}");
+				info.AppendLine($"Operating System: {Environment.OSVersion}");
+
+				// Add information about DirectInput version and capabilities
+				using (var directInput = new SharpDX.DirectInput.DirectInput())
+				{
+					info.AppendLine("DirectInput initialized successfully");
+					// Additional diagnostic information could be added here
+				}
+			}
+			catch (Exception ex)
+			{
+				info.AppendLine($"Error getting DirectInput diagnostic info: {ex.Message}");
+			}
+
+			return info.ToString();
+		}
+
+		/// <summary>
+		/// Gets diagnostic information about DirectInput system status.
+		/// </summary>
+		/// <returns>String containing DirectInput diagnostic information</returns>
+		/// <remarks>
+		/// This method provides detailed information for troubleshooting DirectInput issues.
+		/// </remarks>
 		public static string GetDirectInputDiagnosticInfo()
 		{
 			var info = new System.Text.StringBuilder();

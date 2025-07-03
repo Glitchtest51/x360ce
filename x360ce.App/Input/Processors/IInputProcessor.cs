@@ -42,6 +42,12 @@ namespace x360ce.App.Input.Processors
         bool IsAvailable();
 
         /// <summary>
+        /// Gets diagnostic information about this input method's system status.
+        /// </summary>
+        /// <returns>String containing diagnostic information for troubleshooting</returns>
+        string GetDiagnosticInfo();
+
+        /// <summary>
         /// Validates if the device can be used with this input method.
         /// </summary>
         /// <param name="device">The device to validate</param>

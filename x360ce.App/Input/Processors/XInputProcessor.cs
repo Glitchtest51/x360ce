@@ -305,7 +305,7 @@ return null;
 		/// 
 		/// Used for diagnostic logs and support information.
 		/// </remarks>
-		public string GetXInputDiagnosticInfo()
+		public string GetDiagnosticInfo()
 		{
 			var info = new System.Text.StringBuilder();
 

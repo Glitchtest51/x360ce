@@ -162,7 +162,7 @@ namespace x360ce.App.Input.Processors
 		/// Gets Gaming Input diagnostic information.
 		/// </summary>
 		/// <returns>String containing Gaming Input diagnostic information</returns>
-		public string GetGamingInputDiagnosticInfo()
+		public string GetDiagnosticInfo()
 		{
 			var info = new System.Text.StringBuilder();
 
