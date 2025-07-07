@@ -41,34 +41,6 @@ namespace x360ce.Engine.Data
 				ProductName = ins.ProductName;
 		}
 
-		public void LoadCapabilities(Capabilities cap)
-		{
-			// Check if value is same to reduce grid refresh.
-			if (CapAxeCount != cap.AxeCount)
-				CapAxeCount = cap.AxeCount;
-			if (CapButtonCount != cap.ButtonCount)
-				CapButtonCount = cap.ButtonCount;
-			if (CapDriverVersion != cap.DriverVersion)
-				CapDriverVersion = cap.DriverVersion;
-			if (CapFirmwareRevision != cap.FirmwareRevision)
-				CapFirmwareRevision = cap.FirmwareRevision;
-			if (CapFlags != (int)cap.Flags)
-				CapFlags = (int)cap.Flags;
-			if (CapForceFeedbackMinimumTimeResolution != cap.ForceFeedbackMinimumTimeResolution)
-				CapForceFeedbackMinimumTimeResolution = cap.ForceFeedbackMinimumTimeResolution;
-			if (CapForceFeedbackSamplePeriod != cap.ForceFeedbackSamplePeriod)
-				CapForceFeedbackSamplePeriod = cap.ForceFeedbackSamplePeriod;
-			if (CapHardwareRevision != cap.HardwareRevision)
-				CapHardwareRevision = cap.HardwareRevision;
-			if (CapPovCount != cap.PovCount)
-				CapPovCount = cap.PovCount;
-			if (CapIsHumanInterfaceDevice != cap.IsHumanInterfaceDevice)
-				CapIsHumanInterfaceDevice = cap.IsHumanInterfaceDevice;
-			if (CapSubtype != cap.Subtype)
-				CapSubtype = cap.Subtype;
-			if (CapType != (int)cap.Type)
-				CapType = (int)cap.Type;
-		}
 
 		public void LoadDevDeviceInfo(DeviceInfo info)
 		{

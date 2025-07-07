@@ -8,6 +8,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using x360ce.App.Converters;
+using x360ce.App.Input.Orchestration;
 using x360ce.Engine;
 using x360ce.Engine.Data;
 using x360ce.Engine.Common;
@@ -370,8 +371,8 @@ namespace x360ce.App.Controls
 					{
 						try
 						{
-							// Load capabilities from the actual DirectInput device
-							ud.LoadCapabilities(ud.DirectInputDevice.Capabilities);
+							// Load capabilities using centralized DirectInputProcessor
+							InputOrchestrator.Current.directInputProcessor.LoadCapabilities(ud);
 							System.Diagnostics.Debug.WriteLine($"INFO: Device '{ud.InstanceName}' InputMethod: DirectInput, " +
 								$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount}, POVs: {ud.CapPovCount}, Sliders: 0");
 						}

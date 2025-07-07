@@ -263,7 +263,8 @@ public partial class InputOrchestrator
 				{
 					userDevice.DirectInputDevice = new Joystick(manager, instance.InstanceGuid);
 					userDevice.IsExclusiveMode = null;
-					userDevice.LoadCapabilities(userDevice.DirectInputDevice.Capabilities);
+					// Load capabilities using centralized DirectInputProcessor
+					InputOrchestrator.Current.directInputProcessor.LoadCapabilities(userDevice);
 				}
 				catch (Exception ex)
 				{
