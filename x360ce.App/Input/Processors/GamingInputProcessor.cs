@@ -325,7 +325,7 @@ namespace x360ce.App.Input.Processors
 				ConvertGamingInputToCustomDeviceState(reading, newState);
 
 				// Store the reading as device state for debugging/monitoring
-				device.DeviceState = reading;
+				device.DirectInputDeviceState = reading;
 
 				return newState;
 			}

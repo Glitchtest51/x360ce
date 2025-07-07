@@ -126,7 +126,7 @@ namespace x360ce.App.Controls
 				var isOnline = udNotNull ? ud.IsOnline : false;
 				var currentInputMethod = udNotNull ? ud.InputMethod : InputMethod.DirectInput;
 
-				ControlsHelper.SetEnabled(PadFootPanel.RemapAllButton, udNotNull && ud.DiState != null);
+				ControlsHelper.SetEnabled(PadFootPanel.RemapAllButton, udNotNull && ud.DeviceState != null);
 				PadItemPanel.SetEnabled(udNotNull);
 				// If device instance changed then...
 				if (!Equals(_InstanceGuid, instanceGuid))
@@ -161,16 +161,16 @@ namespace x360ce.App.Controls
 				if (udNotNull && _PadControlImager.Recorder.Recording)
 				{
 					// Stop recording if DInput value captured.
-					var stopped = _PadControlImager.Recorder.StopRecording(ud.DiState);
+					var stopped = _PadControlImager.Recorder.StopRecording(ud.DeviceState);
 					// If value was found and recording stopped then...
 					if (stopped)
 					{
 						// Device not initialized yet.
-						if (ud.DiState == null)
+						if (ud.DeviceState == null)
 							RecordAllMaps.Clear();
 						if (RecordAllMaps.Count == 0)
 						{
-							if (ud.DiState != null)
+							if (ud.DeviceState != null)
 								XboxImage.SetHelpText(XboxImage.MappingDone);
 							else
 								XboxImage.HelpTextLabel.Content = "";
@@ -227,10 +227,10 @@ namespace x360ce.App.Controls
 			}
 
 			// Process device.
-			if (CurrentUserDevice?.DiState != null && CurrentPadSetting != null)
+			if (CurrentUserDevice?.DeviceState != null && CurrentPadSetting != null)
 			{
 				// Update graphs.
-				var axis = CurrentUserDevice.DiState.Axis;
+				var axis = CurrentUserDevice.DeviceState.Axis;
 				foreach (var (target, panel, value) in new (TargetType Target, AxisMapControl Panel, short Value)[]
 				{
 					(TargetType.LeftThumbX, LeftThumbXPanel, newState.Gamepad.LeftThumbX),
@@ -513,7 +513,7 @@ namespace x360ce.App.Controls
 		void UpdateDirectInputTabPage(UserDevice diDevice)
 		{
 			var isOnline = diDevice != null && diDevice.IsOnline;
-			var hasState = isOnline && diDevice.Device != null;
+			var hasState = isOnline && diDevice.DirectInputDevice != null;
 			var instance = diDevice == null ? "" : " - " + diDevice.InstanceId;
 			var text = "Direct Input" + instance + (isOnline ? hasState ? "" : " - On-line" : " - Off-line");
 			PadItemPanel.DInputTabPage.Header = text;

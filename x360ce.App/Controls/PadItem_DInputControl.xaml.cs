@@ -457,7 +457,7 @@ namespace x360ce.App.Controls
 				isWheel = ud == null
 					? false : ud.CapType == (int)SharpDX.DirectInput.DeviceType.Driving;
 			}
-			ShowDirectInputState(ud?.DeviceState);
+			ShowDirectInputState(ud?.DirectInputDeviceState);
 		}
 
 		string ObjectsInformationAsText;

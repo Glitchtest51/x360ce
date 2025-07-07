@@ -240,7 +240,7 @@ namespace x360ce.App.Controls
 		{
 			// Use the existing DiState property that should be populated by all input methods
 			// instead of trying to create a new CustomDeviceState from DirectInput-specific DeviceState
-			return ud?.DiState;
+			return ud?.DeviceState;
 		}
 
 		UniformGrid PovUnifromGrid;
@@ -449,12 +449,12 @@ namespace x360ce.App.Controls
 
 			// Sliders - For non-DirectInput modes, we can assume standard slider availability
 			// This provides a consistent interface regardless of input method
-			if (ud.InputMethod == x360ce.Engine.InputMethod.DirectInput && ud.Device is Joystick device)
+			if (ud.InputMethod == x360ce.Engine.InputMethod.DirectInput && ud.DirectInputDevice is Joystick device)
 			{
 				// For DirectInput, check actual slider state to see what's available
 				try
 				{
-					var state = (JoystickState)ud.DeviceState;
+					var state = (JoystickState)ud.DirectInputDeviceState;
 					if (state != null)
 					{
 						if (state.Sliders[0] != 0) sliders.Add(0);
@@ -565,7 +565,7 @@ namespace x360ce.App.Controls
 			// Buttons.
 			foreach (var kvp in ButtonDictionary)
 			{
-				bool bDS = ud.DiState.Buttons[kvp.Key];
+				bool bDS = ud.DeviceState.Buttons[kvp.Key];
 
 				ButtonDictionary[kvp.Key].Item1.Background = bDS ? colorActive : Brushes.Transparent;
 				ButtonDictionary[kvp.Key].Item2.Content = bDS.ToString();
@@ -582,7 +582,7 @@ namespace x360ce.App.Controls
 			int[] povButtonValues = new[] { 0, 9000, 18000, 27000, 0, 9000, 18000, 27000, 0, 9000, 18000, 27000, 0, 9000, 18000, 27000 };
 			foreach (var kvp in PovDictionary)
 			{
-				int pDS = ud.DiState.POVs[kvp.Key];
+				int pDS = ud.DeviceState.POVs[kvp.Key];
 				PovDictionary[kvp.Key].Item1.Background = pDS > -1 ? colorActive : Brushes.Transparent;
 				PovDictionary[kvp.Key].Item2.Content = pDS;
 				// Up, Right, Down, Left.
@@ -616,7 +616,7 @@ namespace x360ce.App.Controls
             const int DragAndDropAxisDeadzone = 8000;
 			foreach (var kvp in AxisDictionary)
 			{
-				int aDS = ud.DiState.Axis[kvp.Key];
+				int aDS = ud.DeviceState.Axis[kvp.Key];
 				bool active = (ud.InputMethod == x360ce.Engine.InputMethod.XInput) ? aDS > DragAndDropAxisDeadzone : aDS < 32767 - DragAndDropAxisDeadzone || aDS > 32767 + DragAndDropAxisDeadzone;
                 AxisDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
 				HAxisDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
@@ -637,7 +637,7 @@ namespace x360ce.App.Controls
 			const int DragAndDropSliderDeadzone = 8000;
 			foreach (var kvp in SliderDictionary)
 			{
-				int sDS = ud.DiState.Sliders[kvp.Key];
+				int sDS = ud.DeviceState.Sliders[kvp.Key];
 				bool active = sDS > DragAndDropSliderDeadzone;
 				SliderDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;
 				HSliderDictionary[kvp.Key].Item1.Background = active ? colorActive : Brushes.Transparent;

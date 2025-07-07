@@ -257,13 +257,13 @@ public partial class InputOrchestrator
 		/// </summary>
 		private void InitializeDevice(DirectInput manager, UserDevice userDevice, DeviceInstance instance)
 		{
-			if (userDevice.Device == null)
+			if (userDevice.DirectInputDevice == null)
 			{
 				try
 				{
-					userDevice.Device = new Joystick(manager, instance.InstanceGuid);
+					userDevice.DirectInputDevice = new Joystick(manager, instance.InstanceGuid);
 					userDevice.IsExclusiveMode = null;
-					userDevice.LoadCapabilities(userDevice.Device.Capabilities);
+					userDevice.LoadCapabilities(userDevice.DirectInputDevice.Capabilities);
 				}
 				catch (Exception ex)
 				{
@@ -297,9 +297,9 @@ public partial class InputOrchestrator
 		private void LoadHidDeviceData(UserDevice userDevice, DeviceInstance instance, DeviceInfo[] allInterfaces, out DeviceInfo hid)
 		{
 			hid = null;
-			if (instance.IsHumanInterfaceDevice && userDevice.Device != null)
+			if (instance.IsHumanInterfaceDevice && userDevice.DirectInputDevice != null)
 			{
-				string interfacePath = userDevice.Device.Properties.InterfacePath;
+				string interfacePath = userDevice.DirectInputDevice.Properties.InterfacePath;
 				hid = allInterfaces.FirstOrDefault(x => x.DevicePath == interfacePath);
 				userDevice.LoadHidDeviceInfo(hid);
 				userDevice.ConnectionClass = hid == null

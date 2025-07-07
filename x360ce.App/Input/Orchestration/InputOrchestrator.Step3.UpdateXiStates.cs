@@ -42,7 +42,7 @@ public partial class InputOrchestrator
 				// If setting was not found then continue.
 				if (padSetting == null)
 					continue;
-				var diState = ud.DiState;
+				var diState = ud.DeviceState;
 				// If custom directInput state is not available then continue.
 				if (diState == null)
 					continue;

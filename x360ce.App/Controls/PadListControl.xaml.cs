@@ -366,12 +366,12 @@ namespace x360ce.App.Controls
 			{
 				case InputMethod.DirectInput:
 					// For DirectInput, try to use actual device capabilities if DirectInput device is available
-					if (ud.Device != null)
+					if (ud.DirectInputDevice != null)
 					{
 						try
 						{
 							// Load capabilities from the actual DirectInput device
-							ud.LoadCapabilities(ud.Device.Capabilities);
+							ud.LoadCapabilities(ud.DirectInputDevice.Capabilities);
 							System.Diagnostics.Debug.WriteLine($"INFO: Device '{ud.InstanceName}' InputMethod: DirectInput, " +
 								$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount}, POVs: {ud.CapPovCount}, Sliders: 0");
 						}

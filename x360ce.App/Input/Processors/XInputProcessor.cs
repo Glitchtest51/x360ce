@@ -502,7 +502,7 @@ return null;
 				LogInputChanges(device, customState);
 
 				// Store the XInput state for potential use by other parts of the system
-				device.DeviceState = xinputState.Gamepad;
+				device.DirectInputDeviceState = xinputState.Gamepad;
 
 				return customState;
 			}

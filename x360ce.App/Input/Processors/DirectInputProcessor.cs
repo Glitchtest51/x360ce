@@ -86,14 +86,14 @@ namespace x360ce.App.Input.Processors
 			newUpdates = null;
 
 			bool useData = false;
-			if (options.UseDeviceBufferedData && device.Device.Properties.BufferSize == 0)
+			if (options.UseDeviceBufferedData && device.DirectInputDevice.Properties.BufferSize == 0)
 			{
 				// Set BufferSize in order to use buffered data.
-				device.Device.Properties.BufferSize = 128;
+				device.DirectInputDevice.Properties.BufferSize = 128;
 				useData = true;
 			}
 
-			var deviceType = device.Device.Information.Type;
+			var deviceType = device.DirectInputDevice.Information.Type;
 			// Original device will be hidden from the game when acquired in exclusive mode.
 			// If device is not keyboard or mouse then apply AcquireMappedDevicesInExclusiveMode option.
 			var acquireMappedDevicesInExclusiveMode =
@@ -102,7 +102,7 @@ namespace x360ce.App.Input.Processors
 				: false;
 
 			// Exclusive mode required only if force feedback is available and device is virtual or there is no info about effects.
-			var hasForceFeedback = device.Device.Capabilities.Flags.HasFlag(DeviceFlags.ForceFeedback);
+			var hasForceFeedback = device.DirectInputDevice.Capabilities.Flags.HasFlag(DeviceFlags.ForceFeedback);
 			var exclusiveRequired = acquireMappedDevicesInExclusiveMode ||
 				(hasForceFeedback && (InputOrchestrator.Current.isVirtual || device.DeviceEffects == null));
 
@@ -111,7 +111,7 @@ namespace x360ce.App.Input.Processors
 			{
 				var cooperativeLevel = exclusiveRequired ? CooperativeLevel.Exclusive : CooperativeLevel.NonExclusive;
 				// Reacquire device in exclusive or in non exclusive mode (xinput.dll can control force feedback).
-				DeviceExclusiveMode(device, detector, device.Device, cooperativeLevel);
+				DeviceExclusiveMode(device, detector, device.DirectInputDevice, cooperativeLevel);
 			}
 
 			// Polling - Retrieves data from polled objects on a DirectInput device.
@@ -120,19 +120,19 @@ namespace x360ce.App.Input.Processors
 			// If a device that requires polling is not polled periodically, no new data is received from the device.
 			// Calling this method causes DirectInput to update the device state, generate input
 			// events (if buffered data is enabled), and set notification events (if notification is enabled).
-			device.Device.Poll();
+			device.DirectInputDevice.Poll();
 
 			CustomDeviceState newState = null;
 
 			// Use switch based on pattern matching for supported device types.
-			switch (device.Device)
+			switch (device.DirectInputDevice)
 			{
 				case Mouse mDevice:
 					newUpdates = useData ? mDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray() : null;
 					{
 						var state = mDevice.GetCurrentState();
 						newState = new CustomDeviceState(state);
-						device.DeviceState = state;
+						device.DirectInputDeviceState = state;
 					}
 					break;
 				case Keyboard kDevice:
@@ -140,7 +140,7 @@ namespace x360ce.App.Input.Processors
 					{
 						var state = kDevice.GetCurrentState();
 						newState = new CustomDeviceState(state);
-						device.DeviceState = state;
+						device.DirectInputDeviceState = state;
 					}
 					break;
 				case Joystick jDevice:
@@ -150,34 +150,34 @@ namespace x360ce.App.Input.Processors
 						newState = new CustomDeviceState(state);
 
 						// Test if button 0 was pressed.
-						var oldState = device.DeviceState as JoystickState;
+						var oldState = device.DirectInputDeviceState as JoystickState;
 						if (oldState != null && oldState.Buttons[0] != state.Buttons[0])
 						{
 
 						}
 						//-----------------------------
 
-						device.DeviceState = state;
+						device.DirectInputDeviceState = state;
 					}
 					break;
 				default:
-					throw new Exception($"Unknown device: {device.Device}");
+					throw new Exception($"Unknown device: {device.DirectInputDevice}");
 			}
 
 			// Fill device objects force feedback actuator masks.
 			if (device.DeviceObjects == null)
 			{
-				var deviceObjects = AppHelper.GetDeviceObjects(device, device.Device);
+				var deviceObjects = AppHelper.GetDeviceObjects(device, device.DirectInputDevice);
 				device.DeviceObjects = deviceObjects;
 				//// Update masks.
 				int axisMask = 0;
 				int actuatorMask = 0;
 				int actuatorCount = 0;
-				if (device.Device is Mouse mDevice2)
+				if (device.DirectInputDevice is Mouse mDevice2)
 				{
 					CustomDeviceState.GetMouseAxisMask(deviceObjects, mDevice2, out axisMask);
 				}
-				else if (device.Device is Joystick jDevice)
+				else if (device.DirectInputDevice is Joystick jDevice)
 				{
 					CustomDeviceState.GetJoystickAxisMask(deviceObjects, jDevice, out axisMask, out actuatorMask, out actuatorCount);
 				}
@@ -188,7 +188,7 @@ namespace x360ce.App.Input.Processors
 			}
 			if (device.DeviceEffects == null)
 			{
-				device.DeviceEffects = AppHelper.GetDeviceEffects(device.Device);
+				device.DeviceEffects = AppHelper.GetDeviceEffects(device.DirectInputDevice);
 			}
 
 			// Handle force feedback if supported.
@@ -219,13 +219,13 @@ namespace x360ce.App.Input.Processors
 								// var st = device.Device.GetForceFeedbackState();
 								// st == SharpDX.DirectInput.ForceFeedbackState
 								// device.Device.SendForceFeedbackCommand(ForceFeedbackCommand.SetActuatorsOn);
-								device.FFState.SetDeviceForces(device, device.Device, ps, vibration);
+								device.FFState.SetDeviceForces(device, device.DirectInputDevice, ps, vibration);
 							}
 						}
 						else if (device.FFState != null)
 						{
 							// Stop device forces.
-							device.FFState.StopDeviceForces(device.Device);
+							device.FFState.StopDeviceForces(device.DirectInputDevice);
 							device.FFState = null;
 						}
 					}
@@ -233,14 +233,14 @@ namespace x360ce.App.Input.Processors
 			}
 
 			// Mouse needs special update.
-			if (device.Device != null && device.Device.Information.Type == SharpDX.DirectInput.DeviceType.Mouse)
+			if (device.DirectInputDevice != null && device.DirectInputDevice.Information.Type == SharpDX.DirectInput.DeviceType.Mouse)
 			{
 				// If original state is missing then...
-				if (device.OrgDiState == null)
+				if (device.OrgDeviceState == null)
 				{
 					// Store current values.
-					device.OrgDiState = newState;
-					device.OrgDiStateTime = InputOrchestrator.Current._Stopwatch.ElapsedTicks;
+					device.OrgDeviceState = newState;
+					device.OrgDeviceStateTime = InputOrchestrator.Current._Stopwatch.ElapsedTicks;
 					// Make sure new states have zero values.
 					for (int a = 0; a < newState.Axis.Length; a++)
 						newState.Axis[a] = -short.MinValue;
@@ -254,8 +254,8 @@ namespace x360ce.App.Input.Processors
 				//--------------------------------------------------------
 				// Map mouse position to axis position. Good for car wheel controls.
 				//--------------------------------------------------------
-				Calc(device.OrgDiState.Axis, newState.Axis, mouseState.Axis);
-				Calc(device.OrgDiState.Sliders, newState.Sliders, mouseState.Sliders);
+				Calc(device.OrgDeviceState.Axis, newState.Axis, mouseState.Axis);
+				Calc(device.OrgDeviceState.Sliders, newState.Sliders, mouseState.Sliders);
 				newState = mouseState;
 			}
 
@@ -304,19 +304,19 @@ namespace x360ce.App.Input.Processors
 		/// </remarks>
 		public CustomDeviceUpdate[] GetBufferedUpdates(UserDevice device)
 		{
-			if (device?.Device == null)
+			if (device?.DirectInputDevice == null)
 				return null;
 
 			try
 			{
 				// Ensure buffer size is set
-				if (device.Device.Properties.BufferSize == 0)
+				if (device.DirectInputDevice.Properties.BufferSize == 0)
 				{
-					device.Device.Properties.BufferSize = 128;
+					device.DirectInputDevice.Properties.BufferSize = 128;
 				}
 
 				// Get buffered data based on device type
-				switch (device.Device)
+				switch (device.DirectInputDevice)
 				{
 					case Mouse mDevice:
 						return mDevice.GetBufferedData()?.Select(x => new CustomDeviceUpdate(x)).ToArray();
@@ -383,7 +383,7 @@ namespace x360ce.App.Input.Processors
 				return false;
 
 			// DirectInput requires a valid DirectInput Device object
-			return device.Device != null;
+			return device.DirectInputDevice != null;
 		}
 
 		/// <summary>
@@ -406,7 +406,7 @@ namespace x360ce.App.Input.Processors
 			if (device == null)
 				throw new InputMethodException(InputMethod.DirectInput, device, "Device is null");
 
-			if (device.Device == null)
+			if (device.DirectInputDevice == null)
 				throw new InputMethodException(InputMethod.DirectInput, device, "DirectInput Device is null");
 
 			try
@@ -414,40 +414,40 @@ namespace x360ce.App.Input.Processors
 				// Polling - Retrieves data from polled objects on a DirectInput device.
 				// Some devices require polling (For example original "XBOX Controller S" with XBCD drivers).
 				// If the device does not require polling, calling this method has no effect.
-				device.Device.Poll();
+				device.DirectInputDevice.Poll();
 
 				CustomDeviceState newState = null;
 
 				// Use switch based on pattern matching for supported device types.
-				switch (device.Device)
+				switch (device.DirectInputDevice)
 				{
 					case Mouse mDevice:
 						{
 							var state = mDevice.GetCurrentState();
 							newState = new CustomDeviceState(state);
-							device.DeviceState = state;
+							device.DirectInputDeviceState = state;
 						}
 						break;
 					case Keyboard kDevice:
 						{
 							var state = kDevice.GetCurrentState();
 							newState = new CustomDeviceState(state);
-							device.DeviceState = state;
+							device.DirectInputDeviceState = state;
 						}
 						break;
 					case Joystick jDevice:
 						{
 							var state = jDevice.GetCurrentState();
 							newState = new CustomDeviceState(state);
-							device.DeviceState = state;
+							device.DirectInputDeviceState = state;
 						}
 						break;
 					default:
-						throw new InputMethodException(InputMethod.DirectInput, device, $"Unknown DirectInput device type: {device.Device.GetType().Name}");
+						throw new InputMethodException(InputMethod.DirectInput, device, $"Unknown DirectInput device type: {device.DirectInputDevice.GetType().Name}");
 				}
 
 				// Handle mouse coordinate conversion if needed
-				if (device.Device.Information.Type == DeviceType.Mouse)
+				if (device.DirectInputDevice.Information.Type == DeviceType.Mouse)
 				{
 					newState = ProcessMouseCoordinates(device, newState);
 				}
@@ -519,7 +519,7 @@ namespace x360ce.App.Input.Processors
 			if (!device.IsOnline)
 				return ValidationResult.Error("Device is offline");
 
-			if (device.Device == null)
+			if (device.DirectInputDevice == null)
 				return ValidationResult.Error("DirectInput device not available. Device may need to be reconnected.");
 
 			// Check for Xbox controller limitations
@@ -574,10 +574,10 @@ namespace x360ce.App.Input.Processors
 		private CustomDeviceState ProcessMouseCoordinates(UserDevice device, CustomDeviceState newState)
 		{
 			// If original state is missing then store current values
-			if (device.OrgDiState == null)
+			if (device.OrgDeviceState == null)
 			{
-				device.OrgDiState = newState;
-				device.OrgDiStateTime = DateTime.UtcNow.Ticks;
+				device.OrgDeviceState = newState;
+				device.OrgDeviceStateTime = DateTime.UtcNow.Ticks;
 
 				// Make sure new states have zero values for first reading
 				for (int a = 0; a < newState.Axis.Length; a++)
@@ -592,8 +592,8 @@ namespace x360ce.App.Input.Processors
 			Array.Copy(newState.Buttons, mouseState.Buttons, mouseState.Buttons.Length);
 
 			// Map mouse position to axis position (good for car wheel controls)
-			CalcMouseMovement(device.OrgDiState.Axis, newState.Axis, mouseState.Axis);
-			CalcMouseMovement(device.OrgDiState.Sliders, newState.Sliders, mouseState.Sliders);
+			CalcMouseMovement(device.OrgDeviceState.Axis, newState.Axis, mouseState.Axis);
+			CalcMouseMovement(device.OrgDeviceState.Sliders, newState.Sliders, mouseState.Sliders);
 
 			return mouseState;
 		}

@@ -165,7 +165,11 @@ namespace x360ce.Engine.Data
 
 		/// <summary>DInput Device State.</summary>
 		[XmlIgnore, NonSerialized]
-		public Device Device;
+		public Device DirectInputDevice;
+
+		/// <summary>DInput JoystickState State.</summary>
+		[XmlIgnore, NonSerialized]
+		public object DirectInputDeviceState;
 
 		[XmlIgnore, NonSerialized]
 		public DeviceObjectItem[] DeviceObjects;
@@ -173,34 +177,30 @@ namespace x360ce.Engine.Data
 		[XmlIgnore, NonSerialized]
 		public DeviceEffectItem[] DeviceEffects;
 
-		/// <summary>DInput JoystickState State.</summary>
-		[XmlIgnore, NonSerialized]
-		public object DeviceState;
-
 		/// <summary>X360CE custom DirectInput state used for configuration.</summary>
 		[XmlIgnore, NonSerialized]
-		public CustomDeviceState DiState;
+		public CustomDeviceState DeviceState;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDeviceUpdate[] DiUpdates;
+		public CustomDeviceUpdate[] DeviceUpdates;
 
 		[XmlIgnore, NonSerialized]
-		public long DiStateTime;
+		public long DeviceStateTime;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDeviceState OldDiState;
+		public CustomDeviceState OldDeviceState;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDeviceUpdate[] OldDiUpdates;
+		public CustomDeviceUpdate[] OldDeviceUpdates;
 
 		[XmlIgnore, NonSerialized]
 		public long OldDiStateTime;
 
 		[XmlIgnore, NonSerialized]
-		public CustomDeviceState OrgDiState;
+		public CustomDeviceState OrgDeviceState;
 
 		[XmlIgnore, NonSerialized]
-		public long OrgDiStateTime;
+		public long OrgDeviceStateTime;
 
 		[XmlIgnore, NonSerialized]
 		public ForceFeedbackState FFState;

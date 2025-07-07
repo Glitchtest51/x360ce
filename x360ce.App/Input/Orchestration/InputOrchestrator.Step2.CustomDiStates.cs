@@ -157,13 +157,13 @@ continue;
 		private void UpdateDeviceState(UserDevice device, CustomDeviceState newState, CustomDeviceUpdate[] newUpdates)
 		{
 			// Handle button state analysis for buffered data
-			if (newUpdates != null && newUpdates.Count(x => x.Type == MapType.Button) > 1 && device.DiState != null)
+			if (newUpdates != null && newUpdates.Count(x => x.Type == MapType.Button) > 1 && device.DeviceState != null)
 			{
 				// Analyze if state must be modified to ensure button presses are recognized
 				for (int b = 0; b < newState.Buttons.Length; b++)
 				{
 					// If button state was not changed between readings
-					if (device.DiState.Buttons[b] == newState.Buttons[b])
+					if (device.DeviceState.Buttons[b] == newState.Buttons[b])
 					{
 						// But buffer contains multiple presses for this button
 						if (newUpdates.Count(x => x.Type == MapType.Button && x.Index == b) > 1)
@@ -178,9 +178,9 @@ continue;
 			var newTime = _Stopwatch.ElapsedTicks;
 			
 			// Update state history (remember old values, set new values)
-			(device.OldDiState, device.DiState) = (device.DiState, newState);
-			(device.OldDiUpdates, device.DiUpdates) = (device.DiUpdates, newUpdates);
-			(device.OldDiStateTime, device.DiStateTime) = (device.DiStateTime, newTime);
+			(device.OldDeviceState, device.DeviceState) = (device.DeviceState, newState);
+			(device.OldDeviceUpdates, device.DeviceUpdates) = (device.DeviceUpdates, newUpdates);
+			(device.OldDiStateTime, device.DeviceStateTime) = (device.DeviceStateTime, newTime);
 		}
 
 		/// <summary>
@@ -206,7 +206,7 @@ continue;
 			
 			var state = TestDeviceHelper.GetCurrentState(device);
 			var customState = new CustomDeviceState(state);
-			device.DeviceState = state;
+			device.DirectInputDeviceState = state;
 			
 			return customState;
 		}

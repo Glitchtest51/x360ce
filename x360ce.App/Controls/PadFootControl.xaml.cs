@@ -118,7 +118,7 @@ namespace x360ce.App.Controls
 			var form = new MessageBoxWindow();
 			var buttons = MessageBoxButton.YesNo;
 			var text = string.Format("Do you want to Fill {0} settings automatically?", description);
-			if (ud.Device == null && !TestDeviceHelper.ProductGuid.Equals(ud.ProductGuid))
+			if (ud.DirectInputDevice == null && !TestDeviceHelper.ProductGuid.Equals(ud.ProductGuid))
 			{
 				text = string.Format("Device is off-line. Please connect device to Fill {0} settings automatically.", description);
 				buttons = MessageBoxButton.OK;
