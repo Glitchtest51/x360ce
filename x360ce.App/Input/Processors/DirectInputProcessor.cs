@@ -564,8 +564,8 @@ namespace x360ce.App.Input.Processors
 				// 3. Calculate detailed axis masks using CustomDeviceHelper offsets
 				CalculateAxisMasks(ud);
 				
-				// TODO: Additional capability loading will be added in subsequent steps:
 				// 4. Load force feedback effects if supported
+				LoadDeviceEffects(ud);
 			}
 			catch (Exception ex)
 			{
@@ -584,7 +584,7 @@ namespace x360ce.App.Input.Processors
 		/// </summary>
 		/// <param name="ud">UserDevice to populate</param>
 		/// <param name="cap">DirectInput Capabilities object</param>
-		private void LoadDirectInputCapabilities(UserDevice ud, Capabilities cap)
+		private void LoadDirectInputCapabilities(UserDevice ud, SharpDX.DirectInput.Capabilities cap)
 		{
 			// Move all capability assignments from UserDevice.LoadCapabilities
 			// Check if value is same to reduce grid refresh.
@@ -701,7 +701,59 @@ namespace x360ce.App.Input.Processors
 		/// <param name="ud">UserDevice to populate</param>
 		private void LoadDeviceEffects(UserDevice ud)
 		{
-			// TODO: Move AppHelper.GetDeviceEffects logic here
+			var items = new List<DeviceEffectItem>();
+			if (ud.DirectInputDevice == null)
+			{
+				ud.DeviceEffects = items.ToArray();
+				return;
+			}
+
+			// Check if device supports force feedback
+			var forceFeedback = ud.DirectInputDevice.Capabilities.Flags.HasFlag(DeviceFlags.ForceFeedback);
+			if (!forceFeedback)
+			{
+				ud.DeviceEffects = items.ToArray();
+				return;
+			}
+
+			lock (SharpDX.XInput.Controller.XInputLock)
+			{
+				// Unload XInput
+				var isLoaded = SharpDX.XInput.Controller.IsLoaded;
+				if (isLoaded)
+				{
+					SharpDX.XInput.Controller.FreeLibrary();
+				}
+
+				IList<EffectInfo> effects = new List<EffectInfo>();
+				try
+				{
+					effects = ud.DirectInputDevice.GetEffects(EffectType.All);
+				}
+				catch (Exception ex)
+				{
+					JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
+				}
+
+				foreach (var eff in effects)
+				{
+					items.Add(new DeviceEffectItem()
+					{
+						Name = eff.Name,
+						StaticParameters = eff.StaticParameters,
+						DynamicParameters = eff.DynamicParameters,
+					});
+				}
+
+				// Reload XInput if it was loaded
+				if (isLoaded)
+				{
+					Exception error;
+					SharpDX.XInput.Controller.ReLoadLibrary(SharpDX.XInput.Controller.LibraryName, out error);
+				}
+			}
+
+			ud.DeviceEffects = items.ToArray();
 		}
 
 		
