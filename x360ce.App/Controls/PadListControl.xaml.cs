@@ -338,10 +338,8 @@ namespace x360ce.App.Controls
 			var comboBox = sender as ComboBox;
 			if (comboBox?.SelectedItem is InputMethod newInputMethod)
 			{
-				// Update the UserDevice's InputMethod property
-				ud.InputMethod = newInputMethod;
-				
 				// Update device capabilities based on the selected input method
+				// (This method now handles setting ud.InputMethod internally)
 				UpdateDeviceCapabilitiesForInputMethod(ud, newInputMethod);
 				
 				// Save settings to persist the change
@@ -354,7 +352,7 @@ namespace x360ce.App.Controls
 
 		/// <summary>
 		/// Updates UserDevice capabilities based on the selected input method.
-		/// DirectInput uses actual device capabilities when available, XInput uses standard Xbox capabilities.
+		/// Uses centralized capability loading that handles all input methods consistently.
 		/// </summary>
 		/// <param name="ud">The UserDevice to update capabilities for</param>
 		/// <param name="inputMethod">The selected input method</param>
@@ -363,63 +361,29 @@ namespace x360ce.App.Controls
 			if (ud == null)
 				return;
 
-			switch (inputMethod)
-			{
-				case InputMethod.DirectInput:
-					// For DirectInput, try to use actual device capabilities if DirectInput device is available
-					if (ud.DirectInputDevice != null)
-					{
-						try
-						{
-							// Load capabilities using centralized DirectInputProcessor
-							InputOrchestrator.Current.directInputProcessor.LoadCapabilities(ud);
-							System.Diagnostics.Debug.WriteLine($"INFO: Device '{ud.InstanceName}' InputMethod: DirectInput, " +
-								$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount}, POVs: {ud.CapPovCount}, Sliders: 0");
-						}
-						catch (System.Exception ex)
-						{
-							// If DirectInput device access fails, use reasonable defaults
-							System.Diagnostics.Debug.WriteLine($"DirectInput capabilities update failed for {ud.InstanceName}: {ex.Message}");
-							SetDefaultDirectInputCapabilities(ud);
-						}
-					}
-					else
-					{
-						// DirectInput device not available, use reasonable defaults
-						SetDefaultDirectInputCapabilities(ud);
-					}
-					break;
-
-				case InputMethod.XInput:
-					// For XInput, use standard Xbox controller capabilities
-					ud.CapButtonCount = 15;  // A, B, X, Y, LB, RB, Back, Start, LS, RS, DPad (4), Guide
-					ud.CapAxeCount = 6;      // Left Stick X/Y, Right Stick X/Y, Left/Right Triggers  
-					ud.CapPovCount = 0;      // XInput doesn't use POVs (DPad is mapped to buttons)
-					
-					System.Diagnostics.Debug.WriteLine($"XInput: Started tracking input changes for {ud.InstanceGuid.ToString("N").Substring(0, 8)} - {ud.InstanceName} - " +
-						$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount} - Initial axis values: [0, 0, 0, 0, 0, 0]");
-					break;
-
-				default:
-					// For other input methods, use reasonable defaults similar to DirectInput
-					SetDefaultDirectInputCapabilities(ud);
-					break;
-			}
-		}
-
-		/// <summary>
-		/// Sets reasonable default capabilities for DirectInput and other input methods.
-		/// </summary>
-		/// <param name="ud">The UserDevice to set default capabilities for</param>
-		private void SetDefaultDirectInputCapabilities(UserDevice ud)
-		{
-			// Use reasonable defaults for most game controllers
-			ud.CapButtonCount = 16;  // Common gamepad button count
-			ud.CapAxeCount = 5;      // X, Y, Z, RotationX, RotationY (typical for gamepads)
-			ud.CapPovCount = 1;      // Most gamepads have 1 POV (D-Pad)
+			var previousMethod = ud.InputMethod;
 			
-			System.Diagnostics.Debug.WriteLine($"INFO: Device '{ud.InstanceName}' InputMethod: DirectInput, " +
-				$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount}, POVs: {ud.CapPovCount}, Sliders: 0");
+			// Update the input method first
+			ud.InputMethod = inputMethod;
+
+			try
+			{
+				// Use centralized capability loading from InputOrchestrator
+				// This handles all input methods (DirectInput, XInput, GamingInput, RawInput) consistently
+				InputOrchestrator.Current.LoadDeviceCapabilities(ud);
+				
+				// Notify InputOrchestrator that input method changed (for future use)
+				InputOrchestrator.Current.OnInputMethodChanged(ud, previousMethod);
+				
+				System.Diagnostics.Debug.WriteLine($"Updated capabilities for {ud.InstanceName}: {inputMethod} - " +
+					$"Buttons: {ud.CapButtonCount}, Axes: {ud.CapAxeCount}, POVs: {ud.CapPovCount}");
+			}
+			catch (System.Exception ex)
+			{
+				// Log error but don't crash the UI
+				System.Diagnostics.Debug.WriteLine($"Capability update failed for {ud.InstanceName} ({inputMethod}): {ex.Message}");
+				// InputOrchestrator.LoadDeviceCapabilities already handles clearing values on failure
+			}
 		}
 
 		/// <summary>
