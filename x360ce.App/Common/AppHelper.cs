@@ -72,53 +72,6 @@ namespace x360ce.App
 		}
 
 
-		/// <summary>
-		/// Device must be acquired in exclusive mode to get effects.
-		/// </summary>
-		public static DeviceEffectItem[] GetDeviceEffects(Device device)
-		{
-			var items = new List<DeviceEffectItem>();
-			if (device == null)
-				return items.ToArray();
-			// Check if device supports force feedback.
-			var forceFeedback = device.Capabilities.Flags.HasFlag(DeviceFlags.ForceFeedback);
-			if (!forceFeedback)
-				return items.ToArray();
-			lock (Controller.XInputLock)
-			{
-				// Unload XInput.
-				var isLoaded = Controller.IsLoaded;
-				if (isLoaded)
-				{
-					Controller.FreeLibrary();
-				}
-				IList<EffectInfo> effects = new List<EffectInfo>();
-				try
-				{
-					effects = device.GetEffects(EffectType.All);
-				}
-				catch (Exception ex)
-				{
-					JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
-				}
-				foreach (var eff in effects)
-				{
-					items.Add(new DeviceEffectItem()
-					{
-						Name = eff.Name,
-						StaticParameters = eff.StaticParameters,
-						DynamicParameters = eff.DynamicParameters,
-					});
-				}
-				// If XInput was loaded then...
-				if (isLoaded)
-				{
-					Exception error;
-					Controller.ReLoadLibrary(Controller.LibraryName, out error);
-				}
-			}
-			return items.ToArray();
-		}
 
 		#endregion
 

@@ -172,7 +172,7 @@ namespace x360ce.App.Input.Processors
 			}
 			if (device.DeviceEffects == null)
 			{
-				device.DeviceEffects = AppHelper.GetDeviceEffects(device.DirectInputDevice);
+				LoadCapabilities(device);
 			}
 
 			// Handle force feedback if supported.
