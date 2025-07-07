@@ -34,7 +34,7 @@ namespace x360ce.App.Input.Processors
 	/// This processor maps DirectInput JoystickState to CustomDeviceState preserving
 	/// the original x360ce DirectInput behavior and mapping patterns.
 	/// </remarks>
-	public class DirectInputProcessor : IInputProcessor
+	public partial class DirectInputProcessor : IInputProcessor
 	{
 		// Shared orchestration methods moved to DInputHelper.Step2.CustomDeviceStates.cs
 		// XInput processing moved to DInputHelper.Step2.ReadXInput.cs
@@ -558,11 +558,13 @@ namespace x360ce.App.Input.Processors
 				// 1. Load basic DirectInput capabilities
 				LoadDirectInputCapabilities(ud, ud.DirectInputDevice.Capabilities);
 				
-				// 2. Load device objects and calculate masks
+				// 2. Load device objects and calculate basic masks
 				LoadDeviceObjects(ud);
 				
+				// 3. Calculate detailed axis masks using CustomDeviceHelper offsets
+				CalculateAxisMasks(ud);
+				
 				// TODO: Additional capability loading will be added in subsequent steps:
-				// 3. Calculate detailed axis masks
 				// 4. Load force feedback effects if supported
 			}
 			catch (Exception ex)
@@ -702,14 +704,7 @@ namespace x360ce.App.Input.Processors
 			// TODO: Move AppHelper.GetDeviceEffects logic here
 		}
 
-		/// <summary>
-		/// Calculates detailed axis masks using CustomDeviceHelper offsets.
-		/// </summary>
-		/// <param name="ud">UserDevice to update</param>
-		private void CalculateAxisMasks(UserDevice ud)
-		{
-			// TODO: Move CustomDeviceState mask calculation logic here
-		}
+		
 
 		#endregion
 
