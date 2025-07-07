@@ -165,12 +165,8 @@ namespace x360ce.App.Input.Processors
 					throw new Exception($"Unknown device: {device.DirectInputDevice}");
 			}
 
-			// Fill device objects force feedback actuator masks using centralized capability loading.
-			if (device.DeviceObjects == null)
-			{
-				LoadCapabilities(device);
-			}
-			if (device.DeviceEffects == null)
+			// Load capabilities once if any are missing
+			if (device.DeviceObjects == null || device.DeviceEffects == null)
 			{
 				LoadCapabilities(device);
 			}
@@ -864,31 +860,6 @@ namespace x360ce.App.Input.Processors
 		}
 
 		/// <summary>
-		/// Checks if DirectInput is available on the current system.
-		/// </summary>
-		/// <returns>True if DirectInput can be initialized</returns>
-		/// <remarks>
-		/// This method tests DirectInput availability by attempting to create
-		/// a DirectInput instance. Used for system compatibility checking.
-		/// </remarks>
-		public static bool IsDirectInputAvailable()
-		{
-			try
-			{
-				using (var directInput = new SharpDX.DirectInput.DirectInput())
-				{
-					// If we can create the instance, DirectInput is available
-					return true;
-				}
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine($"DirectInput availability check failed: {ex.Message}");
-				return false;
-			}
-		}
-
-		/// <summary>
 		/// Gets diagnostic information about DirectInput system status.
 		/// </summary>
 		/// <returns>String containing DirectInput diagnostic information</returns>
@@ -902,37 +873,6 @@ namespace x360ce.App.Input.Processors
 			try
 			{
 				info.AppendLine($"DirectInput Available: {IsAvailable()}");
-				info.AppendLine($"Operating System: {Environment.OSVersion}");
-
-				// Add information about DirectInput version and capabilities
-				using (var directInput = new SharpDX.DirectInput.DirectInput())
-				{
-					info.AppendLine("DirectInput initialized successfully");
-					// Additional diagnostic information could be added here
-				}
-			}
-			catch (Exception ex)
-			{
-				info.AppendLine($"Error getting DirectInput diagnostic info: {ex.Message}");
-			}
-
-			return info.ToString();
-		}
-
-		/// <summary>
-		/// Gets diagnostic information about DirectInput system status.
-		/// </summary>
-		/// <returns>String containing DirectInput diagnostic information</returns>
-		/// <remarks>
-		/// This method provides detailed information for troubleshooting DirectInput issues.
-		/// </remarks>
-		public static string GetDirectInputDiagnosticInfo()
-		{
-			var info = new System.Text.StringBuilder();
-
-			try
-			{
-				info.AppendLine($"DirectInput Available: {IsDirectInputAvailable()}");
 				info.AppendLine($"Operating System: {Environment.OSVersion}");
 
 				// Add information about DirectInput version and capabilities
