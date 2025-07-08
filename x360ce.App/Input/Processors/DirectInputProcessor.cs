@@ -36,10 +36,10 @@ namespace x360ce.App.Input.Processors
 	/// </remarks>
 	public partial class DirectInputProcessor : IInputProcessor
 	{
-		// Shared orchestration methods moved to DInputHelper.Step2.CustomDeviceStates.cs
-		// XInput processing moved to DInputHelper.Step2.ReadXInput.cs
-		// Gaming Input processing moved to DInputHelper.Step2.ReadGamingInput.cs
-		// Raw Input processing moved to DInputHelper.Step2.ReadRawInput.cs
+		// Shared orchestration methods moved to InputOrchestrator.Step2.CustomDeviceStates.cs
+		// XInput processing moved to InputOrchestrator.Step2.ReadXInput.cs
+		// Gaming Input processing moved to InputOrchestrator.Step2.ReadGamingInput.cs
+		// Raw Input processing moved to InputOrchestrator.Step2.ReadRawInput.cs
 
 		#region Constructor
 
@@ -52,7 +52,7 @@ namespace x360ce.App.Input.Processors
 		/// </remarks>
 		public DirectInputProcessor()
 		{
-			// DirectInput initialization is handled by the existing DInputHelper infrastructure
+			// DirectInput initialization is handled by the existing InputOrchestrator infrastructure
 			// No specific initialization required for this processor
 		}
 
@@ -464,13 +464,13 @@ namespace x360ce.App.Input.Processors
 		/// 
 		/// For Xbox controllers, users should use XInput method for rumble support.
 		/// 
-		/// NOTE: Force feedback for DirectInput is handled by the main DInputHelper coordinator
+		/// NOTE: Force feedback for DirectInput is handled by the main InputOrchestrator coordinator
 		/// through the existing DirectInput processing logic. This method is called from
 		/// the processor interface but the actual force feedback is handled in UpdateDiStates.
 		/// </remarks>
 		public void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState)
 		{
-			// Force feedback for DirectInput is handled through the main DInputHelper
+			// Force feedback for DirectInput is handled through the main InputOrchestrator
 			// in the ProcessDirectInputDevice method which calls the existing force feedback logic
 			// This method is called from the main UpdateDiStates coordinator
 
@@ -884,7 +884,7 @@ namespace x360ce.App.Input.Processors
 		/// • Handles coordinate range clamping
 		/// • Maps mouse movement to axis position for wheel controls
 		/// 
-		/// NOTE: Mouse coordinate processing for DirectInput is handled by the main DInputHelper
+		/// NOTE: Mouse coordinate processing for DirectInput is handled by the main InputOrchestrator
 		/// in the ProcessDirectInputDevice method. This method serves as a reference implementation.
 		/// </remarks>
 		private CustomDeviceState ProcessMouseCoordinates(UserDevice device, CustomDeviceState newState)

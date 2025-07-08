@@ -532,18 +532,18 @@ return null;
 		/// </remarks>
 		public void HandleForceFeedback(UserDevice device, Engine.ForceFeedbackState ffState)
 		{
-			// Force feedback for XInput is handled through integration with DInputHelper
+			// Force feedback for XInput is handled through integration with InputOrchestrator
 			// The actual vibration values come from the virtual Xbox controllers via ViGEm
 			// This method is called from the main UpdateDiStates coordinator
 
-			// Note: XInput force feedback integration is handled in the main DInputHelper
+			// Note: XInput force feedback integration is handled in the main InputOrchestrator
 			// through the ProcessXInputDevice method which calls ApplyXInputVibration
 			Debug.WriteLine($"XInput: Force feedback processing delegated to main coordinator for {device.DisplayName}");
 		}
 
 		/// <summary>
 		/// Applies XInput vibration to the device using values from the force feedback system.
-		/// This method is called by the main DInputHelper with actual vibration values.
+		/// This method is called by the main InputOrchestrator with actual vibration values.
 		/// Only applies vibration and logs debug messages when values actually change.
 		/// </summary>
 		/// <param name="device">The device to apply vibration to</param>
@@ -559,7 +559,7 @@ return null;
 		/// • Debug message flooding in Visual Studio Output window
 		/// • Unnecessary processing overhead
 		/// 
-		/// Called from DInputHelper.Step2.UpdateXiStates.ProcessXInputDevice
+		/// Called from InputOrchestrator.Step2.UpdateXiStates.ProcessXInputDevice
 		/// </remarks>
 		public bool ApplyXInputVibration(UserDevice device, ushort leftMotorSpeed, ushort rightMotorSpeed)
 		{

@@ -11,12 +11,12 @@ namespace x360ce.App.Input.Processors
 {
 	/// <summary>
 	/// Gaming Input processor for Windows.Gaming.Input API (Windows 10+).
-	/// Provides wrapper around DInputHelper's Gaming Input implementation.
+	/// Provides wrapper around InputOrchestrator's Gaming Input implementation.
 	/// </summary>
 	/// <remarks>
-	/// This processor delegates to the existing Gaming Input implementation in DInputHelper
+	/// This processor delegates to the existing Gaming Input implementation in InputOrchestrator
 	/// rather than reimplementing the functionality. Gaming Input requires special integration
-	/// with the DInputHelper due to its UWP bridging requirements and device enumeration complexity.
+	/// with the InputOrchestrator due to its UWP bridging requirements and device enumeration complexity.
 	/// </remarks>
 	public class GamingInputProcessor : IInputProcessor
 	{
@@ -71,7 +71,7 @@ namespace x360ce.App.Input.Processors
 		/// <returns>CustomDeviceState representing the current controller state</returns>
 		/// <exception cref="InputMethodException">Thrown when Gaming Input encounters errors</exception>
 		/// <remarks>
-		/// This method delegates to DInputHelper.ProcessGamingInputDevice() which handles:
+		/// This method delegates to InputOrchestrator.ProcessGamingInputDevice() which handles:
 		/// • Gaming Input API calls and GamepadReading conversion
 		/// • CustomDeviceState population via ConvertGamingInputToCustomDeviceState()
 		/// • Device object initialization for UI compatibility
@@ -87,11 +87,11 @@ namespace x360ce.App.Input.Processors
 
 			var orchestrator = InputOrchestrator.Current;
 			if (orchestrator == null)
-				throw new InputMethodException(InputMethod.GamingInput, device, "DInputHelper not available for Gaming Input processing");
+				throw new InputMethodException(InputMethod.GamingInput, device, "InputOrchestrator not available for Gaming Input processing");
 
 			try
 			{
-				// Delegate to the existing Gaming Input implementation in DInputHelper
+				// Delegate to the existing Gaming Input implementation in InputOrchestrator
 				// This ensures we use the tested, working Gaming Input code path
 				var result = GetCustomState(device);
 
@@ -137,7 +137,7 @@ namespace x360ce.App.Input.Processors
 		{
 			// Gaming Input force feedback would be implemented here
 			// For now, this is a placeholder since the main Gaming Input implementation
-			// in DInputHelper doesn't currently handle force feedback
+			// in InputOrchestrator doesn't currently handle force feedback
 
 			// TODO: Implement Gaming Input force feedback using Windows.Gaming.Input
 			// This would include:

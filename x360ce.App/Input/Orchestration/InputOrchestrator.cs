@@ -26,7 +26,7 @@ namespace x360ce.App.Input.Orchestration
 		// DESCRIPTION
 		// --------------------------------------------------------------------------------------------
 		// Monitor (WM_DEVICECHANGE) device (HID, Keyboard, Mouse) interface events (DEV_BROADCAST_DEVICEINTERFACE).
-		// On detection, set DevicesNeedUpdating = true (also, set 'true' on 'InputLost' error in 'DInputHelper.Step2.UpdateDiStates.cs' > UpdateDiStates()).
+		// On detection, set DevicesNeedUpdating = true (also, set 'true' on 'InputLost' error in 'InputOrchestrator.Step2.UpdateDiStates.cs' > UpdateDiStates()).
 		// Build a list of SharpDX.DirectInput.DeviceInstance objects (DeviceClass.GameControl, DeviceClass.Keyboard, DeviceClass.Pointer).
 		// The list holds each Win32_PnPEntity.DeviceID prefix, created from SharpDX.DirectInput.DeviceInstance.ProductGuid.
 		// For example: 6f1d2b60-d5a0-11cf-bfc7-444553540000 > HID\VID_2B60&PID_6F1D.
@@ -123,7 +123,7 @@ namespace x360ce.App.Input.Orchestration
 				if (_Timer != null)
 					return;
 				_Stopwatch.Restart();
-				_Timer = new JocysCom.ClassLibrary.HiResTimer((int)Frequency, "DInputHelperTimer");
+				_Timer = new JocysCom.ClassLibrary.HiResTimer((int)Frequency, "InputOrchestratorTimer");
 				_Timer.Elapsed += Timer_Elapsed;
 				_Timer.Start();
 				_AllowThreadToRun = true;
@@ -255,7 +255,7 @@ namespace x360ce.App.Input.Orchestration
 					else
 					{
 						// Update JoystickStates from devices.
-						UpdateDiStates(game, detector);
+						UpdateCustomDeviceStates(game, detector);
 						// Update XInput states from Custom DirectInput states.
 						UpdateXiStates(game);
 						// Combine XInput states of controllers.

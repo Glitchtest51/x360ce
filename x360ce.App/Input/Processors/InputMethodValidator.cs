@@ -96,7 +96,7 @@ namespace x360ce.App.Input.Processors
 				// Get the appropriate processor for validation
 				var orchestrator = InputOrchestrator.Current;
 				if (orchestrator == null)
-					return ValidationResult.Error("DInputHelper not available");
+					return ValidationResult.Error("InputOrchestrator not available");
 
 				switch (inputMethod)
 				{
