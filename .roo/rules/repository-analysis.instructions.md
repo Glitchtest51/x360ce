@@ -211,6 +211,21 @@ All 4 processors implement identical interface with these methods:
 - **RawInputProcessor**: Win32 API initialization, comprehensive API constants
 - **GamingInputProcessor**: Lazy initialization for optimal startup performance
 
+##### Input Processing & UI Performance Architecture
+
+###### Input Processing Flow
+1. **High-Frequency Input Processing** (1000Hz) - `InputOrchestrator._Timer` processes all input devices at maximum rate
+2. **Event Triggering** - `Global.Orchestrator.UpdateCompleted` event fires after each processing cycle
+3. **UI Update Throttling** - `MainWindow.DHelper_UpdateCompleted()` (lines 615-652) limits UI updates for performance
+4. **UI State Updates** - `MainWindow.UpdateForm3()` → `Global.TriggerControlUpdates()` updates all UI controls
+
+###### UI Update Throttling (Performance Optimization)
+- **File**: `x360ce.App/MainWindow.xaml.cs`, **Method**: `DHelper_UpdateCompleted()` (lines 615-652)
+- **Foreground FPS**: 20Hz (`interfaceUpdateForegroundFps = 20`) - Active window gets 50ms intervals
+- **Background FPS**: 5Hz (`interfaceUpdateBackgroundFps = 5`) - Inactive window gets 200ms intervals  
+- **Purpose**: All input processors (DirectInput/XInput/RawInput/GamingInput) use same throttling to maintain smooth interface
+- **RawInput Issue**: Uses cached states from WM_INPUT message queue, causing 2-3s delay after input stops due to message buffering
+
 #### x360ce.Engine  
 - **Purpose**: Core business logic library shared across all applications
 - **Target Framework**: .NET Framework 4.8

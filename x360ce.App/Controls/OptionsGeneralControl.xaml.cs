@@ -61,6 +61,7 @@ namespace x360ce.App.Controls
 			SettingsManager.LoadAndMonitor(o, nameof(Options.UseDeviceBufferedData), UseDeviceBufferedDataCheckBox);
 			SettingsManager.LoadAndMonitor(o, nameof(Options.AcquireHiddenDevicesInExclusiveMode), AcquireHiddenDevicesInExclusiveModeCheckBox);
 			SettingsManager.LoadAndMonitor(o, nameof(Options.AcquireMappedDevicesInExclusiveMode), AcquireMappedDevicesInExclusiveModeCheckBox);
+			SettingsManager.LoadAndMonitor(o, nameof(Options.RawInputUseRealTimePolling), RawInputUseRealTimePollingCheckBox);
 			// Load other settings manually.
 			SettingsManager.LoadAndMonitor(o, nameof(Options.ShowProgramsTab), ShowProgramsTabCheckBox);
 			SettingsManager.LoadAndMonitor(o, nameof(Options.ShowSettingsTab), ShowSettingsTabCheckBox);
@@ -197,6 +198,7 @@ namespace x360ce.App.Controls
 			SettingsManager.UnLoadMonitor(UseDeviceBufferedDataCheckBox);
 			SettingsManager.UnLoadMonitor(AcquireHiddenDevicesInExclusiveModeCheckBox);
 			SettingsManager.UnLoadMonitor(AcquireMappedDevicesInExclusiveModeCheckBox);
+			SettingsManager.UnLoadMonitor(RawInputUseRealTimePollingCheckBox);
 			// Load other settings manually.
 			SettingsManager.UnLoadMonitor(ShowProgramsTabCheckBox);
 			SettingsManager.UnLoadMonitor(ShowSettingsTabCheckBox);

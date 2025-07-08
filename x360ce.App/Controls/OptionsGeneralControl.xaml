@@ -58,6 +58,7 @@
                 <CheckBox Name="UseDeviceBufferedDataCheckBox" Content="Use Device Buffered Data" />
                 <CheckBox Name="AcquireHiddenDevicesInExclusiveModeCheckBox" Content="Acquire Hidden Devices in Exclusive Mode" />
                 <CheckBox Name="AcquireMappedDevicesInExclusiveModeCheckBox" Content="Acquire Mapped Devices in Exclusive Mode" />
+                <CheckBox Name="RawInputUseRealTimePollingCheckBox" Content="RawInput: Use Real-Time Polling (eliminates 2-3s delay)" ToolTip="True: Immediate response like DirectInput, False: Cached states (more complete but potential lag)" />
             </StackPanel>
         </GroupBox>
         <GroupBox Grid.Row="1" Header="Guide Button">

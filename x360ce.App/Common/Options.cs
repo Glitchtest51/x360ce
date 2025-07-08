@@ -275,6 +275,18 @@ namespace x360ce.App
 
 		#endregion
 
+		#region ■ RawInput Options
+
+		[DefaultValue(false), Description("Use real-time polling for RawInput instead of cached states. True: Immediate response, no 2-3s delay (like DirectInput). False: Cached states, more complete but can have lag.")]
+		public bool RawInputUseRealTimePolling
+		{
+			get { return _RawInputUseRealTimePolling; }
+			set { _RawInputUseRealTimePolling = value; OnPropertyChanged(); }
+		}
+		bool _RawInputUseRealTimePolling = false;
+
+		#endregion
+
 		#region ■ INotifyPropertyChanged
 
 		public event PropertyChangedEventHandler PropertyChanged;

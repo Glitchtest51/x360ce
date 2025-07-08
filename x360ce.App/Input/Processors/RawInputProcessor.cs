@@ -158,6 +158,9 @@ namespace x360ce.App.Input.Processors
 
 			try
 			{
+				// Clean up HID device handles for real-time polling
+				CleanupHidDeviceHandles();
+
 				// Dispose of the hidden window which will unregister itself
 				_hiddenWindow?.Dispose();
 				_hiddenWindow = null;
@@ -206,6 +209,7 @@ namespace x360ce.App.Input.Processors
 
 		/// <summary>
 		/// Reads the current state from the device using TRUE Raw Input API.
+		/// HYBRID: Supports both real-time polling and cached states via configuration.
 		/// OPTIMIZED FOR HIGH-FREQUENCY CALLING (up to 1000Hz).
 		/// </summary>
 		/// <param name="device">The device to read from</param>
@@ -219,7 +223,60 @@ namespace x360ce.App.Input.Processors
 			// Note: Device properties (capabilities) are managed centrally by Step2.LoadCapabilities.cs
 			// No need to set them here - they're handled by the orchestrator flag-based system
 
-			// Use the same caching pattern as DirectInput - check if Raw Input device is already mapped
+			// Check configuration to determine reading mode
+			var useRealTime = SettingsManager.Options.RawInputUseRealTimePolling;
+			
+			if (useRealTime)
+			{
+				// NEW: Real-time polling mode (fixes 2-3 second delay)
+				return ReadStateRealTime(device);
+			}
+			else
+			{
+				// EXISTING: Cached state mode (more complete but with potential lag)
+				return ReadStateCached(device);
+			}
+		}
+
+		/// <summary>
+		/// Real-time state reading - immediate response, no lag (like DirectInput)
+		/// </summary>
+		private CustomDeviceState ReadStateRealTime(UserDevice device)
+		{
+			try
+			{
+				// Get HID device handle for direct polling
+				var hidHandle = OpenHidDeviceForPolling(device);
+				if (hidHandle == IntPtr.Zero)
+				{
+					// Fallback to cached state if can't open device
+					return ReadStateCached(device);
+				}
+
+				// Read current input report directly from device
+				var currentReport = ReadCurrentHidInputReport(hidHandle, device);
+				if (currentReport != null)
+				{
+					// Parse report to CustomDeviceState (real-time)
+					return ParseHidReportToCustomDeviceState(currentReport, device);
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"Raw Input real-time polling failed: {ex.Message}");
+				// Fallback to cached state on error
+				return ReadStateCached(device);
+			}
+			
+			return new CustomDeviceState();
+		}
+
+		/// <summary>
+		/// Cached state reading - existing method with potential 2-3 second lag
+		/// </summary>
+		private CustomDeviceState ReadStateCached(UserDevice device)
+		{
+			// EXISTING IMPLEMENTATION - returns cached state from background messages
 			var rawInputHandle = GetOrCreateRawInputMapping(device);
 			if (rawInputHandle == IntPtr.Zero)
 				return new CustomDeviceState();
