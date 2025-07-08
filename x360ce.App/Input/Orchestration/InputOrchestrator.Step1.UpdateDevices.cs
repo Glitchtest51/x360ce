@@ -10,7 +10,7 @@ using x360ce.Engine.Data;
 
 namespace x360ce.App.Input.Orchestration
 {
-public partial class InputOrchestrator
+	public partial class InputOrchestrator
 	{
 		public int RefreshDevicesCount = 0;
 		// Keeps track of previously detected device InstanceGuids.
@@ -75,7 +75,7 @@ public partial class InputOrchestrator
 
 			// Get and put connected devices (GameControl, Pointer, Keyboard) to list.
 			var connectedDevices = new List<(object DeviceInstance, object DeviceClass, int Usage, string DiDeviceID, string ProductName, Guid InstanceGuid)>();
-			foreach (var deviceClass in new DeviceClass[]{DeviceClass.GameControl, DeviceClass.Pointer, DeviceClass.Keyboard})
+			foreach (var deviceClass in new DeviceClass[] { DeviceClass.GameControl, DeviceClass.Pointer, DeviceClass.Keyboard })
 			{
 				var devices = directInput.GetDevices(deviceClass, DeviceEnumerationFlags.AttachedOnly)
 					//.Where(d => deviceClass != DeviceClass.Device || d.Usage == UsageId.GenericMouse || d.Usage == UsageId.GenericKeyboard)
@@ -263,7 +263,7 @@ public partial class InputOrchestrator
 				{
 					userDevice.DirectInputDevice = new Joystick(manager, instance.InstanceGuid);
 					userDevice.IsExclusiveMode = null;
-					
+
 					// Flag device for capability loading in Step2
 					// This ensures capabilities are loaded in the proper serial execution order
 					userDevice.CapabilitiesNeedLoading = true;

@@ -33,7 +33,7 @@ namespace x360ce.App.Input.Orchestration
 					// The RawInputState is already a CustomDeviceState from Step3
 					// So we just need to process it and update the device state
 					var newState = device.RawInputState as CustomDeviceState;
-					
+
 					if (newState != null)
 					{
 						UpdateDeviceState(device, newState, device.RawInputUpdates);

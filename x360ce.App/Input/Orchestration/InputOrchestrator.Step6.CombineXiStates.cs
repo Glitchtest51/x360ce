@@ -1,11 +1,10 @@
 ﻿using SharpDX.XInput;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace x360ce.App.Input.Orchestration
 {
-public partial class InputOrchestrator
+	public partial class InputOrchestrator
 	{
 
 		public State[] CombinedXiStates;
@@ -59,10 +58,10 @@ public partial class InputOrchestrator
 			// If both positive then return maximum.
 			if (min > 0 && max > 0)
 				return max; // max is already the maximum value
-			// If both negative then return minimum.
+							// If both negative then return minimum.
 			if (min < 0 && max < 0)
 				return min; // min is already the minimum value
-			// If on opposite sides then cancel each other.
+							// If on opposite sides then cancel each other.
 			return (short)(min + max);
 		}
 

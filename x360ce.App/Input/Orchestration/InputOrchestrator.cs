@@ -1,21 +1,12 @@
-﻿//using JocysCom.ClassLibrary;
-using JocysCom.ClassLibrary.IO;
-//using JocysCom.ClassLibrary.Win32;
+﻿using JocysCom.ClassLibrary.IO;
 using SharpDX.DirectInput;
 using SharpDX.XInput;
 using System;
-//using System.Collections.Generic;
-
-//using System.ComponentModel;
 using System.Diagnostics;
-//using System.Linq;
-//using System.Management;
-//using System.Runtime.InteropServices;
 using System.Threading;
-//using x360ce.App.Common.DInput;
-//using static JocysCom.ClassLibrary.Processes.MouseHelper;
-//using System.Windows.Interop;
-//using System.Windows.Input;
+using x360ce.App.Input.Processors;
+using x360ce.Engine;
+using x360ce.Engine.Data;
 
 namespace x360ce.App.Input.Orchestration
 {
@@ -69,6 +60,52 @@ namespace x360ce.App.Input.Orchestration
 			// Set current instance for processors to access
 			SetCurrent(this);
 		}
+
+		#region Input Processor Registry
+
+		/// <summary>
+		/// Input method processors for the 4 supported input APIs.
+		/// These processors handle method-specific operations like state reading, capability loading, and validation.
+		/// </summary>
+		public DirectInputProcessor directInputProcessor = new DirectInputProcessor();
+		public XInputProcessor xInputProcessor = new XInputProcessor();
+		public GamingInputProcessor gamingInputProcessor = new GamingInputProcessor();
+		public RawInputProcessor rawInputProcessor = new RawInputProcessor();
+
+		#endregion
+
+		#region Shared Fields for All Input Methods
+
+		UserDevice[] mappedDevices = new UserDevice[0];
+		UserGame currentGame = SettingsManager.CurrentGame;
+		Options options = SettingsManager.Options;
+		public bool isVirtual = false;
+
+		#endregion
+
+		#region Shared Properties for Input Method Processors
+
+		/// <summary>
+		/// Gets whether the current game uses virtual emulation.
+		/// Used by all input method processors for force feedback decisions.
+		/// </summary>
+		public bool IsVirtual => isVirtual;
+
+		/// <summary>
+		/// Gets the current InputOrchestrator instance for processors that need access to helper methods.
+		/// </summary>
+		public static InputOrchestrator Current { get; private set; }
+
+		/// <summary>
+		/// Sets the current InputOrchestrator instance.
+		/// </summary>
+		/// <param name="helper">The helper instance to set</param>
+		public static void SetCurrent(InputOrchestrator helper)
+		{
+			Current = helper;
+		}
+
+		#endregion
 
 		//===============================================================================================
 
@@ -296,6 +333,97 @@ namespace x360ce.App.Input.Orchestration
 			}
 			Interlocked.Increment(ref executionCount);
 		}
+
+		#region 
+
+		EmulationType CurrentEmulation;
+
+		public void CheckAndUnloadXInputLibrary(UserGame game, bool getXInputStates)
+		{
+			lock (Controller.XInputLock)
+			{
+				var (unloadLoad, emType) = UnloadLoad(game, getXInputStates);
+				if (!Controller.IsLoaded || !unloadLoad || emType != CurrentEmulation)
+					return;
+				Controller.FreeLibrary();
+				XInputReloaded?.Invoke(this, new DInputEventArgs());
+			}
+		}
+
+		private (bool, EmulationType) UnloadLoad(UserGame game, bool getXInputStates)
+		{
+			var emType = (EmulationType)(game?.EmulationType ?? (int)EmulationType.None);
+			var unloadLoad =
+				// No emulation or
+				emType == EmulationType.None ||
+				// If no actual XInput states are required for Virtual emulation.
+				emType == EmulationType.Virtual && !getXInputStates ||
+				// New device was detected so exclusive lock is necessary to retrieve force feedback information.
+				// Don't load until device list was not refreshed.
+				// DevicesAreUpdating ||
+				// This will also release exclusive lock if another game/application must use it.
+				// No actual XInput states are required for Library emulation when minimized.
+				emType == EmulationType.Library && !Global._MainWindow.FormEventsEnabled;
+			return (unloadLoad, emType);
+		}
+
+		public void CheckAndLoadXInputLibrary(UserGame game, bool getXInputStates)
+		{
+			lock (Controller.XInputLock)
+			{
+				var (unloadLoad, emType) = UnloadLoad(game, getXInputStates);
+
+				if (Controller.IsLoaded || !unloadLoad)
+					return;
+
+				//MainForm.Current.Save();
+				var e = new DInputEventArgs();
+				CurrentEmulation = emType;
+				Program.ReloadCount++;
+				// Always load Microsoft XInput DLL by default.
+				var dllInfo = EngineHelper.GetDefaultDll(emType == EmulationType.Virtual);
+				if (dllInfo != null && dllInfo.Exists)
+				{
+					e.XInputVersionInfo = FileVersionInfo.GetVersionInfo(dllInfo.FullName);
+					e.XInputFileInfo = dllInfo;
+					// If fast reload of settings is supported then...
+					if (Controller.IsLoaded && Controller.IsResetSupported)
+					{
+						IAsyncResult result;
+						Action action = () =>
+						{
+							Controller.Reset();
+						};
+						result = action.BeginInvoke(null, null);
+						// var timeout = !result.AsyncWaitHandle.WaitOne(1000);
+						var caption = string.Format("Failed to Reset() controller. '{0}'", dllInfo.FullName);
+						e.Error = new Exception(caption);
+					}
+					// Slow: Reload whole x360ce.dll.
+					else
+					{
+						Exception error;
+						Controller.ReLoadLibrary(dllInfo.FullName, out error);
+						if (!Controller.IsLoaded)
+						{
+							var caption = string.Format("Failed to load '{0}'", dllInfo.FullName);
+							e.Error = new Exception(caption);
+						}
+					}
+				}
+				// If x360ce DLL loaded and settings changed then...
+				var IsLibrary = game != null && game.IsLibrary;
+				if (Controller.IsLoaded && IsLibrary && SettingsChanged)
+				{
+					// Reset configuration.
+					Controller.Reset();
+					SettingsChanged = false;
+				}
+				XInputReloaded?.Invoke(this, e);
+			}
+		}
+
+		#endregion
 
 		#region ■ IDisposable
 
