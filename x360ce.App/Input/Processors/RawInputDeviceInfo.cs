@@ -5,6 +5,7 @@ namespace x360ce.App.Input.Processors
 {
 	/// <summary>
 	/// Represents information about a Raw Input device.
+	/// Enhanced to include parsed HID capabilities for proper state reading.
 	/// </summary>
 	internal class RawInputDeviceInfo
 	{
@@ -15,5 +16,11 @@ namespace x360ce.App.Input.Processors
 		public ushort Usage { get; set; }
 		public bool IsXboxController { get; set; }
 		public CustomDeviceState LastState { get; set; }
+		
+		/// <summary>
+		/// Parsed HID capabilities for this device.
+		/// Used for proper HID API-based state reading.
+		/// </summary>
+		public RawInputProcessor.HidDeviceCapabilities HidCapabilities { get; set; }
 	}
 }

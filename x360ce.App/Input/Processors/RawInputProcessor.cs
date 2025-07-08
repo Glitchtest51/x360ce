@@ -13,29 +13,37 @@ namespace x360ce.App.Input.Processors
 	/// TRUE Raw Input processor - Uses actual Windows Raw Input API for HID-compliant devices.
 	/// </summary>
 	/// <remarks>
-	/// ACTUAL RAW INPUT IMPLEMENTATION:
+	/// PROPER HID IMPLEMENTATION:
 	/// • Uses Windows Raw Input API (RegisterRawInputDevices, GetRawInputData)
-	/// • Parses HID reports directly from WM_INPUT messages
+	/// • Parses HID descriptors using proper HID API (HidP_GetCaps, HidP_GetButtonCaps, HidP_GetValueCaps)
+	/// • Reads HID reports using HID API (HidP_GetUsages, HidP_GetUsageValue)
+	/// • Follows HID Usage Tables v1.3 specification
 	/// • No reliance on DirectInput infrastructure
-	/// • Processes raw HID data from controllers
-	///
-	/// LIMITATIONS:
-	/// ⚠️ **Xbox 360/One controllers have triggers on same axis** (HID limitation)
-	/// ⚠️ **No Guide button access** (most HID reports exclude it)
-	/// ⚠️ **No rumble support** (Raw Input is input-only)
-	/// ⚠️ **Requires HID report parsing** (complex device-specific implementation)
-	///
+	/// 
+	/// ARCHITECTURE:
+	/// This class is split into logical partial files:
+	/// • RawInputProcessor.HidApi.cs - Windows HID API declarations
+	/// • RawInputProcessor.HidParser.cs - HID descriptor parsing
+	/// • RawInputProcessor.StateMapping.cs - HID report to CustomDeviceState mapping
+	/// • RawInputProcessor.DeviceInfo.cs - Device capability management
+	/// 
 	/// CAPABILITIES:
 	/// ✅ **Controllers CAN be accessed in the background**
 	/// ✅ **Unlimited number of controllers**
 	/// ✅ **Works with any HID-compliant device**
 	/// ✅ **Direct hardware access**
 	/// ✅ **True Raw Input implementation**
+	/// ✅ **Proper HID descriptor parsing**
+	/// ✅ **Standards-compliant implementation**
+	/// 
+	/// LIMITATIONS:
+	/// ⚠️ **Xbox 360/One controllers have triggers on same axis** (HID limitation)
+	/// ⚠️ **No Guide button access** (most HID reports exclude it)
+	/// ⚠️ **No rumble support** (Raw Input is input-only)
 	/// </remarks>
-	public class RawInputProcessor : IInputProcessor, IDisposable
+	public partial class RawInputProcessor : IInputProcessor, IDisposable
 	{
-
-		#region Windows Raw Input API
+		#region Windows Raw Input API (User32.dll)
 
 		[DllImport("user32.dll", SetLastError = true)]
 		private static extern bool RegisterRawInputDevices(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize);
@@ -48,8 +56,8 @@ namespace x360ce.App.Input.Processors
 
 		private const uint RIM_TYPEHID = 2;
 		private const uint RID_INPUT = 0x10000003;
-		//private const uint RID_HEADER = 0x10000005;
 		private const uint RIDI_DEVICEINFO = 0x2000000b;
+		private const uint RIDI_PREPARSEDDATA = 0x20000005;
 		private const uint RIDEV_INPUTSINK = 0x00000100;
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -97,39 +105,47 @@ namespace x360ce.App.Input.Processors
 
 		#endregion
 
-		#region Static Device Management
-	
+		#region Instance Management
+
 		/// <summary>
 		/// Static registry of all RawInputProcessor instances for message routing.
 		/// This solves the handle leak issue by allowing proper cleanup.
 		/// </summary>
 		private static readonly Dictionary<IntPtr, RawInputProcessor> _processorRegistry = new Dictionary<IntPtr, RawInputProcessor>();
 		private static readonly object _registryLock = new object();
-	
+
 		/// <summary>
 		/// Instance registry of devices currently being processed through Raw Input.
 		/// </summary>
 		private Dictionary<IntPtr, RawInputDeviceInfo> _trackedDevices = new Dictionary<IntPtr, RawInputDeviceInfo>();
-	
+
 		/// <summary>
 		/// Mapping from UserDevice instances to Raw Input handles (similar to DirectInput device caching).
 		/// </summary>
 		private Dictionary<Guid, IntPtr> _userDeviceToRawInputHandle = new Dictionary<Guid, IntPtr>();
-	
+
 		/// <summary>
 		/// Whether Raw Input device registration has been initialized.
 		/// </summary>
 		private bool _isInitialized = false;
-	
+
 		/// <summary>
 		/// Hidden window for Raw Input message processing.
 		/// </summary>
 		private RawInputWindow _hiddenWindow;
-	
+
 		/// <summary>
 		/// Whether this instance has been disposed.
 		/// </summary>
 		private bool _disposed = false;
+
+		/// <summary>
+		/// Instance initialization for Raw Input device registration.
+		/// </summary>
+		public RawInputProcessor()
+		{
+			InitializeRawInput();
+		}
 
 		/// <summary>
 		/// Disposes of the RawInputProcessor resources.
@@ -160,18 +176,10 @@ namespace x360ce.App.Input.Processors
 				Debug.WriteLine($"Raw Input: Error during disposal: {ex.Message}");
 			}
 		}
-	
-		/// <summary>
-		/// Instance initialization for Raw Input device registration.
-		/// </summary>
-		public RawInputProcessor()
-		{
-			InitializeRawInput();
-		}
-	
+
 		#endregion
 
-		#region IInputProcessor 
+		#region IInputProcessor Implementation
 
 		/// <summary>
 		/// Gets the input method supported by this processor.
@@ -247,37 +255,37 @@ namespace x360ce.App.Input.Processors
 				return "Device is null";
 
 			var info = new System.Text.StringBuilder();
-			
+
 			try
 			{
 				info.AppendLine("=== Raw Input Capabilities ===");
 				info.AppendLine($"Device: {device.DisplayName}");
-				info.AppendLine($"Input Method: Raw Input (Windows Raw Input API)");
+				info.AppendLine($"Input Method: Raw Input (Windows Raw Input API + HID API)");
 				info.AppendLine();
-				
+
 				info.AppendLine("Raw Input Layout (HID-based):");
-				info.AppendLine($"  Buttons: {device.CapButtonCount} (varies by HID descriptor)");
-				info.AppendLine($"  Axes: {device.CapAxeCount} (X, Y, Z, RZ, triggers - device dependent)");
-				info.AppendLine($"  POVs: {device.CapPovCount} (D-Pad when available via HID)");
+				info.AppendLine($"  Buttons: {device.CapButtonCount} (from HID descriptor)");
+				info.AppendLine($"  Axes: {device.CapAxeCount} (from HID descriptor)");
+				info.AppendLine($"  POVs: {device.CapPovCount} (from HID descriptor)");
 				info.AppendLine();
-				
+
 				info.AppendLine("Raw Input Features:");
 				info.AppendLine("  ✅ Background access (major advantage)");
 				info.AppendLine("  ✅ Unlimited number of controllers");
 				info.AppendLine("  ✅ Works with any HID-compliant device");
 				info.AppendLine("  ✅ Direct hardware access");
 				info.AppendLine("  ✅ True raw input implementation");
-				info.AppendLine("  ✅ Available on Windows XP+");
+				info.AppendLine("  ✅ Proper HID descriptor parsing");
+				info.AppendLine("  ✅ HID API-based state reading");
+				info.AppendLine("  ✅ Standards-compliant implementation");
 				info.AppendLine();
-				
+
 				info.AppendLine("Raw Input Limitations:");
 				info.AppendLine("  ⚠️ Triggers combined on same axis (HID limitation)");
 				info.AppendLine("  ⚠️ No Guide button access (excluded from HID reports)");
 				info.AppendLine("  ❌ NO rumble support (input-only API)");
-				info.AppendLine("  ⚠️ Requires manual HID report parsing");
-				info.AppendLine("  ⚠️ Complex device-specific implementation");
 				info.AppendLine();
-				
+
 				// Add system info
 				var osVersion = Environment.OSVersion.Version;
 				var isWindowsXPPlus = osVersion.Major >= 5;
@@ -285,7 +293,7 @@ namespace x360ce.App.Input.Processors
 				info.AppendLine($"API Available: {IsAvailable()}");
 				info.AppendLine($"Initialization Status: {_isInitialized}");
 				info.AppendLine($"Tracked Devices: {_trackedDevices.Count}");
-				
+
 				// Add device-specific info if available
 				if (device.IsXboxCompatible)
 				{
@@ -294,12 +302,12 @@ namespace x360ce.App.Input.Processors
 					info.AppendLine("  ⚠️ Consider XInput for full features including rumble");
 					info.AppendLine("  ✅ Background access advantage over DirectInput");
 				}
-				
+
 				if (device.DeviceObjects != null)
 				{
 					info.AppendLine($"Device Objects: {device.DeviceObjects.Length} total");
 				}
-				
+
 				if (device.DeviceEffects != null)
 				{
 					info.AppendLine($"Force Feedback Effects: {device.DeviceEffects.Length} (Raw Input doesn't support output)");
@@ -309,7 +317,7 @@ namespace x360ce.App.Input.Processors
 			{
 				info.AppendLine($"Error getting capability info: {ex.Message}");
 			}
-			
+
 			return info.ToString();
 		}
 
@@ -340,13 +348,71 @@ namespace x360ce.App.Input.Processors
 			}
 
 			return ValidationResult.Success(
-				"Raw Input compatible. ✅ Background access, unlimited controllers. " +
-				"⚠️ No rumble support, requires HID report interpretation.");
+				"Raw Input compatible. ✅ Background access, unlimited controllers, HID API parsing. " +
+				"⚠️ No rumble support.");
+		}
+
+		/// <summary>
+		/// Loads device capabilities using proper HID descriptor parsing.
+		/// This method replaces the old hardcoded capability loading.
+		/// </summary>
+		/// <param name="device">The device to load capabilities for</param>
+		public void LoadCapabilities(UserDevice device)
+		{
+			// Delegate to the new HID parser implementation
+			LoadCapabilitiesFromHid(device);
+		}
+
+		/// <summary>
+		/// Gets the current device state for compatibility with the input orchestrator.
+		/// </summary>
+		/// <param name="device">The device to read state from</param>
+		/// <returns>CustomDeviceState representing the current controller state</returns>
+		public CustomDeviceState GetCustomState(UserDevice device)
+		{
+			if (device == null)
+				return null;
+
+			try
+			{
+				// Validate device compatibility
+				var validation = ValidateDevice(device);
+				if (!validation.IsValid)
+					return null;
+
+				// Read device state using Raw Input
+				var customState = ReadState(device);
+
+				// Handle force feedback (Raw Input doesn't support output, just log)
+				if (device.FFState != null)
+				{
+					HandleForceFeedback(device, device.FFState);
+				}
+
+				return customState;
+			}
+			catch (InputMethodException ex)
+			{
+				// Add diagnostic data directly to the exception
+				ex.Data["Device"] = device.DisplayName;
+				ex.Data["InputMethod"] = "RawInput";
+				JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
+				return null;
+			}
+			catch (Exception ex)
+			{
+				// Add diagnostic data directly to the exception
+				ex.Data["Device"] = device.DisplayName;
+				ex.Data["InputMethod"] = "RawInput";
+				ex.Data["ProcessorMethod"] = "GetCustomState";
+				JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
+				return null;
+			}
 		}
 
 		#endregion
 
-		#region Raw Input Implementation
+		#region Raw Input Initialization and Message Processing
 
 		/// <summary>
 		/// Initializes Raw Input device registration.
@@ -379,7 +445,7 @@ namespace x360ce.App.Input.Processors
 				{
 					int error = Marshal.GetLastWin32Error();
 					Debug.WriteLine($"Raw Input: Failed to register devices. Error: {error}");
-					
+
 					// Clean up on failure
 					lock (_registryLock)
 					{
@@ -397,7 +463,7 @@ namespace x360ce.App.Input.Processors
 			{
 				Debug.WriteLine($"Raw Input initialization failed: {ex.Message}");
 				_isInitialized = false;
-				
+
 				// Clean up on exception
 				if (_hiddenWindow != null)
 				{
@@ -448,7 +514,6 @@ namespace x360ce.App.Input.Processors
 						{
 							// Route to the correct processor instance
 							processor.ProcessHidInput(rawInput.header.hDevice, buffer, dwSize);
-							Debug.WriteLine($"Raw Input: Processed HID input for device {rawInput.header.hDevice:X8}");
 						}
 					}
 				}
@@ -483,6 +548,7 @@ namespace x360ce.App.Input.Processors
 
 		/// <summary>
 		/// Processes HID input data for a specific device.
+		/// Uses the new proper HID API-based state reading.
 		/// </summary>
 		/// <param name="deviceHandle">Raw Input device handle</param>
 		/// <param name="buffer">Raw input data buffer</param>
@@ -499,8 +565,21 @@ namespace x360ce.App.Input.Processors
 					return;
 			}
 
-			// Parse HID report based on device type
-			var newState = ParseHidReport(deviceInfo, buffer, bufferSize);
+			// Use the new HID API-based state reading if HID capabilities are available
+			CustomDeviceState newState = null;
+
+			if (deviceInfo.HidCapabilities != null)
+			{
+				// Use proper HID API for state reading
+				newState = ReadHidStateWithApi(deviceInfo, buffer, bufferSize);
+			}
+
+			if (newState == null)
+			{
+				// Fallback to basic parsing if HID API fails
+				newState = ReadHidStateFallback(deviceInfo, buffer, bufferSize);
+			}
+
 			if (newState != null)
 			{
 				deviceInfo.LastState = newState;
@@ -509,6 +588,7 @@ namespace x360ce.App.Input.Processors
 
 		/// <summary>
 		/// Creates device info for a Raw Input device handle.
+		/// Now includes HID capability parsing.
 		/// </summary>
 		/// <param name="deviceHandle">Raw Input device handle</param>
 		/// <returns>Device info or null if failed</returns>
@@ -541,6 +621,9 @@ namespace x360ce.App.Input.Processors
 							LastState = new CustomDeviceState(),
 							IsXboxController = IsXboxController(hidInfo.dwVendorId, hidInfo.dwProductId)
 						};
+
+						// Parse HID capabilities for proper state reading
+						deviceInfo.HidCapabilities = ParseHidCapabilities(deviceHandle);
 
 						Debug.WriteLine($"Raw Input: Created device info for VID:{hidInfo.dwVendorId:X4} PID:{hidInfo.dwProductId:X4}");
 						return deviceInfo;
@@ -582,135 +665,9 @@ namespace x360ce.App.Input.Processors
 			return false;
 		}
 
-		/// <summary>
-		/// Parses HID report data into CustomDeviceState.
-		/// </summary>
-		/// <param name="deviceInfo">Device information</param>
-		/// <param name="buffer">Raw input buffer</param>
-		/// <param name="bufferSize">Buffer size</param>
-		/// <returns>CustomDeviceState or null if parsing failed</returns>
-		private static CustomDeviceState ParseHidReport(RawInputDeviceInfo deviceInfo, IntPtr buffer, uint bufferSize)
-		{
-			try
-			{
-				var rawInput = Marshal.PtrToStructure<RAWINPUT>(buffer);
+		#endregion
 
-				// Get HID data pointer
-				IntPtr hidDataPtr = IntPtr.Add(buffer, Marshal.SizeOf<RAWINPUTHEADER>() + Marshal.SizeOf<RAWHID>());
-				int hidDataSize = (int)(rawInput.hid.dwSizeHid * rawInput.hid.dwCount);
-
-				if (hidDataSize <= 0)
-					return null;
-
-				// Copy HID data
-				byte[] hidData = new byte[hidDataSize];
-				Marshal.Copy(hidDataPtr, hidData, 0, hidDataSize);
-
-				var state = new CustomDeviceState();
-
-				if (deviceInfo.IsXboxController)
-				{
-					ParseXboxHidReport(hidData, state);
-				}
-				else
-				{
-					ParseGenericHidReport(hidData, state);
-				}
-
-				return state;
-			}
-			catch (Exception ex)
-			{
-				Debug.WriteLine($"Raw Input: Error parsing HID report: {ex.Message}");
-				return null;
-			}
-		}
-
-		/// <summary>
-		/// Parses Xbox controller HID report.
-		/// </summary>
-		/// <param name="hidData">HID report data</param>
-		/// <param name="state">CustomDeviceState to populate</param>
-		private static void ParseXboxHidReport(byte[] hidData, CustomDeviceState state)
-		{
-			if (hidData.Length < 14)
-				return;
-
-			// Xbox controller HID report format (common structure)
-			// Byte 0: Report ID
-			// Byte 1-2: Buttons (bitmask)
-			// Byte 3: Left Trigger
-			// Byte 4: Right Trigger
-			// Byte 5-6: Left Stick X
-			// Byte 7-8: Left Stick Y
-			// Byte 9-10: Right Stick X
-			// Byte 11-12: Right Stick Y
-
-			// Parse buttons
-			ushort buttons = (ushort)(hidData[1] | (hidData[2] << 8));
-			state.Buttons[0] = (buttons & 0x0001) != 0; // A
-			state.Buttons[1] = (buttons & 0x0002) != 0; // B
-			state.Buttons[2] = (buttons & 0x0004) != 0; // X
-			state.Buttons[3] = (buttons & 0x0008) != 0; // Y
-			state.Buttons[4] = (buttons & 0x0010) != 0; // LB
-			state.Buttons[5] = (buttons & 0x0020) != 0; // RB
-			state.Buttons[6] = (buttons & 0x0040) != 0; // Back
-			state.Buttons[7] = (buttons & 0x0080) != 0; // Start
-			state.Buttons[8] = (buttons & 0x0100) != 0; // LS
-			state.Buttons[9] = (buttons & 0x0200) != 0; // RS
-
-			// Parse triggers (combine them as Raw Input limitation)
-			int leftTrigger = hidData[3];
-			int rightTrigger = hidData[4];
-			state.Axis[4] = leftTrigger - rightTrigger; // Combined triggers
-
-			// Parse analog sticks
-			state.Axis[0] = (short)(hidData[5] | (hidData[6] << 8));  // Left X
-			state.Axis[1] = (short)(hidData[7] | (hidData[8] << 8));  // Left Y
-			state.Axis[2] = (short)(hidData[9] | (hidData[10] << 8)); // Right X
-			state.Axis[3] = (short)(hidData[11] | (hidData[12] << 8)); // Right Y
-		}
-
-		/// <summary>
-		/// Parses generic controller HID report.
-		/// FIXED: Corrected to prevent thumbstick data from being mapped to buttons.
-		/// </summary>
-		/// <param name="hidData">HID report data</param>
-		/// <param name="state">CustomDeviceState to populate</param>
-		private static void ParseGenericHidReport(byte[] hidData, CustomDeviceState state)
-		{
-			if (hidData.Length < 6)
-				return;
-
-			// Generic parsing - assume common gamepad structure
-			// FIXED: Most controllers have axes first, then buttons, not buttons first
-
-			// Parse axes first (prevent thumbstick data from being treated as buttons)
-			if (hidData.Length >= 6)
-			{
-				// Assume first 4-6 bytes are axis data (X, Y, Z, RZ, etc.)
-				state.Axis[0] = (short)((hidData[0] - 128) * 256); // Left X axis
-				state.Axis[1] = (short)((hidData[1] - 128) * 256); // Left Y axis
-				state.Axis[2] = (short)((hidData[2] - 128) * 256); // Right X axis (or Z)
-				state.Axis[3] = (short)((hidData[3] - 128) * 256); // Right Y axis (or RZ)
-			}
-
-			// Parse buttons from later bytes (avoid thumbstick data)
-			// Skip the first 4-6 bytes which are likely axis data
-			int buttonStartByte = ConvertHelper.LimitRange(6, 0, hidData.Length - 2);
-			for (int i = buttonStartByte; i < hidData.Length && (i - buttonStartByte) * 8 < state.Buttons.Length; i++)
-			{
-				byte buttonByte = hidData[i];
-				for (int bit = 0; bit < 8; bit++)
-				{
-					int buttonIndex = (i - buttonStartByte) * 8 + bit;
-					if (buttonIndex < state.Buttons.Length)
-					{
-						state.Buttons[buttonIndex] = (buttonByte & (1 << bit)) != 0;
-					}
-				}
-			}
-		}
+		#region Device Mapping and Utility Methods
 
 		/// <summary>
 		/// Gets or creates a Raw Input mapping for a UserDevice (similar to DirectInput device caching).
@@ -781,10 +738,6 @@ namespace x360ce.App.Input.Processors
 			return IntPtr.Zero;
 		}
 
-		#endregion
-
-		#region System Availability
-
 		/// <summary>
 		/// Checks if Raw Input is available on the current system.
 		/// </summary>
@@ -839,8 +792,9 @@ namespace x360ce.App.Input.Processors
 				info.AppendLine($"Operating System: {Environment.OSVersion}");
 				info.AppendLine($"Tracked Devices: {_trackedDevices.Count}");
 				info.AppendLine($"Initialization Status: {_isInitialized}");
-				info.AppendLine("Implementation: TRUE Raw Input API");
-				info.AppendLine("Features: RegisterRawInputDevices, GetRawInputData, HID report parsing");
+				info.AppendLine("Implementation: TRUE Raw Input API + HID API");
+				info.AppendLine("Features: RegisterRawInputDevices, GetRawInputData, HidP_GetCaps, HidP_GetUsages, HidP_GetUsageValue");
+				info.AppendLine("Architecture: Modular partial classes (HidApi, HidParser, StateMapping, DeviceInfo)");
 			}
 			catch (Exception ex)
 			{
@@ -849,196 +803,6 @@ namespace x360ce.App.Input.Processors
 
 			return info.ToString();
 		}
-
-		/// <summary>
-		/// Loads device capabilities specific to Raw Input HID devices.
-		/// Populates HID-based capabilities for UI drag-and-drop functionality.
-		/// </summary>
-		/// <param name="device">The device to load capabilities for</param>
-		/// <remarks>
-		/// Raw Input capabilities are based on HID descriptors when available:
-		/// • 16 Buttons: Common gamepad button count (can vary by device)
-		/// • 6 Axes: X, Y, Z, RZ, Left Trigger, Right Trigger (typical layout)
-		/// • 1 POV: D-Pad as POV (when available via HID)
-		/// • No Force Feedback: Raw Input is input-only API
-		///
-		/// This method ensures UI shows reasonable capabilities for Raw Input devices
-		/// even though actual HID parsing may reveal different button/axis counts.
-		/// </remarks>
-		public void LoadCapabilities(UserDevice device)
-		{
-			if (device == null)
-				return;
-
-			try
-			{
-				// Set Raw Input capability counts based on common HID controller patterns
-				device.CapButtonCount = 16;  // Common gamepad button count
-				device.CapAxeCount = 6;      // X, Y, Z, RZ, LT, RT (typical for gamepads)
-				device.CapPovCount = 1;      // Most gamepads have 1 POV (D-Pad)
-
-				// Create device objects that match what DirectInput would provide for controllers
-				if (device.DeviceObjects == null)
-				{
-					var deviceObjects = new List<DeviceObjectItem>();
-
-					// Add button objects - assume common controller layout
-					for (int i = 0; i < 16; i++)
-					{
-						deviceObjects.Add(new DeviceObjectItem(
-							i * 4, // offset
-							ObjectGuid.Button, // guid
-							ObjectAspect.Position, // aspect
-							DeviceObjectTypeFlags.PushButton, // type
-							i, // instance
-							$"Button {i}" // name
-						));
-					}
-
-					// Add axis objects - assume common controller axes
-					string[] axisNames = { "X Axis", "Y Axis", "Z Axis", "RZ Axis", "Left Trigger", "Right Trigger" };
-					for (int i = 0; i < axisNames.Length; i++)
-					{
-						deviceObjects.Add(new DeviceObjectItem(
-							64 + (i * 4), // offset
-							ObjectGuid.XAxis, // guid (simplified)
-							ObjectAspect.Position, // aspect
-							DeviceObjectTypeFlags.AbsoluteAxis, // type
-							i, // instance
-							axisNames[i] // name
-						));
-					}
-
-					device.DeviceObjects = deviceObjects.ToArray();
-				}
-
-				// Set axis mask (which axes are available) - required for UI
-				if (device.DiAxeMask == 0)
-				{
-					// Assume 6 axes are available for most controllers
-					device.DiAxeMask = 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20; // First 6 axes
-				}
-
-				// Set device effects (required for force feedback UI, even though Raw Input doesn't support it)
-				if (device.DeviceEffects == null)
-				{
-					// Raw Input doesn't support effects, but set empty array for UI compatibility
-					device.DeviceEffects = new DeviceEffectItem[0];
-				}
-
-				Debug.WriteLine($"Raw Input: Loaded capabilities for {device.DisplayName} - Buttons: {device.CapButtonCount}, Axes: {device.CapAxeCount}, POVs: {device.CapPovCount}");
-			}
-			catch (Exception ex)
-			{
-				// Set safe defaults if capability loading fails
-				device.CapButtonCount = 16;
-				device.CapAxeCount = 6;
-				device.CapPovCount = 1;
-				device.DeviceObjects = device.DeviceObjects ?? new DeviceObjectItem[0];
-				device.DeviceEffects = device.DeviceEffects ?? new DeviceEffectItem[0];
-
-				Debug.WriteLine($"Raw Input: Capability loading failed for {device.DisplayName}, using defaults: {ex.Message}");
-			}
-		}
-
-
-		#endregion
-
-		#region Raw Input State Processing
-
-		/// <summary>
-		/// Processes devices using Raw Input API for HID-compliant controllers.
-		/// </summary>
-		/// <param name="device">The HID-compliant device to process</param>
-		/// <returns>CustomDeviceState for the device, or null if reading failed</returns>
-		/// <remarks>
-		/// ⚠️ CRITICAL: MUST OUTPUT CONSISTENT CustomDeviceState FORMAT ⚠️
-		/// 
-		/// CustomDeviceState is the ONLY format used by the existing UI and mapping system.
-		/// This method MUST map Raw Input controls to the EXACT SAME CustomDeviceState indices
-		/// used by DirectInput, XInput, and Gaming Input for consistency.
-		/// 
-		/// MANDATORY CUSTOMDISTATE MAPPING (MUST match other input methods):
-		/// Raw Input uses HID reports, so mapping depends on device-specific HID descriptors.
-		/// However, for common controllers (Xbox, PlayStation), MUST map to:
-		/// • Buttons[0] = Primary action button (A on Xbox, Cross on PlayStation)
-		/// • Buttons[1] = Secondary action button (B on Xbox, Circle on PlayStation)
-		/// • Buttons[2] = Third action button (X on Xbox, Square on PlayStation)
-		/// • Buttons[3] = Fourth action button (Y on Xbox, Triangle on PlayStation)
-		/// • Buttons[4] = Left Shoulder (LB/L1)
-		/// • Buttons[5] = Right Shoulder (RB/R1)
-		/// • Buttons[6] = Back/Select/Share button
-		/// • Buttons[7] = Start/Menu/Options button
-		/// • Buttons[8] = Left Thumbstick Click (LS/L3)
-		/// • Buttons[9] = Right Thumbstick Click (RS/R3)
-		/// • Buttons[10] = D-Pad Up
-		/// • Buttons[11] = D-Pad Right
-		/// • Buttons[12] = D-Pad Down
-		/// • Buttons[13] = D-Pad Left
-		/// • Buttons[14] = Guide/Home button (when available via HID)
-		/// • Axis[0] = Left Thumbstick X (-32768 to 32767)
-		/// • Axis[1] = Left Thumbstick Y (-32768 to 32767)
-		/// • Axis[2] = Right Thumbstick X (-32768 to 32767)
-		/// • Axis[3] = Right Thumbstick Y (-32768 to 32767)
-		/// • Axis[4] = Left Trigger OR Combined Triggers (limitation for some controllers)
-		/// • Axis[5] = Right Trigger (when separate) or unused
-		/// 
-		/// RAW INPUT METHOD CAPABILITIES:
-		/// • Controllers CAN be accessed in the background (major advantage)
-		/// • Unlimited number of controllers
-		/// • Works with any HID-compliant device
-		/// • Low-level access to device data
-		/// • Most direct access to hardware input
-		/// 
-		/// RAW INPUT METHOD LIMITATIONS:
-		/// • Xbox 360/One controllers have triggers on same axis (same as DirectInput)
-		/// • No Guide button access (most HID reports exclude it)
-		/// • NO rumble support (Raw Input is input-only)
-		/// • Requires manual HID report parsing (complex implementation)
-		/// • No built-in controller abstraction (custom profiles needed)
-		/// • Complex setup and device registration required
-		/// </remarks>
-		public CustomDeviceState GetCustomState(UserDevice device)
-		{
-			if (device == null)
-				return null;
-			try
-			{
-				// Use the RawInputProcessor for actual processing
-				// Validate device compatibility
-				var validation = ValidateDevice(device);
-				if (!validation.IsValid)
-					return null;
-				// Read device state using Raw Input
-				var customState = ReadState(device);
-
-				// Handle force feedback (Raw Input doesn't support output, just log)
-				if (device.FFState != null)
-				{
-					HandleForceFeedback(device, device.FFState);
-					HandleForceFeedback(device, device.FFState);
-				}
-				return customState;
-			}
-			catch (InputMethodException ex)
-			{
-				// Add diagnostic data directly to the exception
-				ex.Data["Device"] = device.DisplayName;
-				ex.Data["InputMethod"] = "RawInput";
-				JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
-				return null;
-			}
-			catch (Exception ex)
-			{
-				// Add diagnostic data directly to the exception
-				ex.Data["Device"] = device.DisplayName;
-				ex.Data["InputMethod"] = "RawInput";
-				ex.Data["ProcessorMethod"] = "GetCustomState";
-				JocysCom.ClassLibrary.Runtime.LogHelper.Current.WriteException(ex);
-				return null;
-			}
-		}
-
 
 		#endregion
 	}
