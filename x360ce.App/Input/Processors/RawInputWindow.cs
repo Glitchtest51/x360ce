@@ -22,7 +22,7 @@ namespace x360ce.App.Input.Processors
 		{
 			if (m.Msg == WM_INPUT)
 			{
-				RawInputProcessor.ProcessRawInput(m.LParam);
+				RawInputProcessor.ProcessRawInput(this.Handle, m.LParam);
 			}
 			base.WndProc(ref m);
 		}
@@ -37,6 +37,14 @@ namespace x360ce.App.Input.Processors
 			}
 		}
 
-
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				// Notify the processor that this window is being disposed
+				RawInputProcessor.UnregisterWindow(this.Handle);
+			}
+			base.Dispose(disposing);
+		}
 	}
 }

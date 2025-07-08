@@ -18,13 +18,13 @@ namespace x360ce.App.Input.Processors
 	/// • Parses HID reports directly from WM_INPUT messages
 	/// • No reliance on DirectInput infrastructure
 	/// • Processes raw HID data from controllers
-	/// 
+	///
 	/// LIMITATIONS:
 	/// ⚠️ **Xbox 360/One controllers have triggers on same axis** (HID limitation)
 	/// ⚠️ **No Guide button access** (most HID reports exclude it)
 	/// ⚠️ **No rumble support** (Raw Input is input-only)
 	/// ⚠️ **Requires HID report parsing** (complex device-specific implementation)
-	/// 
+	///
 	/// CAPABILITIES:
 	/// ✅ **Controllers CAN be accessed in the background**
 	/// ✅ **Unlimited number of controllers**
@@ -32,7 +32,7 @@ namespace x360ce.App.Input.Processors
 	/// ✅ **Direct hardware access**
 	/// ✅ **True Raw Input implementation**
 	/// </remarks>
-	public class RawInputProcessor : IInputProcessor
+	public class RawInputProcessor : IInputProcessor, IDisposable
 	{
 
 		#region Windows Raw Input API
@@ -98,27 +98,69 @@ namespace x360ce.App.Input.Processors
 		#endregion
 
 		#region Static Device Management
-
+	
+		/// <summary>
+		/// Static registry of all RawInputProcessor instances for message routing.
+		/// This solves the handle leak issue by allowing proper cleanup.
+		/// </summary>
+		private static readonly Dictionary<IntPtr, RawInputProcessor> _processorRegistry = new Dictionary<IntPtr, RawInputProcessor>();
+		private static readonly object _registryLock = new object();
+	
 		/// <summary>
 		/// Instance registry of devices currently being processed through Raw Input.
 		/// </summary>
 		private Dictionary<IntPtr, RawInputDeviceInfo> _trackedDevices = new Dictionary<IntPtr, RawInputDeviceInfo>();
-
+	
 		/// <summary>
 		/// Mapping from UserDevice instances to Raw Input handles (similar to DirectInput device caching).
 		/// </summary>
 		private Dictionary<Guid, IntPtr> _userDeviceToRawInputHandle = new Dictionary<Guid, IntPtr>();
-
+	
 		/// <summary>
 		/// Whether Raw Input device registration has been initialized.
 		/// </summary>
 		private bool _isInitialized = false;
-
+	
 		/// <summary>
 		/// Hidden window for Raw Input message processing.
 		/// </summary>
 		private RawInputWindow _hiddenWindow;
+	
+		/// <summary>
+		/// Whether this instance has been disposed.
+		/// </summary>
+		private bool _disposed = false;
 
+		/// <summary>
+		/// Disposes of the RawInputProcessor resources.
+		/// Called when the input method is changed or the application is shutting down.
+		/// </summary>
+		public void Dispose()
+		{
+			if (_disposed)
+				return;
+
+			try
+			{
+				// Dispose of the hidden window which will unregister itself
+				_hiddenWindow?.Dispose();
+				_hiddenWindow = null;
+
+				// Clear device tracking
+				_trackedDevices.Clear();
+				_userDeviceToRawInputHandle.Clear();
+
+				_disposed = true;
+				_isInitialized = false;
+
+				Debug.WriteLine("Raw Input: Processor disposed successfully");
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"Raw Input: Error during disposal: {ex.Message}");
+			}
+		}
+	
 		/// <summary>
 		/// Instance initialization for Raw Input device registration.
 		/// </summary>
@@ -126,7 +168,7 @@ namespace x360ce.App.Input.Processors
 		{
 			InitializeRawInput();
 		}
-
+	
 		#endregion
 
 		#region IInputProcessor 
@@ -166,9 +208,8 @@ namespace x360ce.App.Input.Processors
 			if (device == null)
 				return new CustomDeviceState();
 
-			// CRITICAL: Set device properties required for UI to display mapping controls
-			// This ensures the PAD UI shows buttons/axes for Raw Input devices just like DirectInput
-			EnsureDevicePropertiesForUI(device);
+			// Note: Device properties (capabilities) are managed centrally by Step2.LoadCapabilities.cs
+			// No need to set them here - they're handled by the orchestrator flag-based system
 
 			// Use the same caching pattern as DirectInput - check if Raw Input device is already mapped
 			var rawInputHandle = GetOrCreateRawInputMapping(device);
@@ -320,6 +361,12 @@ namespace x360ce.App.Input.Processors
 				// Create hidden window for Raw Input message processing
 				_hiddenWindow = new RawInputWindow();
 
+				// Register this instance in the static registry for message routing
+				lock (_registryLock)
+				{
+					_processorRegistry[_hiddenWindow.Handle] = this;
+				}
+
 				// Register for HID devices (gamepad/joystick)
 				var devices = new RAWINPUTDEVICE[1];
 				devices[0].usUsagePage = 0x01; // Generic Desktop Controls
@@ -332,28 +379,58 @@ namespace x360ce.App.Input.Processors
 				{
 					int error = Marshal.GetLastWin32Error();
 					Debug.WriteLine($"Raw Input: Failed to register devices. Error: {error}");
+					
+					// Clean up on failure
+					lock (_registryLock)
+					{
+						_processorRegistry.Remove(_hiddenWindow.Handle);
+					}
+					_hiddenWindow?.Dispose();
+					_hiddenWindow = null;
 					return;
 				}
 
 				_isInitialized = true;
-				Debug.WriteLine("Raw Input: Successfully initialized with hidden window for message processing");
+				Debug.WriteLine($"Raw Input: Successfully initialized with hidden window {_hiddenWindow.Handle:X8} for message processing");
 			}
 			catch (Exception ex)
 			{
 				Debug.WriteLine($"Raw Input initialization failed: {ex.Message}");
 				_isInitialized = false;
+				
+				// Clean up on exception
+				if (_hiddenWindow != null)
+				{
+					lock (_registryLock)
+					{
+						_processorRegistry.Remove(_hiddenWindow.Handle);
+					}
+					_hiddenWindow?.Dispose();
+					_hiddenWindow = null;
+				}
 			}
 		}
 
 		/// <summary>
 		/// Processes Raw Input data from WM_INPUT messages.
-		/// NOTE: This method needs to access the instance but is called from static context.
+		/// Routes the message to the appropriate processor instance.
 		/// </summary>
+		/// <param name="hwnd">Window handle that received the message</param>
 		/// <param name="lParam">Raw input handle from WM_INPUT message</param>
-		internal static void ProcessRawInput(IntPtr lParam)
+		internal static void ProcessRawInput(IntPtr hwnd, IntPtr lParam)
 		{
 			try
 			{
+				// Find the processor instance for this window handle
+				RawInputProcessor processor = null;
+				lock (_registryLock)
+				{
+					_processorRegistry.TryGetValue(hwnd, out processor);
+				}
+
+				if (processor == null || processor._disposed)
+					return;
+
 				uint dwSize = 0;
 				GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, (uint)Marshal.SizeOf(typeof(RAWINPUTHEADER)));
 
@@ -369,9 +446,9 @@ namespace x360ce.App.Input.Processors
 						var rawInput = Marshal.PtrToStructure<RAWINPUT>(buffer);
 						if (rawInput.header.dwType == RIM_TYPEHID)
 						{
-							// TODO: Need to access instance methods through orchestrator
-							// For now, this is a placeholder to prevent compilation errors
-							Debug.WriteLine($"Raw Input: Received HID input for device {rawInput.header.hDevice}");
+							// Route to the correct processor instance
+							processor.ProcessHidInput(rawInput.header.hDevice, buffer, dwSize);
+							Debug.WriteLine($"Raw Input: Processed HID input for device {rawInput.header.hDevice:X8}");
 						}
 					}
 				}
@@ -383,6 +460,24 @@ namespace x360ce.App.Input.Processors
 			catch (Exception ex)
 			{
 				Debug.WriteLine($"Raw Input: Error processing input: {ex.Message}");
+			}
+		}
+
+		/// <summary>
+		/// Unregisters a window handle from the processor registry.
+		/// Called when a RawInputWindow is being disposed.
+		/// </summary>
+		/// <param name="hwnd">Window handle to unregister</param>
+		internal static void UnregisterWindow(IntPtr hwnd)
+		{
+			lock (_registryLock)
+			{
+				if (_processorRegistry.TryGetValue(hwnd, out var processor))
+				{
+					_processorRegistry.Remove(hwnd);
+					processor._disposed = true;
+					Debug.WriteLine($"Raw Input: Unregistered window {hwnd:X8}");
+				}
 			}
 		}
 
@@ -846,18 +941,6 @@ namespace x360ce.App.Input.Processors
 			}
 		}
 
-		/// <summary>
-		/// Ensures device has the properties required for the UI to display mapping controls.
-		/// This populates the same properties that DirectInput sets so the PAD UI works.
-		/// </summary>
-		/// <param name="device">The device to ensure properties for</param>
-		private static void EnsureDevicePropertiesForUI(UserDevice device)
-		{
-			// Note: This method now delegates to LoadCapabilities for consistency
-			// Create a processor instance to call the non-static LoadCapabilities method
-			var processor = new RawInputProcessor();
-			processor.LoadCapabilities(device);
-		}
 
 		#endregion
 

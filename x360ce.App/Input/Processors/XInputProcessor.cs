@@ -455,9 +455,8 @@ return null;
 
 			try
 			{
-				// CRITICAL: Set device properties required for UI to display mapping controls
-				// This ensures the PAD UI shows buttons/axes for XInput devices just like DirectInput
-				EnsureDevicePropertiesForUI(device);
+				// Note: Device properties (capabilities) are managed centrally by Step2.LoadCapabilities.cs
+				// No need to set them here - they're handled by the orchestrator flag-based system
 
 				// Get or assign XInput slot for this device
 				int slotIndex = GetOrAssignSlot(device);
@@ -1149,18 +1148,6 @@ return null;
 			}
 		}
 
-		/// <summary>
-		/// Ensures device has the properties required for the UI to display mapping controls.
-		/// This populates the same properties that DirectInput sets so the PAD UI works.
-		/// </summary>
-		/// <param name="device">The device to ensure properties for</param>
-		private static void EnsureDevicePropertiesForUI(UserDevice device)
-		{
-			// Note: This method now delegates to LoadCapabilities for consistency
-			// Create a processor instance to call the non-static LoadCapabilities method
-			var processor = new XInputProcessor();
-			processor.LoadCapabilities(device);
-		}
 
 		/// <summary>
 		/// Gets the display name for Xbox controller buttons.
