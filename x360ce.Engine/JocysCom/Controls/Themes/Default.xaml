@@ -25,7 +25,10 @@
 	<SolidColorBrush x:Key="ForegroundBlack" Color="#000000" />
 	<SolidColorBrush x:Key="ForegroundWarning" Color="#800000" />
 
-	<SolidColorBrush x:Key="ColorNormal" Color="#FF6699FF" />
+    <SolidColorBrush x:Key="SelectedForeground" Color="#FFFFFFFF" />
+    <SolidColorBrush x:Key="MouseOverBackground" Color="#FFCCCCCC" />
+    <SolidColorBrush x:Key="SelectedBackground" Color="#FF0078D7" />
+    <SolidColorBrush x:Key="ColorNormal" Color="#FF6699FF" />
 	<SolidColorBrush x:Key="ColorActive" Color="#FF42C765" />
 	<SolidColorBrush x:Key="ColorOver" Color="#FFFFCC66" />
 	<SolidColorBrush x:Key="ColorRecord" Color="#FFFF6B66" />
@@ -660,42 +663,42 @@
 
 	<!--  ListBox  -->
 	<Style x:Key="ListBox_Default" TargetType="ListBox">
-		<Setter Property="Template">
+        <Setter Property="Template">
 			<Setter.Value>
 				<ControlTemplate TargetType="ListBox">
 					<Border
 						BorderBrush="{StaticResource BorderDark}"
 						BorderThickness="1"
 						CornerRadius="5">
-						<Grid>
-							<Grid.OpacityMask>
+                        <Grid RenderOptions.EdgeMode="Aliased">
+                            <Grid.OpacityMask>
 								<VisualBrush Visual="{Binding ElementName=OpacityMaskBorder}" />
 							</Grid.OpacityMask>
-							<Border
+                            <Border
 								Name="OpacityMaskBorder"
 								Background="{StaticResource BackgroundDark}"
 								CornerRadius="5" />
-							<ScrollViewer
-								Margin="0"
-								Background="{StaticResource BackgroundDark}"
-								Focusable="false">
-								<StackPanel IsItemsHost="True" />
-							</ScrollViewer>
-						</Grid>
+                            <ScrollViewer ClipToBounds="True">
+                                    <ItemsPresenter />
+                                </ScrollViewer>
+                        </Grid>
 					</Border>
 				</ControlTemplate>
 			</Setter.Value>
 		</Setter>
 	</Style>
 
+
 	<!--  ListBoxItem  -->
-	<Style x:Key="ListBoxItem_Default" TargetType="ListBoxItem">
+    <Style x:Key="ListBoxItem_Default" TargetType="ListBoxItem">
 		<Setter Property="BorderThickness" Value="0" />
-		<Setter Property="Padding" Value="0" />
+		<Setter Property="Padding" Value="5" />
 		<Setter Property="Template">
 			<Setter.Value>
 				<ControlTemplate TargetType="ListBoxItem">
 					<Border
+                        
+                        Margin="{TemplateBinding Margin}"
 						Padding="{TemplateBinding Padding}"
 						Background="{TemplateBinding Background}"
 						BorderBrush="{TemplateBinding BorderBrush}"
@@ -707,10 +710,8 @@
 					</Border>
 					<ControlTemplate.Triggers>
 						<Trigger Property="IsSelected" Value="True">
-							<Setter Property="Background" Value="{StaticResource BackgroundDarkSelected}" />
-						</Trigger>
-						<Trigger Property="IsMouseOver" Value="True">
-							<Setter Property="Background" Value="{StaticResource BackgroundDarkSelected}" />
+                            <Setter Property="Background" Value="{StaticResource SelectedBackground}" />
+                            <Setter Property="Foreground" Value="{StaticResource SelectedForeground}" />
 						</Trigger>
 						<Trigger Property="IsEnabled" Value="False">
 							<Setter Property="Opacity" Value="0.5" />

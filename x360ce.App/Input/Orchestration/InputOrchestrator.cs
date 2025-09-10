@@ -13,64 +13,66 @@ namespace x360ce.App.Input.Orchestration
 	public partial class InputOrchestrator : IDisposable
 	{
 
-		// --------------------------------------------------------------------------------------------
-		// DESCRIPTION - 8-STEP INPUT ORCHESTRATION ARCHITECTURE
-		// --------------------------------------------------------------------------------------------
-		// Monitor (WM_DEVICECHANGE) device (HID, Keyboard, Mouse) interface events (DEV_BROADCAST_DEVICEINTERFACE).
-		// On detection, set DevicesNeedUpdating = true (also, set 'true' on 'InputLost' error during state reading).
-		// Build a list of SharpDX.DirectInput.DeviceInstance objects (DeviceClass.GameControl, DeviceClass.Keyboard, DeviceClass.Pointer).
-		// The list holds each Win32_PnPEntity.DeviceID prefix, created from SharpDX.DirectInput.DeviceInstance.ProductGuid.
-		// For example: 6f1d2b60-d5a0-11cf-bfc7-444553540000 > HID\VID_2B60&PID_6F1D.
-		// Win32_PnPEntity.DeviceID prefix'es are used to select Win32_PnPEntity entities existing as SharpDX.DirectInput.DeviceInstance's.
+        // --------------------------------------------------------------------------------------------
+        // DESCRIPTION - 8-STEP INPUT ORCHESTRATION ARCHITECTURE
+        // --------------------------------------------------------------------------------------------
+        // Monitor (WM_DEVICECHANGE) device (HID, Keyboard, Mouse) interface events (DEV_BROADCAST_DEVICEINTERFACE).
+        // On detection, set DevicesNeedUpdating = true (also, set 'true' on 'InputLost' error during state reading).
+        // Build a list of SharpDX.DirectInput.DeviceInstance objects (DeviceClass.GameControl, DeviceClass.Keyboard, DeviceClass.Pointer).
+        // On DEV_BROADCAST_DEVICEINTERFACE event, PID and VID is extracted from detected Win32_PnPEntity.DeviceID.
+        // For example: HID\VID_046D&PID_C216\7&1D9AEBE3&0&0000 > c216046d.
+        // This PID and VID is used to check if Win32_PnPEntity exists as SharpDX.DirectInput.DeviceInstance.
+        // For example: c216046d will find SharpDX.DirectInput.DeviceInstance.ProductGuid: c216046d-0000-0000-0000-504944564944.
+        // if Win32_PnPEntity exists as SharpDX.DirectInput.DeviceInstance, this will trigger next steps.
 
-		// 8-STEP SERIAL EXECUTION ORDER (1000Hz main loop):
-		//
-		// Step 1: UpdateDevices - Device detection and initialization
-		// Step 2: LoadCapabilities - Flag-based capability loading
-		// Step 3: ReadDeviceStates - Raw input state reading (4 input methods)
-		// Step 4: ConvertToCustomStates - Convert to unified CustomDeviceState format
-		// Step 5: UpdateXiStates - Convert CustomDeviceState to XInput states
-		// Step 6: CombineXiStates - Combine multiple controller states
-		// Step 7: UpdateVirtualDevices - Update ViGEm virtual devices
-		// Step 8: RetrieveXiStates - Retrieve XInput controller states
-		//
-		// Process 1 is limited to [125, 250, 500, 1000Hz] - Main orchestration loop
-		// Lock { All 8 steps execute serially to ensure thread safety }
-		//
-		// Process 2 is limited to [30Hz] (only when visible) - UI updates
-		// Lock { Read orchestration results for UI display }
+        // 8-STEP SERIAL EXECUTION ORDER (1000Hz main loop):
+        //
+        // Step 1: UpdateDevices - Device detection and initialization
+        // Step 2: LoadCapabilities - Flag-based capability loading
+        // Step 3: ReadDeviceStates - Raw input state reading (4 input methods)
+        // Step 4: ConvertToCustomStates - Convert to unified CustomDeviceState format
+        // Step 5: UpdateXiStates - Convert CustomDeviceState to XInput states
+        // Step 6: CombineXiStates - Combine multiple controller states
+        // Step 7: UpdateVirtualDevices - Update ViGEm virtual devices
+        // Step 8: RetrieveXiStates - Retrieve XInput controller states
+        //
+        // Process 1 is limited to [125, 250, 500, 1000Hz] - Main orchestration loop
+        // Lock { All 8 steps execute serially to ensure thread safety }
+        //
+        // Process 2 is limited to [30Hz] (only when visible) - UI updates
+        // Lock { Read orchestration results for UI display }
 
-		// ⚠️⚠️⚠️ CRITICAL PERFORMANCE WARNING - TWO EXECUTION PATHS ⚠️⚠️⚠️
-		//
-		// THIS CODE HAS TWO DISTINCT EXECUTION PATHS WITH DIFFERENT PERFORMANCE RULES:
-		//
-		// 🐌 **DEVICE DETECTION PATH** (Lines 304-322) - SLOW OPERATIONS ALLOWED:
-		//    - Runs ONLY when DevicesNeedUpdating=true (new device connected/disconnected)
-		//    - ✅ WMI queries, device enumeration, file I/O are acceptable here
-		//    - ✅ Debug.WriteLine, logging, complex operations allowed
-		//    - ✅ UpdateDiDevices(), DeviceDetector.GetDevices(), GetInterfaces()
-		//    - Purpose: Gather complete device information during hardware changes
-		//
-		// ⚡ **HIGH-FREQUENCY PATH** (Lines 325-347) - ULTRA-FAST REQUIRED:
-		//    - Runs at 1000Hz+ continuously during normal operation
-		//    - ❌ Debug.WriteLine() - Will flood output and destroy performance
-		//    - ❌ Console.WriteLine() - Will kill console performance
-		//    - ❌ String.Format() or string interpolation
-		//    - ❌ File I/O operations, network calls, database operations
-		//    - ❌ Exception logging, Thread.Sleep(), blocking operations
-		//    - ❌ Large object allocations, complex string operations
-		//    - ❌ LINQ in hot paths, reflection, heavy computations
-		//    - Covers: Step 2-8 (LoadCapabilities through RetrieveXiStates)
-		//
-		// **RULE FOR AI AGENTS**:
-		// - Device detection path (`UpdateDiDevices`) = Slow operations are allowed as an exception.
-		// - High-frequency path (Steps 2-8) = Must be ultra-lightweight microsecond execution.
-		// - Check which execution path before adding any expensive operations!
-		// ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+        // ⚠️⚠️⚠️ CRITICAL PERFORMANCE WARNING - TWO EXECUTION PATHS ⚠️⚠️⚠️
+        //
+        // THIS CODE HAS TWO DISTINCT EXECUTION PATHS WITH DIFFERENT PERFORMANCE RULES:
+        //
+        // 🐌 **DEVICE DETECTION PATH** (Lines 304-322) - SLOW OPERATIONS ALLOWED:
+        //    - Runs ONLY when DevicesNeedUpdating=true (new device connected/disconnected)
+        //    - ✅ WMI queries, device enumeration, file I/O are acceptable here
+        //    - ✅ Debug.WriteLine, logging, complex operations allowed
+        //    - ✅ UpdateDiDevices(), DeviceDetector.GetDevices(), GetInterfaces()
+        //    - Purpose: Gather complete device information during hardware changes
+        //
+        // ⚡ **HIGH-FREQUENCY PATH** (Lines 325-347) - ULTRA-FAST REQUIRED:
+        //    - Runs at 1000Hz+ continuously during normal operation
+        //    - ❌ Debug.WriteLine() - Will flood output and destroy performance
+        //    - ❌ Console.WriteLine() - Will kill console performance
+        //    - ❌ String.Format() or string interpolation
+        //    - ❌ File I/O operations, network calls, database operations
+        //    - ❌ Exception logging, Thread.Sleep(), blocking operations
+        //    - ❌ Large object allocations, complex string operations
+        //    - ❌ LINQ in hot paths, reflection, heavy computations
+        //    - Covers: Step 2-8 (LoadCapabilities through RetrieveXiStates)
+        //
+        // **RULE FOR AI AGENTS**:
+        // - Device detection path (`UpdateDiDevices`) = Slow operations are allowed as an exception.
+        // - High-frequency path (Steps 2-8) = Must be ultra-lightweight microsecond execution.
+        // - Check which execution path before adding any expensive operations!
+        // ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
 
 
-		// Constructor
-		public InputOrchestrator()
+        // Constructor
+        public InputOrchestrator()
 		{
 			CombinedXiConnected = new bool[4];
 			LiveXiConnected = new bool[4];

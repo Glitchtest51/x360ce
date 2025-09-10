@@ -42,8 +42,12 @@ namespace x360ce.App.Input.Orchestration
 				// Update device info caches for added or updated devices.
 				var (devInfos, intInfos) = UpdateDeviceInfoCaches(addedDevices, updatedDevices);
 
-				// Process added, updated and removed devices.
-				InsertNewDevices(directInput, addedDevices, devInfos, intInfos);
+                // Process added, updated and removed devices.
+                // listedDevices: 4 (F310), 12 (F710) 14 (SS)
+                // updatedDevices: SS, F310, F710, Mouse, Keyboard
+                // devInfos: SS, F710, F310
+                // intInfos: F310, F710, SS
+                InsertNewDevices(directInput, addedDevices, devInfos, intInfos);
 				UpdateExistingDevices(directInput, listedDevices, updatedDevices, devInfos, intInfos);
 				MarkDevicesOffline(removedDevices);
 
@@ -68,71 +72,68 @@ namespace x360ce.App.Input.Orchestration
 		/// </summary>
 		/// <param name="directInput">The DirectInput instance.</param>
 		/// <returns>A tuple containing the list of connected devices and a flag indicating if the list has changed.</returns>
-		private (List<(object DeviceInstance, object DeviceClass, int Usage, string DiDeviceID, string ProductName, Guid InstanceGuid)> Devices, bool IsChanged)
+		private (List<(object DeviceInstance, object DeviceClass)> Devices, bool IsChanged)
 		GetConnectedDiDevices(DirectInput directInput)
 		{
 			var stopwatch = Stopwatch.StartNew();
 
-			// Get and put connected devices (GameControl, Pointer, Keyboard) to list.
-			var connectedDevices = new List<(object DeviceInstance, object DeviceClass, int Usage, string DiDeviceID, string ProductName, Guid InstanceGuid)>();
-			foreach (var deviceClass in new DeviceClass[] { DeviceClass.GameControl, DeviceClass.Pointer, DeviceClass.Keyboard })
+            // Put connected devices (GameControl, Pointer, Keyboard) to list.
+            var connectedDiDevices = new List<(object DeviceInstance, object DeviceClass)>();
+            foreach (var deviceClass in new DeviceClass[] { DeviceClass.GameControl, DeviceClass.Pointer, DeviceClass.Keyboard })
 			{
 				var devices = directInput.GetDevices(deviceClass, DeviceEnumerationFlags.AttachedOnly)
-					//.Where(d => deviceClass != DeviceClass.Device || d.Usage == UsageId.GenericMouse || d.Usage == UsageId.GenericKeyboard)
 					.Select(d => (
 						DeviceInstance: (object)d,
-						DeviceClass: (object)deviceClass,
-						Usage: (int)d.Usage,
-						DiDeviceID: ConvertProductGuidToDeviceID(d.ProductGuid, deviceClass),
-						ProductName: d.InstanceName,
-						InstanceGuid: d.InstanceGuid));
-				connectedDevices.AddRange(devices);
+						DeviceClass: (object)deviceClass));
+                connectedDiDevices.AddRange(devices);
 			}
-			connectedDevices = connectedDevices.OrderBy(x => x.DiDeviceID).ToList();
+            // Sort devices by ProductGuid.
+            connectedDiDevices = connectedDiDevices.OrderBy(x => ((DeviceInstance)x.DeviceInstance).ProductGuid).ToList();
 
 			// Check for changes in the set of device GUIDs.
-			var newDeviceGuidHashSet = new HashSet<Guid>(connectedDevices.Select(item => item.InstanceGuid));
+			var newDeviceGuidHashSet = new HashSet<Guid>(connectedDiDevices.Select(item => ((DeviceInstance)item.DeviceInstance).InstanceGuid));
 			bool listChanged = !newDeviceGuidHashSet.SetEquals(_previousDeviceGuids);
 			if (listChanged)
 			{
-				DeviceDetector.DiDevices = connectedDevices;
+				DeviceDetector.DiDevices = connectedDiDevices;
 				_previousDeviceGuids = newDeviceGuidHashSet;
 
 				// Debug.
 				Debug.WriteLine($"\n");
-				foreach (var item in connectedDevices)
+				foreach (var item in connectedDiDevices)
 				{
 					// Casting back to the original types.
 					var device = (DeviceInstance)item.DeviceInstance;
 					var deviceClass = (DeviceClass)item.DeviceClass;
 					Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: " +
-						$"InstanceGuid {device.InstanceGuid}, ProductGuid {device.ProductGuid} ({item.DiDeviceID}), " +
-						$"InstanceName: {device.InstanceName}, UsagePage {(int)device.UsagePage}, Usage: {device.Usage}, " +
-						$"DeviceClass {deviceClass}, Type-Subtype {device.Type}-{device.Subtype}");
+                        $"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
+                        $"InstanceGuid: {device.InstanceGuid}, " +
+                        $"UsagePage: {(int)device.UsagePage}, " +
+                        $"InstanceName: {device.InstanceName}, " +
+						$"Usage: {device.Usage}, " +
+						$"DeviceClass: {deviceClass}, " +
+						$"Type-Subtype: {device.Type}-{device.Subtype}");
 				}
 
 				stopwatch.Stop();
 				Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: Stopwatch {stopwatch.Elapsed.TotalMilliseconds} ms");
 			}
 
-			return (connectedDevices, listChanged);
+			return (connectedDiDevices, listChanged);
 		}
 
-		/// <summary>
-		/// Converts a product GUID to a device ID string.
-		/// </summary>
-		private string ConvertProductGuidToDeviceID(Guid productGuid, DeviceClass deviceClass)
-		{
-			var bytes = productGuid.ToByteArray();
-			int vid = bytes[1] << 8 | bytes[0];
-			int pid = bytes[3] << 8 | bytes[2];
-			return $"HID\\VID_{vid:X4}&PID_{pid:X4}";
-		}
+        public string Pid4Vid4FromGuid(Guid productGuid)
+        {
+            var bytes = productGuid.ToByteArray();
+            int vid = bytes[1] << 8 | bytes[0];
+            int pid = bytes[3] << 8 | bytes[2];
+            return $"{pid:X4}{vid:X4}";
+        }
 
-		/// <summary>
-		/// Groups devices into added, updated, and removed categories.
-		/// </summary>
-		private void CategorizeDevices(List<DeviceInstance> connectedDevices, UserDevice[] listedDevices,
+        /// <summary>
+        /// Groups devices into added, updated, and removed categories.
+        /// </summary>
+        private void CategorizeDevices(List<DeviceInstance> connectedDevices, UserDevice[] listedDevices,
 			out DeviceInstance[] addedDevices,
 			out DeviceInstance[] updatedDevices,
 			out UserDevice[] removedDevices)
@@ -224,18 +225,49 @@ namespace x360ce.App.Input.Orchestration
 		/// </summary>
 		private void UpdateExistingDevices(DirectInput manager, UserDevice[] listedDevices, DeviceInstance[] updatedDevices, DeviceInfo[] devInfos, DeviceInfo[] intInfos)
 		{
-			foreach (var device in updatedDevices)
-			{
-				var userDevice = listedDevices.First(x => x.InstanceGuid.Equals(device.InstanceGuid));
-				DeviceInfo hid;
-				RefreshDevice(manager, userDevice, device, devInfos, intInfos, out hid);
-			}
-		}
+            var stopwatchLD = Stopwatch.StartNew();
 
-		/// <summary>
-		/// Refreshes device data by initializing, updating state, and loading HID info.
-		/// </summary>
-		private void RefreshDevice(DirectInput manager, UserDevice userDevice, DeviceInstance instance, DeviceInfo[] allDevices, DeviceInfo[] allInterfaces, out DeviceInfo hid)
+            var index = -1;
+            foreach (var listedDevice in listedDevices.OrderBy(x => x.InstanceGuid).ToList())
+            {
+				index = index + 1;
+                Debug.WriteLine(
+					$"ListedDevice: " +
+                    $"{string.Format("{0,2}", index)}. " +
+                    $"IsOnline: {Convert.ToInt32(listedDevice.IsOnline)}, " +
+                    $"InstanceGuid: {listedDevice.InstanceGuid}, " +
+                    $"ProductGuid: {listedDevice.ProductGuid}, " +
+                    $"InstanceName: {listedDevice.InstanceName}, " +
+					$"DisplayName: {listedDevice.DisplayName},  " +
+					$"DevParentDeviceId: {listedDevice.DevParentDeviceId},  " +
+					$"HidParentDeviceId: {listedDevice.HidParentDeviceId}");
+            }
+
+            stopwatchLD.Stop();
+            Debug.WriteLine($"ListedDevice: Stopwatch: {stopwatchLD.Elapsed.TotalMilliseconds} ms\n");
+
+            var stopwatchUD = Stopwatch.StartNew();
+
+            foreach (var updatedDevice in updatedDevices.OrderBy(x => x.InstanceGuid).ToList())
+			{
+				var userDevice = listedDevices.First(x => x.InstanceGuid.Equals(updatedDevice.InstanceGuid));
+				DeviceInfo hid;
+				RefreshDevice(manager, userDevice, updatedDevice, devInfos, intInfos, out hid);
+
+                Debug.WriteLine($"UpdatedDevice: " +
+					$"InstanceGuid: {updatedDevice.InstanceGuid}, " +
+					$"ProductGuid: {updatedDevice.ProductGuid}, " +
+					$"InstanceName: {updatedDevice.InstanceName}");
+            }
+
+            stopwatchUD.Stop();
+            Debug.WriteLine($"UpdatedDevice: Stopwatch: {stopwatchUD.Elapsed.TotalMilliseconds} ms\n");
+        }
+
+        /// <summary>
+        /// Refreshes device data by initializing, updating state, and loading HID info.
+        /// </summary>
+        private void RefreshDevice(DirectInput manager, UserDevice userDevice, DeviceInstance instance, DeviceInfo[] allDevices, DeviceInfo[] allInterfaces, out DeviceInfo hid)
 		{
 			hid = null;
 			if (Program.IsClosing)
@@ -244,10 +276,10 @@ namespace x360ce.App.Input.Orchestration
 			// Lock to avoid modifications during enumeration.
 			lock (SettingsManager.UserDevices.SyncRoot)
 			{
-				InitializeDevice(manager, userDevice, instance);
-				UpdateDeviceState(userDevice, instance, allDevices);
-				LoadHidDeviceData(userDevice, instance, allInterfaces, out hid);
-			}
+                InitializeDevice(manager, userDevice, instance);
+                UpdateDeviceState(userDevice, instance, allDevices);
+                LoadHidDeviceData(userDevice, instance, allInterfaces, out hid);
+            }
 		}
 
 

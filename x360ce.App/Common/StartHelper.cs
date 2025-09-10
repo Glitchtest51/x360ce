@@ -229,8 +229,11 @@ namespace x360ce.App
 			// 5) Write information to debug output.
 			Debug.WriteLine(
 				$"DEV_BROADCAST_DEVICEINTERFACE: " +
-				$"{(evt == DBT_DEVICEARRIVAL ? "Attached" : "Removed")} " +
-				$"{DateTime.Now:HH:mm:ss.fff} {guid} {CleanPath(path, guid)} ({GetInterfaceClassName(guid)})");
+				$"{(evt == DBT_DEVICEARRIVAL ? "Attached" : "Removed")}, " +
+				$"{DateTime.Now:HH:mm:ss.fff}, " +
+				$"ClassGuid: {guid}, " +
+				$"Path(cleaned): {CleanPath(path, guid)}, " +
+				$"ClassName: {GetInterfaceClassName(guid)}");
 
 			// 6) Update devices.
 			Global.Orchestrator.DevicesNeedUpdating = true;

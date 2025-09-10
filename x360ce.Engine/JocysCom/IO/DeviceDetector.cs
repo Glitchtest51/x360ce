@@ -1,4 +1,5 @@
 ﻿using JocysCom.ClassLibrary.Win32;
+using SharpDX.DirectInput;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -439,8 +440,9 @@ namespace JocysCom.ClassLibrary.IO
 				// Call 1: Retrieve data size. Note: Returns ERROR_INSUFFICIENT_BUFFER = 122, which is normal.
 				success = NativeMethods.SetupDiGetDeviceInterfaceDetail(deviceInfoSet, ref interfaceData, IntPtr.Zero, 0, ref requiredSize3, ref deviceInfoData);
 
-				// Filter devices.
-				if (DiDevicesOnly && !PnPDeviceIDs.Contains(GetDeviceId(deviceInfoData.DevInst))) { return true; }
+                // Filter devices.
+				var id = GetDeviceId(deviceInfoData.DevInst);
+                if (DiDevicesOnly && !PnPDevices.Any(x => string.Equals(x.DeviceId, id, StringComparison.OrdinalIgnoreCase))) { return true; }
 
 				// Allocate memory for results. 
 				var ptrDetails = Marshal.AllocHGlobal(requiredSize3);
@@ -514,15 +516,17 @@ namespace JocysCom.ClassLibrary.IO
 				foreach (var device in listOrdered)
 				{
 					Debug.WriteLine($"PnPDeviceInterface:" +
-						$" InstanceGuid ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3})." +
-						$" ProductId {device.ProductId}." +
-						$" Revision {device.Revision}." +
-						$" DeviceId {device.DeviceId}." +
-						$" InstanceName ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2})." +
-						$" ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2})." +
-						$" Description {device.Description}." +
-						$" ClassDescription {device.ClassDescription}.");
-				}
+                        $" PID(4)VID(4) from DeviceId: {Pid4Vid4FromString(device.DeviceId)}, " +
+                        //$" DiInstanceGuid: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3}), " +
+						$" ProductId: {device.ProductId}, " +
+						$" Revision: {device.Revision}, " +
+						$" DeviceId: {device.DeviceId}, " +
+						$" DiInstanceName: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2}), " +
+						$" ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2}), " +
+						$" Description: {device.Description}, " +
+                        $" ClassDescription: {device.ClassDescription}, " +
+                        $" ParentDeviceId: {device.ParentDeviceId}.");
+                }
 			}
 			else
 			{
@@ -551,33 +555,49 @@ namespace JocysCom.ClassLibrary.IO
 		/// </remarks>		
 
 		// Connected PnP Device Id list.
-		private static List<string> PnPDeviceIDs = new List<string>();
-		public static IEnumerable<(
-			object DeviceInstance, // (DeviceInstance)DeviceInstance
-			object DeviceClass, // (DeviceInstance)DeviceClass
-			int Usage,
-			string DiDeviceID,
-			string ProductName,
-			Guid InstanceGuid
-		)> DiDevices = null;
+		public static List<(Guid InstanceGuid, string DeviceId, string ParentDeviceId)> PnPDevices = new List<(Guid, string, string)>();
+        // Connected DirectInput Device list.
+        public static IEnumerable<(object DeviceInstance, object DeviceClass)> DiDevices = null;
 
-		//public static IEnumerable<(DeviceInstance Device, DeviceClass Class, int Usage, string DiDeviceID)> DiDevices = null;
-
-		// DEVICES.
-
-		static (bool, string, Guid) PnPDeviceIsInDiDevicesList(string PnPDeviceID)
+        // DEVICES.
+        static (bool, string, Guid) PnPDeviceIsInDiDevicesList(string PnPDeviceID)
 		{
 			foreach (var item in DiDevices)
 			{
-				if (PnPDeviceID.StartsWith(item.DiDeviceID, StringComparison.OrdinalIgnoreCase))
+				var device = (DeviceInstance)item.DeviceInstance;
+				var DiDevicePoductGuid8 = device.ProductGuid.ToString("N").Substring(0, 8);
+				var PnPDevicePidVid8 = Pid4Vid4FromString(PnPDeviceID);
+
+                if (PnPDeviceID.StartsWith("HID") && string.Equals(PnPDevicePidVid8, DiDevicePoductGuid8, StringComparison.OrdinalIgnoreCase))
 				{
-					return (true, item.ProductName, item.InstanceGuid);
+					return (true, device.InstanceName, device.InstanceGuid);
 				}
 			}
 			return (false, string.Empty, Guid.Empty);
 		}
 
-		public static DeviceInfo[] GetDevices(Guid? classGuid = null, DIGCF? flags = null, string parentDeviceId = null, int vid = 0, int pid = 0, int rev = 0, bool DiDevicesOnly = false)
+        static string Pid4Vid4FromString(string deviceId)
+        {
+            if (deviceId == null) return null;
+
+            // Find VID and PID tokens (VID_1234 or VID&1234 or VID&00020111 etc.)
+            var vidMatch = Regex.Match(deviceId, @"VID(?:_|&)([0-9A-Fa-f]+)", RegexOptions.IgnoreCase);
+            var pidMatch = Regex.Match(deviceId, @"PID(?:_|&)([0-9A-Fa-f]+)", RegexOptions.IgnoreCase);
+
+            if (!vidMatch.Success || !pidMatch.Success)
+                return "00000000"; // not found
+
+            string vidToken = vidMatch.Groups[1].Value;
+            string pidToken = pidMatch.Groups[1].Value;
+
+            // Keep last 4 hex chars (if token longer, like "00020111" -> "0111")
+            string vid4 = vidToken.Length >= 4 ? vidToken.Substring(vidToken.Length - 4) : vidToken.PadLeft(4, '0');
+            string pid4 = pidToken.Length >= 4 ? pidToken.Substring(pidToken.Length - 4) : pidToken.PadLeft(4, '0');
+
+            return (pid4 + vid4).ToUpperInvariant();
+        }
+
+        public static DeviceInfo[] GetDevices(Guid? classGuid = null, DIGCF? flags = null, string parentDeviceId = null, int vid = 0, int pid = 0, int rev = 0, bool DiDevicesOnly = false)
 		{
 			var stopwatchPnP = Stopwatch.StartNew();
 			var list = new List<DeviceInfo>();
@@ -586,16 +606,16 @@ namespace JocysCom.ClassLibrary.IO
 			{
 				var currentDeviceId = GetDeviceId(infoData.DevInst);
 
-				if (string.IsNullOrEmpty(currentDeviceId))
+                if (string.IsNullOrEmpty(currentDeviceId))
 					return true;
 
-				// If parent device is requested.
-				if (!string.IsNullOrEmpty(parentDeviceId))
+                // If parent device is requested.
+                if (!string.IsNullOrEmpty(parentDeviceId))
 				{
 					if (currentDeviceId == parentDeviceId)
 					{
 						var device = GetDeviceInfo(infoSet, infoData);
-						list.Add(device);
+                        list.Add(device);
 						return true;
 					}
 					return true;
@@ -612,14 +632,13 @@ namespace JocysCom.ClassLibrary.IO
 						|| (pid > 0 && device.ProductId != pid)
 						|| (rev > 0 && device.Revision != rev))
 						return true;
-
-					list.Add(device);
+                    list.Add(device);
 					return true;
 				}
 			});
 
 			var listOrdered = list.OrderBy(x => x.DeviceId).ToArray();
-			PnPDeviceIDs.Clear();
+			PnPDevices.Clear();
 			Debug.WriteLine($"");
 
 			if (listOrdered.Count() > 0)
@@ -627,15 +646,19 @@ namespace JocysCom.ClassLibrary.IO
 				foreach (var device in listOrdered)
 				{
 					Debug.WriteLine($"PnPDeviceInfo:" +
-						$" InstanceGuid ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3})." +
-						$" ProductId {device.ProductId}." +
-						$" Revision {device.Revision}." +
-						$" DeviceId {device.DeviceId}." +
-						$" InstanceName ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2})." +
-						$" ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2})." +
-						$" Description {device.Description}." +
-						$" ClassDescription {device.ClassDescription}.");
-					PnPDeviceIDs.Add(device.DeviceId);
+						$"PID(4)VID(4) from DeviceId: {Pid4Vid4FromString(device.DeviceId)}, " +
+                        //$" DiInstanceGuid: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3}), " +
+						$"ProductId: {device.ProductId}, " +
+						$"Revision: {device.Revision}, " +
+						$"DeviceId: {device.DeviceId}, " +
+						$"DiInstanceName: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2}), " +
+						$"ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2}), " +
+						$"Description: {device.Description}, " +
+						$"ClassDescription: {device.ClassDescription}, " +
+                        $"ParentDeviceId: {device.ParentDeviceId}.");
+
+					Guid InstanceGuid = PnPDeviceIsInDiDevicesList(device.DeviceId).Item3;
+                    PnPDevices.Add((InstanceGuid, device.DeviceId, device.ParentDeviceId));
 				}
 			}
 			else

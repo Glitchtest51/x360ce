@@ -115,7 +115,7 @@
 					</Style>
 					<!--  Drag and Drop menu "Loading..." Label  -->
 					<Style x:Key="DragAndDropLoadingLabel" TargetType="Label">
-						<Setter Property="Margin" Value="0,20,0,0" />
+						<Setter Property="Margin" Value="0,20,0,20" />
 						<Setter Property="Padding" Value="9,3,9,6" />
 						<Setter Property="HorizontalAlignment" Value="Center" />
 						<Setter Property="IsHitTestVisible" Value="False" />

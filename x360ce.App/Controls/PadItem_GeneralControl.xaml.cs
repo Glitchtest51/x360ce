@@ -393,7 +393,7 @@ namespace x360ce.App.Controls
 					Content = "No device detected",
 					HorizontalAlignment = HorizontalAlignment.Center,
 					Opacity = 0.5,
-					Margin = new Thickness(0, 20, 0, 0)
+					Margin = new Thickness(0, 20, 0, 20)
 				};
 				DragAndDropStackPanel.Children.Add(noDeviceLabel);
 				return;

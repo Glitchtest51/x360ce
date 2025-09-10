@@ -156,51 +156,51 @@
 						Header="Selected Device">
 						<StackPanel Name="DeviceDetails">
 							<!--  DataContext="{Binding SelectedDevice, ElementName=PadListControl}"  -->
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Input" />
-								<ComboBox Name="InputMethodComboBox" SelectionChanged="InputMethodComboBox_SelectionChanged">
-									<engine:InputMethod>DirectInput</engine:InputMethod>
-									<engine:InputMethod>XInput</engine:InputMethod>
-									<engine:InputMethod>GamingInput</engine:InputMethod>
-									<engine:InputMethod>RawInput</engine:InputMethod>
-								</ComboBox>
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Available" />
-								<Label Name="AvailableInputs" Opacity="0.5" />
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Vendor" />
-								<Label Name="VendorName" Opacity="0.5" />
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Product" />
-								<Label Name="ProductName" Opacity="0.5" />
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Instance" />
-								<Label Name="InstanceId" Opacity="0.5" />
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="SID" />
-								<Label Name="PadSettingChecksum" Opacity="0.5" />
-							</StackPanel>
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Connection" />
-								<Image Name="ConnectionClassImage" Style="{StaticResource ImageCell_Default}" />
-							</StackPanel>
-							<!--<StackPanel Orientation="Horizontal">
-							<Label>Active</Label>
-							<Label Opacity="0.5" Name="Active"/>
-						</StackPanel>-->
-							<!--<StackPanel Orientation="Horizontal">
-							<Label>IsEnabled</Label>
-							<Label Opacity="0.5" Name="IsEnabled"/>
-						</StackPanel>-->
-							<StackPanel Orientation="Horizontal">
-								<Label Content="Completion" />
-								<Label Name="Completion" Opacity="0.5" />
-							</StackPanel>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                    <RowDefinition/>
+                                </Grid.RowDefinitions>
+
+                                <!--Input-->
+                                <ListBox Grid.ColumnSpan="2" Name="InputMethodListBox" Margin="0,0,0,5"
+								         SelectionChanged="InputMethodComboBox_SelectionChanged"
+								         SelectionMode="Single">
+                                    <ListBoxItem Name="DirectInputItem" Content="DirectInput - Default (most compatible)" Tag="{x:Static engine:InputMethod.DirectInput}" />
+                                    <ListBoxItem Name="XInputItem" Content="XInput" Tag="{x:Static engine:InputMethod.XInput}" />
+                                    <ListBoxItem Name="GamingInputItem" Content="GamingInput" Tag="{x:Static engine:InputMethod.GamingInput}" />
+                                    <ListBoxItem Name="RawInputItem" Content="RawInput - Advanced (with background access)" Tag="{x:Static engine:InputMethod.RawInput}" />
+                                </ListBox>
+								<!--Vendor-->
+                                <Label Grid.Row="2" Content="Vendor" />
+                                <Label Grid.Row="2" Grid.Column="1" Name="VendorName" Opacity="0.5" />
+                                <!--Product-->
+                                <Label Grid.Row="3" Content="Product" />
+								<Label Grid.Row="3" Grid.Column="1" Name="ProductName" Opacity="0.5" />
+                                <!--Instance-->
+                                <Label Grid.Row="4" Content="Instance" />
+								<Label Grid.Row="4" Grid.Column="1" Name="InstanceId" Opacity="0.5" />
+                                <!--Instance-->
+                                <Label Grid.Row="5" Content="SID" />
+								<Label Grid.Row="5" Grid.Column="1" Name="PadSettingChecksum" Opacity="0.5" />
+                                <!--Connection-->
+                                <Label Grid.Row="6" Content="Connection" />
+							    <Label Grid.Row="6" Grid.Column="1" Name="ConnectionClassName" Opacity="0.5" />
+                                <!--Completion-->
+                                <Label Grid.Row="7" Content="Completion" />
+                                <Label Grid.Row="7" Grid.Column="1" Name="Completion" Opacity="0.5" />
+                            </Grid>
 						</StackPanel>
 					</GroupBox>
 				</Grid>

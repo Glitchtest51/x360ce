@@ -1,16 +1,17 @@
 ﻿using JocysCom.ClassLibrary.ComponentModel;
 using JocysCom.ClassLibrary.Controls;
+using JocysCom.ClassLibrary.IO;
+using SharpDX.DirectInput;
 using System;
 using System.ComponentModel;
-//using System.Globalization;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using x360ce.App.Converters;
 using x360ce.Engine;
-using x360ce.Engine.Data;
 using x360ce.Engine.Common;
+using x360ce.Engine.Data;
 
 namespace x360ce.App.Controls
 {
@@ -318,7 +319,7 @@ namespace x360ce.App.Controls
 		}
 
 		/// <summary>
-		/// Handles InputMethod ComboBox selection changes and updates the corresponding UserDevice's InputMethod property.
+		/// Handles InputMethod ListBox selection changes and updates the corresponding UserDevice's InputMethod property.
 		/// Also updates device capabilities to match the selected input method.
 		/// </summary>
 		private void InputMethodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -330,12 +331,13 @@ namespace x360ce.App.Controls
 
 			// Get the corresponding UserDevice
 			var ud = SettingsManager.UserDevices.Items.FirstOrDefault(x => x.InstanceGuid == selected.InstanceGuid);
-			if (ud == null)
+		          if (ud == null)
 				return;
 
-			// Get the selected InputMethod from ComboBox
-			var comboBox = sender as ComboBox;
-			if (comboBox?.SelectedItem is InputMethod newInputMethod)
+			// Get the selected InputMethod from ListBox
+			var listBox = sender as ListBox;
+			var selectedListBoxItem = listBox?.SelectedItem as ListBoxItem;
+			if (selectedListBoxItem?.Tag is InputMethod newInputMethod)
 			{
 				// Update device capabilities based on the selected input method
 				// (This method now handles setting ud.InputMethod internally)
@@ -400,6 +402,21 @@ namespace x360ce.App.Controls
 			}
 		}
 
+
+		// Get DiDevice connection type from PnP ParentDeviceId (BTH, USB).
+		private static string GetConnectionTypeName(Guid instanceGuid)
+		{
+            foreach (var item in DeviceDetector.PnPDevices)
+			{
+				if (instanceGuid == item.InstanceGuid)
+				{
+					var i = item.ParentDeviceId;
+					return i.Length <= 3 ? i : i.Substring(0, 3);
+				}
+            }
+            return "NA";
+		}
+
 		private void MainDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			UpdateGridButtons();
@@ -414,42 +431,62 @@ namespace x360ce.App.Controls
 				ProductName.Content = selected.ProductName;
 				InstanceId.Content = selected.InstanceId;
 				Completion.Content = selected.Completion;
-				PadSettingChecksum.Content = EngineHelper.GetID(selected.PadSettingChecksum); ;
+				PadSettingChecksum.Content = EngineHelper.GetID(selected.PadSettingChecksum);
 
-				var ud = SettingsManager.UserDevices.Items.FirstOrDefault(x => x.InstanceGuid == selected.InstanceGuid);
+                var ud = SettingsManager.UserDevices.Items.FirstOrDefault(x => x.InstanceGuid == selected.InstanceGuid);
 				VendorName.Content = ud?.DevManufacturer.ToString();
 
-				// Update InputMethod ComboBox
-				if (ud != null)
-				{
-					InputMethodComboBox.SelectedItem = ud.InputMethod;
-				}
-				else
-				{
-					InputMethodComboBox.SelectedItem = InputMethod.DirectInput; // Default fallback
-				}
+				var pdi = ud?.DevParentDeviceId.ToString();
+                // ConnectionClassName.Content = pdi.Length <= 3 ? pdi : pdi.Substring(0, 3); 
+				ConnectionClassName.Content =  GetConnectionTypeName(selected.InstanceGuid);
+
+                // Update InputMethod ListBox selection
+                if (ud != null)
+    {
+     // Find the ListBoxItem with the matching InputMethod in its Tag
+     foreach (ListBoxItem item in InputMethodListBox.Items)
+     {
+      if (item.Tag is InputMethod method && method == ud.InputMethod)
+      {
+       InputMethodListBox.SelectedItem = item;
+       break;
+      }
+     }
+    }
+    else
+    {
+     // Default fallback to DirectInput
+     foreach (ListBoxItem item in InputMethodListBox.Items)
+     {
+      if (item.Tag is InputMethod method && method == InputMethod.DirectInput)
+      {
+       InputMethodListBox.SelectedItem = item;
+       break;
+      }
+     }
+    }
 
 				// Update Available Inputs using InputMethodDetector
 				if (ud != null)
 				{
 					var availableInputs = InputMethodDetector.GetAvailableInputMethodsText(ud);
-					AvailableInputs.Content = availableInputs;
-					
+
+                    DirectInputItem.IsEnabled = availableInputs.Contains("DirectInput") ? true : false;
+                    XInputItem.IsEnabled = availableInputs.Contains("XInput") ? true : false;
+                    GamingInputItem.IsEnabled = availableInputs.Contains("GamingInput") ? true : false;
+                    RawInputItem.IsEnabled = availableInputs.Contains("RawInput") ? true : false;
+
 					// Add detailed tooltip with capabilities and recommendations
 					var detailedInfo = InputMethodDetector.GetDetailedCapabilitiesText(ud);
 					var recommendations = InputMethodDetector.GetInputMethodRecommendations(ud);
 					var fullTooltip = $"{detailedInfo}\n\nRecommendations:\n{recommendations}";
-					AvailableInputs.ToolTip = fullTooltip;
-				}
+
+                    InputMethodListBox.ToolTip = fullTooltip;
+                }
 				else
 				{
-					AvailableInputs.Content = "Unknown";
-					AvailableInputs.ToolTip = "Device information not available";
+					InputMethodListBox.ToolTip = "Device information not available";
 				}
-
-				var imageSource = ConnectionClassToImageConverter.Convert(selected.InstanceGuid);
-				ConnectionClassImage.Source = imageSource;
-				ConnectionClassImage.ToolTip = imageSource.ToString();
 			}
 			else
 			{
@@ -460,11 +497,10 @@ namespace x360ce.App.Controls
 				InstanceId.Content = "";
 				VendorName.Content = "";
 				PadSettingChecksum.Content = "";
-				ConnectionClassImage.Source = null;
+				ConnectionClassName.Content = "";
 				Completion.Content = "";
-				InputMethodComboBox.SelectedItem = null;
-				AvailableInputs.Content = "";
-				AvailableInputs.ToolTip = null;
+				InputMethodListBox.SelectedItem = null;
+				InputMethodListBox.ToolTip = null;
 			}
 		}
 

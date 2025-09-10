@@ -155,7 +155,7 @@ namespace x360ce.App.Input.Orchestration
 
 
 		/// <summary>
-		/// Must bve used to uninstall device when this app is 32-bit, but runs on 64-bit windows.
+		/// Must be used to uninstall device when this app is 32-bit, but runs on 64-bit windows.
 		/// This is because SetupDiCallClassInstaller throws ERROR_IN_WOW64 (ex.ErrorCode = 0xE0000235)
 		/// when application architecture do not match OS architecture.
 		/// </summary>
