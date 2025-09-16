@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using Windows.Devices.Enumeration;
 
 namespace JocysCom.ClassLibrary.IO
 {
@@ -516,12 +517,13 @@ namespace JocysCom.ClassLibrary.IO
 				foreach (var device in listOrdered)
 				{
 					Debug.WriteLine($"PnPDeviceInterface:" +
+                        $" DeviceId: {device.DeviceId}, " +
+                        $" DevicePath: {device.DevicePath}, " +
+                        //$" HardwareIds: {device.HardwareIds}, " +
                         $" PID(4)VID(4) from DeviceId: {Pid4Vid4FromString(device.DeviceId)}, " +
-                        //$" DiInstanceGuid: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3}), " +
 						$" ProductId: {device.ProductId}, " +
 						$" Revision: {device.Revision}, " +
-						$" DeviceId: {device.DeviceId}, " +
-						$" DiInstanceName: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2}), " +
+                        $" DiInstanceName: ({PnPDeviceIsInDiDevicesList(device).Item2}), " +
 						$" ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2}), " +
 						$" Description: {device.Description}, " +
                         $" ClassDescription: {device.ClassDescription}, " +
@@ -557,24 +559,47 @@ namespace JocysCom.ClassLibrary.IO
 		// Connected PnP Device Id list.
 		public static List<(Guid InstanceGuid, string DeviceId, string ParentDeviceId)> PnPDevices = new List<(Guid, string, string)>();
         // Connected DirectInput Device list.
-        public static IEnumerable<(object DeviceInstance, object DeviceClass)> DiDevices = null;
+        public static IEnumerable<(DirectInput directInput, object DeviceInstance, object DeviceClass)> DiDevices = null;
 
-        // DEVICES.
-        static (bool, string, Guid) PnPDeviceIsInDiDevicesList(string PnPDeviceID)
+		// DEVICES.
+
+
+        static (bool, string, Guid) PnPDeviceIsInDiDevicesList(DeviceInfo PnPDevice)
 		{
+            var PnPDevicePidVid8 = Pid4Vid4FromString(PnPDevice.DeviceId);
+            // Get last part (after "/").
+            var PnPDeviceIdEnd = Path.GetFileName(PnPDevice.DeviceId);
+            PnPDeviceIdEnd = PnPDeviceIdEnd.Length > 16 ? PnPDeviceIdEnd.Substring(0, 16) : PnPDeviceIdEnd;
+
 			foreach (var item in DiDevices)
 			{
-				var device = (DeviceInstance)item.DeviceInstance;
-				var DiDevicePoductGuid8 = device.ProductGuid.ToString("N").Substring(0, 8);
-				var PnPDevicePidVid8 = Pid4Vid4FromString(PnPDeviceID);
+				var DiDeviceClass = (SharpDX.DirectInput.DeviceClass)item.DeviceClass;
+				var DiDeviceInstance = (DeviceInstance)item.DeviceInstance;
+				var DiDevicePoductGuid8 = DiDeviceInstance.ProductGuid.ToString("N").Substring(0, 8);
+				bool DiDeviceInterfacePathContainsPnPDeviceIdEnd = true;
 
-                if (PnPDeviceID.StartsWith("HID") && string.Equals(PnPDevicePidVid8, DiDevicePoductGuid8, StringComparison.OrdinalIgnoreCase))
+				// PnP DeviceId end in DiDevice InterfacePath.
+				if (DiDeviceClass == SharpDX.DirectInput.DeviceClass.GameControl)
 				{
-					return (true, device.InstanceName, device.InstanceGuid);
+				 var DiDeviceAsJoystick = new Joystick(item.directInput, DiDeviceInstance.InstanceGuid);
+				 var DiDeviceInterfacePath = DiDeviceAsJoystick.Properties.InterfacePath;
+				 DiDeviceInterfacePathContainsPnPDeviceIdEnd = !string.IsNullOrEmpty(DiDeviceInterfacePath) && !string.IsNullOrEmpty(PnPDeviceIdEnd) && DiDeviceInterfacePath.IndexOf(PnPDeviceIdEnd, StringComparison.OrdinalIgnoreCase) >= 0;
+				}
+
+                if (PnPDevice.DeviceId.StartsWith("HID") && string.Equals(PnPDevicePidVid8, DiDevicePoductGuid8, StringComparison.OrdinalIgnoreCase) && DiDeviceInterfacePathContainsPnPDeviceIdEnd)
+				{
+						return (true, DiDeviceInstance.InstanceName, DiDeviceInstance.InstanceGuid);
 				}
 			}
 			return (false, string.Empty, Guid.Empty);
 		}
+
+        string GetTail(string deviceId)
+        {
+            if (string.IsNullOrEmpty(deviceId)) return deviceId;
+            int i = deviceId.LastIndexOf('\\');
+            return (i >= 0 && i + 1 < deviceId.Length) ? deviceId.Substring(i + 1) : string.Empty;
+        }
 
         static string Pid4Vid4FromString(string deviceId)
         {
@@ -624,9 +649,9 @@ namespace JocysCom.ClassLibrary.IO
 				else
 				{
 					// MI_00 = Keyboard, MI_01 = Mouse, MI_02 = HID.
-					if (DiDevicesOnly && !PnPDeviceIsInDiDevicesList(currentDeviceId.ToString()).Item1 || !currentDeviceId.EndsWith("0")) return true;
-
 					var device = GetDeviceInfo(infoSet, infoData);
+					if (DiDevicesOnly && !PnPDeviceIsInDiDevicesList(device).Item1 || !currentDeviceId.EndsWith("0")) return true;
+
 					if (device.IsRemovable
 						|| (vid > 0 && device.VendorId != vid)
 						|| (pid > 0 && device.ProductId != pid)
@@ -646,18 +671,20 @@ namespace JocysCom.ClassLibrary.IO
 				foreach (var device in listOrdered)
 				{
 					Debug.WriteLine($"PnPDeviceInfo:" +
-						$"PID(4)VID(4) from DeviceId: {Pid4Vid4FromString(device.DeviceId)}, " +
+                        $"DeviceId: {device.DeviceId}, " +
+                        $"DevicePath: {device.DevicePath}, " +
+                        //$" HardwareIds: {device.HardwareIds}, " +
+                        $"PID(4)VID(4) from DeviceId: {Pid4Vid4FromString(device.DeviceId)}, " +
                         //$" DiInstanceGuid: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item3}), " +
 						$"ProductId: {device.ProductId}, " +
 						$"Revision: {device.Revision}, " +
-						$"DeviceId: {device.DeviceId}, " +
-						$"DiInstanceName: ({PnPDeviceIsInDiDevicesList(device.DeviceId).Item2}), " +
+						$"DiInstanceName: ({PnPDeviceIsInDiDevicesList(device).Item2}), " +
 						$"ClassGuid: {device.ClassGuid} ({ContainsGuid(device.ClassGuid).Item2}), " +
 						$"Description: {device.Description}, " +
 						$"ClassDescription: {device.ClassDescription}, " +
                         $"ParentDeviceId: {device.ParentDeviceId}.");
 
-					Guid InstanceGuid = PnPDeviceIsInDiDevicesList(device.DeviceId).Item3;
+					Guid InstanceGuid = PnPDeviceIsInDiDevicesList(device).Item3;
                     PnPDevices.Add((InstanceGuid, device.DeviceId, device.ParentDeviceId));
 				}
 			}

@@ -72,21 +72,22 @@ namespace x360ce.App.Input.Orchestration
 		/// </summary>
 		/// <param name="directInput">The DirectInput instance.</param>
 		/// <returns>A tuple containing the list of connected devices and a flag indicating if the list has changed.</returns>
-		private (List<(object DeviceInstance, object DeviceClass)> Devices, bool IsChanged)
+		private (List<(DirectInput directInput, object DeviceInstance, object DeviceClass)> Devices, bool IsChanged)
 		GetConnectedDiDevices(DirectInput directInput)
 		{
 			var stopwatch = Stopwatch.StartNew();
 
             // Put connected devices (GameControl, Pointer, Keyboard) to list.
-            var connectedDiDevices = new List<(object DeviceInstance, object DeviceClass)>();
+            var connectedDiDevices = new List<(DirectInput directInput, object DeviceInstance, object DeviceClass)>();
             foreach (var deviceClass in new DeviceClass[] { DeviceClass.GameControl, DeviceClass.Pointer, DeviceClass.Keyboard })
 			{
 				var devices = directInput.GetDevices(deviceClass, DeviceEnumerationFlags.AttachedOnly)
 					.Select(d => (
-						DeviceInstance: (object)d,
+						DirectOnput: directInput,
+                        DeviceInstance: (object)d,
 						DeviceClass: (object)deviceClass));
                 connectedDiDevices.AddRange(devices);
-			}
+            }
             // Sort devices by ProductGuid.
             connectedDiDevices = connectedDiDevices.OrderBy(x => ((DeviceInstance)x.DeviceInstance).ProductGuid).ToList();
 
@@ -102,18 +103,44 @@ namespace x360ce.App.Input.Orchestration
 				Debug.WriteLine($"\n");
 				foreach (var item in connectedDiDevices)
 				{
-					// Casting back to the original types.
-					var device = (DeviceInstance)item.DeviceInstance;
-					var deviceClass = (DeviceClass)item.DeviceClass;
-					Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: " +
-                        $"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
-                        $"InstanceGuid: {device.InstanceGuid}, " +
-                        $"UsagePage: {(int)device.UsagePage}, " +
-                        $"InstanceName: {device.InstanceName}, " +
-						$"Usage: {device.Usage}, " +
-						$"DeviceClass: {deviceClass}, " +
-						$"Type-Subtype: {device.Type}-{device.Subtype}");
-				}
+                    // Casting back to the original types.
+                    var device = (DeviceInstance)item.DeviceInstance;
+                    var deviceClass = (DeviceClass)item.DeviceClass;
+					var gameControl = string.Empty;
+
+					if (deviceClass == DeviceClass.GameControl)
+					{
+						var joystick = new Joystick(directInput, device.InstanceGuid);
+
+						Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: " +
+							$"InterfacePath: {joystick.Properties.InterfacePath.ToString()}," +
+                            $"ProductName: {joystick.Properties.ProductName.ToString()}, " +
+                            $"InstanceName: {joystick.Properties.InstanceName.ToString()}, " +
+                            $"ClassGuid: {joystick.Properties.ClassGuid.ToString()}, " +
+                            $"VendorId: {joystick.Properties.VendorId.ToString()}, " +
+                            $"JoystickId: {joystick.Properties.JoystickId.ToString()}, " +
+							$"ProductId: {joystick.Properties.ProductId.ToString()} " +
+							$"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
+							$"InstanceGuid: {device.InstanceGuid}, " +
+							$"UsagePage: {(int)device.UsagePage}, " +
+							$"InstanceName: {device.InstanceName}, " +
+							$"Usage: {device.Usage}, " +
+							$"DeviceClass: {deviceClass}, " +
+							$"Type-Subtype: {device.Type}-{device.Subtype}"
+							);
+					}
+					else
+					{
+							Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: " +
+							$"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
+							$"InstanceGuid: {device.InstanceGuid}, " +
+							$"UsagePage: {(int)device.UsagePage}, " +
+							$"InstanceName: {device.InstanceName}, " +
+							$"Usage: {device.Usage}, " +
+							$"DeviceClass: {deviceClass}, " +
+							$"Type-Subtype: {device.Type}-{device.Subtype}");
+                    }
+                }
 
 				stopwatch.Stop();
 				Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: Stopwatch {stopwatch.Elapsed.TotalMilliseconds} ms");

@@ -1,7 +1,6 @@
 ﻿using JocysCom.ClassLibrary.ComponentModel;
 using JocysCom.ClassLibrary.Controls;
 using JocysCom.ClassLibrary.IO;
-using SharpDX.DirectInput;
 using System;
 using System.ComponentModel;
 using System.Linq;
