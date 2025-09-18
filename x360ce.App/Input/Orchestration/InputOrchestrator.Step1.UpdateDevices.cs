@@ -112,15 +112,16 @@ namespace x360ce.App.Input.Orchestration
 					{
 						var joystick = new Joystick(directInput, device.InstanceGuid);
 
-						Debug.WriteLine($"SharpDX.DirectInput.DeviceInstance: " +
-							$"InterfacePath: {joystick.Properties.InterfacePath.ToString()}," +
+						Debug.WriteLine($"SharpDX.DirectInput.Joystick: " +
+							$"InterfacePath: {joystick.Properties.InterfacePath.ToString()}, " +
                             $"ProductName: {joystick.Properties.ProductName.ToString()}, " +
                             $"InstanceName: {joystick.Properties.InstanceName.ToString()}, " +
                             $"ClassGuid: {joystick.Properties.ClassGuid.ToString()}, " +
                             $"VendorId: {joystick.Properties.VendorId.ToString()}, " +
                             $"JoystickId: {joystick.Properties.JoystickId.ToString()}, " +
 							$"ProductId: {joystick.Properties.ProductId.ToString()} " +
-							$"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
+                            $"SharpDX.DirectInput.DeviceInstance: " +
+                            $"ProductGuid PID(4)VID(4): {device.ProductGuid}, " +
 							$"InstanceGuid: {device.InstanceGuid}, " +
 							$"UsagePage: {(int)device.UsagePage}, " +
 							$"InstanceName: {device.InstanceName}, " +

@@ -670,7 +670,7 @@ namespace JocysCom.ClassLibrary.IO
 			{
 				foreach (var device in listOrdered)
 				{
-					Debug.WriteLine($"PnPDeviceInfo:" +
+					Debug.WriteLine($"PnPDeviceInfo: " +
                         $"DeviceId: {device.DeviceId}, " +
                         $"DevicePath: {device.DevicePath}, " +
                         //$" HardwareIds: {device.HardwareIds}, " +
