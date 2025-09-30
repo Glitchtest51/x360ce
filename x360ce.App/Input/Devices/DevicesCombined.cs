@@ -9,6 +9,17 @@ namespace x360ce.App.Input.Devices
     internal class DevicesCombined
     {
         /// <summary>
+        /// Runs the PnPInput device enumeration method from DevicesPnPInput class.
+        /// </summary>
+        /// <returns>List of PnPInputDeviceInfo objects representing all PnPInput devices</returns>
+        public List<PnPInputDeviceInfo> RunPnPInputEnumeration()
+        {
+            var pnPInputDevices = new DevicesPnPInput();
+            return pnPInputDevices.GetPnPInputDeviceList();
+        }
+
+
+        /// <summary>
         /// Runs the DirectInput device enumeration method from DevicesDirectInput class.
         /// </summary>
         /// <returns>List of DirectInputDeviceInfo objects representing all DirectInput devices</returns>

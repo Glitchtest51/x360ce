@@ -12,6 +12,15 @@ namespace x360ce.App.Input.Devices
     /// RawInput device container with both device information and the actual device handle.
     /// Contains comprehensive device metadata plus the device handle for input reading.
     /// </summary>
+    /// <remarks>
+    /// RawInput API Capabilities:
+    /// • Provides device interface paths, VID/PID, HID usage page/usage, and basic device type
+    /// • For HID devices: Parses HID Report Descriptor to extract actual button/axis/POV counts and force feedback support
+    /// • For Mouse/Keyboard: Provides actual button/key counts from RawInput API
+    /// • Does NOT provide friendly device names or manufacturer information (requires additional Windows APIs)
+    ///
+    /// Note: HID Report Descriptor parsing provides device-reported capabilities, which are accurate for most devices.
+    /// </remarks>
     public class RawInputDeviceInfo : IDisposable
     {
         public Guid InstanceGuid { get; set; }
@@ -25,6 +34,12 @@ namespace x360ce.App.Input.Devices
         public int AxeCount { get; set; }
         public int ButtonCount { get; set; }
         public int PovCount { get; set; }
+        
+        /// <summary>
+        /// Force feedback availability. Always false for RawInput devices.
+        /// RawInput API does not provide force feedback capability information.
+        /// Use DirectInput or XInput APIs to determine actual force feedback support.
+        /// </summary>
         public bool HasForceFeedback { get; set; }
         public int DriverVersion { get; set; }
         public int HardwareRevision { get; set; }
@@ -32,6 +47,9 @@ namespace x360ce.App.Input.Devices
         public bool IsOnline { get; set; }
         public string DeviceTypeName { get; set; }
         public string InterfacePath { get; set; }
+        
+        // Common identifier for grouping devices from same physical hardware
+        public string CommonIdentifier { get; set; }
         
         // Additional identification properties
         public int VendorId { get; set; }
@@ -168,9 +186,186 @@ namespace x360ce.App.Input.Devices
             public ushort usUsage;
         }
 
+        /// <summary>
+        /// HID preparsed data structure (opaque handle).
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_PREPARSED_DATA
+        {
+            public IntPtr Data;
+        }
+
+        /// <summary>
+        /// HID device capabilities structure.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_CAPS
+        {
+            public ushort Usage;
+            public ushort UsagePage;
+            public ushort InputReportByteLength;
+            public ushort OutputReportByteLength;
+            public ushort FeatureReportByteLength;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 17)]
+            public ushort[] Reserved;
+            public ushort NumberLinkCollectionNodes;
+            public ushort NumberInputButtonCaps;
+            public ushort NumberInputValueCaps;
+            public ushort NumberInputDataIndices;
+            public ushort NumberOutputButtonCaps;
+            public ushort NumberOutputValueCaps;
+            public ushort NumberOutputDataIndices;
+            public ushort NumberFeatureButtonCaps;
+            public ushort NumberFeatureValueCaps;
+            public ushort NumberFeatureDataIndices;
+        }
+
+        /// <summary>
+        /// HID button capabilities structure.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_BUTTON_CAPS
+        {
+            public ushort UsagePage;
+            public byte ReportID;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsAlias;
+            public ushort BitField;
+            public ushort LinkCollection;
+            public ushort LinkUsage;
+            public ushort LinkUsagePage;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsStringRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsDesignatorRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsAbsolute;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+            public uint[] Reserved;
+            public HIDP_BUTTON_CAPS_RANGE Range;
+            public HIDP_BUTTON_CAPS_NOT_RANGE NotRange;
+        }
+
+        /// <summary>
+        /// HID button capabilities range union.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_BUTTON_CAPS_RANGE
+        {
+            public ushort UsageMin;
+            public ushort UsageMax;
+            public ushort StringMin;
+            public ushort StringMax;
+            public ushort DesignatorMin;
+            public ushort DesignatorMax;
+            public ushort DataIndexMin;
+            public ushort DataIndexMax;
+        }
+
+        /// <summary>
+        /// HID button capabilities not range union.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_BUTTON_CAPS_NOT_RANGE
+        {
+            public ushort Usage;
+            public ushort Reserved1;
+            public ushort StringIndex;
+            public ushort Reserved2;
+            public ushort DesignatorIndex;
+            public ushort Reserved3;
+            public ushort DataIndex;
+            public ushort Reserved4;
+        }
+
+        /// <summary>
+        /// HID value capabilities structure.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_VALUE_CAPS
+        {
+            public ushort UsagePage;
+            public byte ReportID;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsAlias;
+            public ushort BitField;
+            public ushort LinkCollection;
+            public ushort LinkUsage;
+            public ushort LinkUsagePage;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsStringRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsDesignatorRange;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool IsAbsolute;
+            [MarshalAs(UnmanagedType.U1)]
+            public bool HasNull;
+            public byte Reserved;
+            public ushort BitSize;
+            public ushort ReportCount;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 5)]
+            public ushort[] Reserved2;
+            public uint UnitsExp;
+            public uint Units;
+            public int LogicalMin;
+            public int LogicalMax;
+            public int PhysicalMin;
+            public int PhysicalMax;
+            public HIDP_VALUE_CAPS_RANGE Range;
+            public HIDP_VALUE_CAPS_NOT_RANGE NotRange;
+        }
+
+        /// <summary>
+        /// HID value capabilities range union.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_VALUE_CAPS_RANGE
+        {
+            public ushort UsageMin;
+            public ushort UsageMax;
+            public ushort StringMin;
+            public ushort StringMax;
+            public ushort DesignatorMin;
+            public ushort DesignatorMax;
+            public ushort DataIndexMin;
+            public ushort DataIndexMax;
+        }
+
+        /// <summary>
+        /// HID value capabilities not range union.
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HIDP_VALUE_CAPS_NOT_RANGE
+        {
+            public ushort Usage;
+            public ushort Reserved1;
+            public ushort StringIndex;
+            public ushort Reserved2;
+            public ushort DesignatorIndex;
+            public ushort Reserved3;
+            public ushort DataIndex;
+            public ushort Reserved4;
+        }
+
+        // HID report types
+        private enum HIDP_REPORT_TYPE
+        {
+            HidP_Input = 0,
+            HidP_Output = 1,
+            HidP_Feature = 2
+        }
+
+        // HID status codes
+        private const int HIDP_STATUS_SUCCESS = 0x00110000;
+
         // RawInput API constants
         private const uint RIDI_DEVICENAME = 0x20000007;
         private const uint RIDI_DEVICEINFO = 0x2000000b;
+        private const uint RIDI_PREPARSEDDATA = 0x20000005;
         // Device types
         private const uint RIM_TYPEMOUSE = 0;
         private const uint RIM_TYPEKEYBOARD = 1;
@@ -214,6 +409,34 @@ namespace x360ce.App.Input.Devices
         [DllImport("kernel32.dll")]
         private static extern uint GetLastError();
 
+        /// <summary>
+        /// Gets the capabilities of a HID device from preparsed data.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetCaps(
+            IntPtr PreparsedData,
+            out HIDP_CAPS Capabilities);
+
+        /// <summary>
+        /// Gets button capabilities for a specific report type.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetButtonCaps(
+            HIDP_REPORT_TYPE ReportType,
+            [Out] HIDP_BUTTON_CAPS[] ButtonCaps,
+            ref ushort ButtonCapsLength,
+            IntPtr PreparsedData);
+
+        /// <summary>
+        /// Gets value capabilities for a specific report type.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetValueCaps(
+            HIDP_REPORT_TYPE ReportType,
+            [Out] HIDP_VALUE_CAPS[] ValueCaps,
+            ref ushort ValueCapsLength,
+            IntPtr PreparsedData);
+
         #endregion
 
         /// <summary>
@@ -246,122 +469,37 @@ namespace x360ce.App.Input.Devices
                 Debug.WriteLine("\n-----------------------------------------------------------------------------------------------------------------\n\n" +
                     "DevicesRawInput: Starting RawInput device enumeration...");
 
-                // First, get the number of devices
+                // Get device count
                 uint deviceCount = 0;
                 uint result = GetRawInputDeviceList(null, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
                 
-                if (result == uint.MaxValue)
+                if (result == uint.MaxValue || deviceCount == 0)
                 {
-                    uint error = GetLastError();
-                    Debug.WriteLine($"DevicesRawInput: Failed to get device count. Error: {error}");
-                    deviceListDebugLines.Add($"DevicesRawInput: Failed to get device count. Error: {error}");
-                    deviceListDebugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
-                    foreach (var debugLine in deviceListDebugLines) { Debug.WriteLine(debugLine); }
-                    return deviceList;
-                }
-
-                if (deviceCount == 0)
-                {
-                    Debug.WriteLine("DevicesRawInput: No RawInput devices found");
-                    deviceListDebugLines.Add("DevicesRawInput: No RawInput devices found");
-                    deviceListDebugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
-                    foreach (var debugLine in deviceListDebugLines) { Debug.WriteLine(debugLine); }
+                    LogEmptyResult(deviceListDebugLines, result == uint.MaxValue ? GetLastError() : 0);
                     return deviceList;
                 }
 
                 Debug.WriteLine($"DevicesRawInput: Found {deviceCount} RawInput devices");
 
-                // Allocate array for device list
+                // Enumerate devices
                 var rawDevices = new RAWINPUTDEVICELIST[deviceCount];
                 result = GetRawInputDeviceList(rawDevices, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
 
                 if (result == uint.MaxValue)
                 {
-                    uint error = GetLastError();
-                    Debug.WriteLine($"DevicesRawInput: Failed to enumerate devices. Error: {error}");
-                    deviceListDebugLines.Add($"DevicesRawInput: Failed to enumerate devices. Error: {error}");
-                    deviceListDebugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
-                    foreach (var debugLine in deviceListDebugLines) { Debug.WriteLine(debugLine); }
+                    LogEmptyResult(deviceListDebugLines, GetLastError());
                     return deviceList;
                 }
 
-                // Process each device with early filtering
+                // Process each device with optimized early filtering
                 foreach (var rawDevice in rawDevices)
                 {
                     try
                     {
-                        // Early filtering: Skip non-input device types immediately
-                        var rawInputDeviceType = (RawInputDeviceType)rawDevice.dwType;
-                        
-                        // Always process Mouse and Keyboard devices
-                        if (rawInputDeviceType == RawInputDeviceType.Mouse || rawInputDeviceType == RawInputDeviceType.Keyboard)
+                        if (ShouldProcessDevice(rawDevice, out bool isInputDevice) && isInputDevice)
                         {
-                            // Process as input device
                             ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
-                            continue;
                         }
-                        
-                        // For HID devices, do early filtering based on basic information
-                        if (rawInputDeviceType == RawInputDeviceType.HID)
-                        {
-                            // Get minimal device information for early filtering
-                            string deviceName = GetDeviceName(rawDevice.hDevice);
-                            var deviceInfoStruct = GetDeviceInfo(rawDevice.hDevice);
-                            
-                            // Early filter based on device name patterns
-                            if (IsKnownNonInputDeviceByName(deviceName))
-                            {
-                                // Skip this device entirely - don't process or log it
-                                continue;
-                            }
-                            
-                            // Early filter based on HID usage if available
-                            if (deviceInfoStruct.HasValue && deviceInfoStruct.Value.dwType == RIM_TYPEHID)
-                            {
-                                var hid = deviceInfoStruct.Value.union.hid;
-                                int usagePage = hid.usUsagePage;
-                                int usage = hid.usUsage;
-                                
-                                // Check if it's a known input device by HID usage
-                                if (IsKnownInputDeviceByUsage(usagePage, usage))
-                                {
-                                    // Process as input device
-                                    ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
-                                    continue;
-                                }
-                                
-                                // Check if device has input capabilities
-                                if (HasInputCapabilitiesFromDeviceInfo(deviceInfoStruct.Value))
-                                {
-                                    // Process as input device
-                                    ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
-                                    continue;
-                                }
-                                
-                                // Check if device name suggests it's an input device
-                                if (HasInputDeviceNamePattern(deviceName, ""))
-                                {
-                                    // Process as input device
-                                    ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
-                                    continue;
-                                }
-                                
-                                // Additional check: Process the device temporarily to check capabilities
-                                // This is needed because some devices might pass usage checks but have no actual input capabilities
-                                var tempDeviceInfo = CreateTempDeviceInfo(rawDevice, deviceName, deviceInfoStruct.Value);
-                                if (tempDeviceInfo != null && HasActualInputCapabilities(tempDeviceInfo))
-                                {
-                                    // Process as input device
-                                    ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
-                                    continue;
-                                }
-                            }
-                            
-                            // If we reach here, it's likely not an input device - skip it entirely
-                            continue;
-                        }
-                        
-                        // Unknown device types are skipped entirely
                     }
                     catch (Exception deviceEx)
                     {
@@ -369,22 +507,7 @@ namespace x360ce.App.Input.Devices
                     }
                 }
 
-                // Generate summary statistics for device enumeration results
-                var hidCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.HID);
-                var keyboardCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.Keyboard);
-                var mouseCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.Mouse);
-                var gamepadCount = deviceList.Count(d => IsGamepadDevice(d.Usage, d.UsagePage));
-                var offlineCount = deviceList.Count(d => !d.IsOnline);
-
-                stopwatch.Stop();
-
-                deviceListDebugLines.Add($"\nDevicesRawInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
-                    $"Input Devices found: {deviceList.Count}, " +
-                    $"HID: {hidCount}, " +
-                    $"Gamepads: {gamepadCount}, " +
-                    $"Keyboards: {keyboardCount}, " +
-                    $"Mice: {mouseCount}, " +
-                    $"Offline/Failed: {offlineCount}\n");
+                LogSummary(deviceList, stopwatch, deviceListDebugLines);
             }
             catch (Exception ex)
             {
@@ -428,6 +551,111 @@ namespace x360ce.App.Input.Devices
         }
 
         #region Private Helper Methods
+        /// <summary>
+        /// Logs empty result when device enumeration fails or finds no devices.
+        /// </summary>
+        private void LogEmptyResult(List<string> debugLines, uint errorCode)
+        {
+            if (errorCode != 0)
+            {
+                Debug.WriteLine($"DevicesRawInput: Failed to enumerate devices. Error: {errorCode}");
+                debugLines.Add($"DevicesRawInput: Failed to enumerate devices. Error: {errorCode}");
+            }
+            else
+            {
+                Debug.WriteLine("DevicesRawInput: No RawInput devices found");
+                debugLines.Add("DevicesRawInput: No RawInput devices found");
+            }
+            debugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
+            foreach (var debugLine in debugLines) { Debug.WriteLine(debugLine); }
+        }
+
+        /// <summary>
+        /// Logs summary statistics for device enumeration.
+        /// </summary>
+        private void LogSummary(List<RawInputDeviceInfo> deviceList, Stopwatch stopwatch, List<string> debugLines)
+        {
+            var hidCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.HID);
+            var keyboardCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.Keyboard);
+            var mouseCount = deviceList.Count(d => d.RawInputDeviceType == RawInputDeviceType.Mouse);
+            var gamepadCount = deviceList.Count(d => IsGamepadDevice(d.Usage, d.UsagePage));
+            var offlineCount = deviceList.Count(d => !d.IsOnline);
+
+            stopwatch.Stop();
+
+            debugLines.Add($"\nDevicesRawInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
+                $"Input Devices found: {deviceList.Count}, " +
+                $"HID: {hidCount}, " +
+                $"Gamepads: {gamepadCount}, " +
+                $"Keyboards: {keyboardCount}, " +
+                $"Mice: {mouseCount}, " +
+                $"Offline/Failed: {offlineCount}\n");
+        }
+
+        /// <summary>
+        /// Determines if a device should be processed based on optimized early filtering.
+        /// Returns true if device should be processed, and sets isInputDevice to indicate if it's an input device.
+        /// </summary>
+        private bool ShouldProcessDevice(RAWINPUTDEVICELIST rawDevice, out bool isInputDevice)
+        {
+            isInputDevice = false;
+            var deviceType = (RawInputDeviceType)rawDevice.dwType;
+
+            // Always process Mouse and Keyboard devices
+            if (deviceType == RawInputDeviceType.Mouse || deviceType == RawInputDeviceType.Keyboard)
+            {
+                isInputDevice = true;
+                return true;
+            }
+
+            // For HID devices, perform early filtering
+            if (deviceType == RawInputDeviceType.HID)
+            {
+                // Get device name for early filtering
+                string deviceName = GetDeviceName(rawDevice.hDevice);
+                
+                // Quick rejection based on device name patterns
+                if (IsKnownNonInputDeviceByName(deviceName))
+                    return false;
+
+                // Get device info for HID usage analysis
+                var deviceInfoStruct = GetDeviceInfo(rawDevice.hDevice);
+                if (!deviceInfoStruct.HasValue || deviceInfoStruct.Value.dwType != RIM_TYPEHID)
+                    return false;
+
+                var hid = deviceInfoStruct.Value.union.hid;
+                int usagePage = hid.usUsagePage;
+                int usage = hid.usUsage;
+
+                // Check if it's a known input device by HID usage (fastest check)
+                if (IsKnownInputDeviceByUsage(usagePage, usage))
+                {
+                    isInputDevice = true;
+                    return true;
+                }
+
+                // Check if device name suggests it's an input device
+                if (HasInputDeviceNamePattern(deviceName, ""))
+                {
+                    isInputDevice = true;
+                    return true;
+                }
+
+                // Final check: verify actual input capabilities
+                var tempDeviceInfo = CreateTempDeviceInfo(rawDevice, deviceName, deviceInfoStruct.Value);
+                if (tempDeviceInfo != null && HasActualInputCapabilities(tempDeviceInfo))
+                {
+                    isInputDevice = true;
+                    return true;
+                }
+
+                return false;
+            }
+
+            // Unknown device types are skipped
+            return false;
+        }
+
 
         /// <summary>
         /// Gets the device name (interface path) for a RawInput device.
@@ -499,6 +727,172 @@ namespace x360ce.App.Input.Devices
         }
 
         /// <summary>
+        /// Gets HID device capabilities by parsing the HID Report Descriptor.
+        /// </summary>
+        /// <param name="hDevice">Device handle</param>
+        /// <param name="axeCount">Output: number of axes</param>
+        /// <param name="buttonCount">Output: number of buttons</param>
+        /// <param name="povCount">Output: number of POV hats</param>
+        /// <param name="hasForceFeedback">Output: whether device supports force feedback</param>
+        /// <returns>True if capabilities were successfully retrieved</returns>
+        private bool GetHidCapabilities(IntPtr hDevice, out int axeCount, out int buttonCount, out int povCount, out bool hasForceFeedback)
+        {
+            axeCount = 0;
+            buttonCount = 0;
+            povCount = 0;
+            hasForceFeedback = false;
+
+            IntPtr preparsedData = IntPtr.Zero;
+            
+            try
+            {
+                // Get the size of preparsed data
+                uint size = 0;
+                GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, IntPtr.Zero, ref size);
+                
+                if (size == 0)
+                {
+                    Debug.WriteLine($"DevicesRawInput: No preparsed data available for device 0x{hDevice.ToInt64():X8}");
+                    return false;
+                }
+
+                // Allocate buffer and get preparsed data
+                preparsedData = Marshal.AllocHGlobal((int)size);
+                uint result = GetRawInputDeviceInfo(hDevice, RIDI_PREPARSEDDATA, preparsedData, ref size);
+                
+                if (result == uint.MaxValue || result == 0)
+                {
+                    Debug.WriteLine($"DevicesRawInput: Failed to get preparsed data for device 0x{hDevice.ToInt64():X8}");
+                    return false;
+                }
+
+                // Get HID capabilities
+                HIDP_CAPS caps;
+                int status = HidP_GetCaps(preparsedData, out caps);
+                
+                if (status != HIDP_STATUS_SUCCESS)
+                {
+                    Debug.WriteLine($"DevicesRawInput: HidP_GetCaps failed with status 0x{status:X8} for device 0x{hDevice.ToInt64():X8}");
+                    return false;
+                }
+
+                // Parse input button capabilities
+                if (caps.NumberInputButtonCaps > 0)
+                {
+                    var buttonCaps = new HIDP_BUTTON_CAPS[caps.NumberInputButtonCaps];
+                    ushort buttonCapsLength = caps.NumberInputButtonCaps;
+                    status = HidP_GetButtonCaps(HIDP_REPORT_TYPE.HidP_Input, buttonCaps, ref buttonCapsLength, preparsedData);
+                    
+                    if (status == HIDP_STATUS_SUCCESS)
+                    {
+                        foreach (var buttonCap in buttonCaps)
+                        {
+                            if (buttonCap.IsRange)
+                            {
+                                // Range of buttons
+                                buttonCount += (buttonCap.Range.UsageMax - buttonCap.Range.UsageMin + 1);
+                            }
+                            else
+                            {
+                                // Single button
+                                buttonCount++;
+                            }
+                        }
+                    }
+                }
+
+                // Parse input value capabilities (axes and POVs)
+                if (caps.NumberInputValueCaps > 0)
+                {
+                    var valueCaps = new HIDP_VALUE_CAPS[caps.NumberInputValueCaps];
+                    ushort valueCapsLength = caps.NumberInputValueCaps;
+                    status = HidP_GetValueCaps(HIDP_REPORT_TYPE.HidP_Input, valueCaps, ref valueCapsLength, preparsedData);
+                    
+                    if (status == HIDP_STATUS_SUCCESS)
+                    {
+                        foreach (var valueCap in valueCaps)
+                        {
+                            // Check usage page and usage to determine if it's an axis or POV
+                            if (valueCap.UsagePage == HID_USAGE_PAGE_GENERIC)
+                            {
+                                ushort usage = valueCap.IsRange ? valueCap.Range.UsageMin : valueCap.NotRange.Usage;
+                                
+                                // Common axis usages: X(0x30), Y(0x31), Z(0x32), Rx(0x33), Ry(0x34), Rz(0x35), Slider(0x36), Dial(0x37), Wheel(0x38)
+                                if (usage >= 0x30 && usage <= 0x38)
+                                {
+                                    if (valueCap.IsRange)
+                                    {
+                                        axeCount += (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                    }
+                                    else
+                                    {
+                                        axeCount++;
+                                    }
+                                }
+                                // POV Hat Switch (0x39)
+                                else if (usage == 0x39)
+                                {
+                                    if (valueCap.IsRange)
+                                    {
+                                        povCount += (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                    }
+                                    else
+                                    {
+                                        povCount++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check for force feedback support (output reports)
+                if (caps.NumberOutputButtonCaps > 0 || caps.NumberOutputValueCaps > 0 ||
+                    caps.NumberFeatureButtonCaps > 0 || caps.NumberFeatureValueCaps > 0)
+                {
+                    // Device has output or feature reports, which may indicate force feedback
+                    // Check for Physical Interface Device (PID) usage page (0x0F)
+                    if (caps.NumberOutputValueCaps > 0)
+                    {
+                        var outputValueCaps = new HIDP_VALUE_CAPS[caps.NumberOutputValueCaps];
+                        ushort outputValueCapsLength = caps.NumberOutputValueCaps;
+                        status = HidP_GetValueCaps(HIDP_REPORT_TYPE.HidP_Output, outputValueCaps, ref outputValueCapsLength, preparsedData);
+                        
+                        if (status == HIDP_STATUS_SUCCESS)
+                        {
+                            foreach (var valueCap in outputValueCaps)
+                            {
+                                // PID usage page (0x0F) indicates force feedback
+                                if (valueCap.UsagePage == 0x0F)
+                                {
+                                    hasForceFeedback = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Debug.WriteLine($"DevicesRawInput: Parsed HID capabilities for device 0x{hDevice.ToInt64():X8} - " +
+                    $"Axes: {axeCount}, Buttons: {buttonCount}, POVs: {povCount}, ForceFeedback: {hasForceFeedback}");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DevicesRawInput: Error parsing HID capabilities for device 0x{hDevice.ToInt64():X8}: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                if (preparsedData != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(preparsedData);
+                }
+            }
+        }
+
+        /// <summary>
         /// Populates device information from RawInput device info structure.
         /// </summary>
         /// <param name="deviceInfo">Device info object to populate</param>
@@ -529,22 +923,21 @@ namespace x360ce.App.Input.Devices
                     deviceInfo.UsagePage = hid.usUsagePage;
                     deviceInfo.HardwareRevision = (int)hid.dwVersionNumber;
                     
-                    // Estimate capabilities for HID devices
+                    // Set product name based on device type
                     if (IsGamepadDevice(hid.usUsage, hid.usUsagePage))
                     {
                         deviceInfo.ProductName = "HID Gamepad";
-                        deviceInfo.AxeCount = 6; // Typical gamepad axes
-                        deviceInfo.ButtonCount = 16; // Typical gamepad buttons
-                        deviceInfo.PovCount = 1; // Typical D-pad
-                        deviceInfo.HasForceFeedback = false; // Cannot determine from RawInput
                     }
                     else
                     {
                         deviceInfo.ProductName = "HID Device";
-                        deviceInfo.AxeCount = 0;
-                        deviceInfo.ButtonCount = 0;
-                        deviceInfo.PovCount = 0;
                     }
+                    
+                    // Initialize to 0 (will be populated if HID parsing succeeds)
+                    deviceInfo.AxeCount = 0;
+                    deviceInfo.ButtonCount = 0;
+                    deviceInfo.PovCount = 0;
+                    deviceInfo.HasForceFeedback = false;
                     break;
             }
         }
@@ -597,6 +990,7 @@ namespace x360ce.App.Input.Devices
 
         /// <summary>
         /// Extracts VID and PID from device interface path.
+        /// Supports multiple VID/PID formats including standard (VID_XXXX&PID_XXXX) and alternate (VID&XXXXXXXX_PID&XXXX) formats.
         /// </summary>
         /// <param name="interfacePath">Device interface path</param>
         /// <returns>Tuple containing VID and PID values</returns>
@@ -608,10 +1002,11 @@ namespace x360ce.App.Input.Devices
             try
             {
                 // Common patterns in interface paths:
-                // \\?\hid#vid_045e&pid_028e#...
-                // \\?\usb#vid_045e&pid_028e#...
+                // Standard format: \\?\hid#vid_045e&pid_028e#...
+                // Alternate format: {GUID}_VID&00020111_PID&1431&Col02
                 var upperPath = interfacePath.ToUpperInvariant();
 
+                // Try standard format first: VID_XXXX
                 var vidIndex = upperPath.IndexOf("VID_");
                 var pidIndex = upperPath.IndexOf("PID_");
 
@@ -625,6 +1020,44 @@ namespace x360ce.App.Input.Devices
                     {
                         var vidStr = interfacePath.Substring(vidStart, 4);
                         var pidStr = interfacePath.Substring(pidStart, 4);
+
+                        if (int.TryParse(vidStr, System.Globalization.NumberStyles.HexNumber, null, out int vid) &&
+                            int.TryParse(pidStr, System.Globalization.NumberStyles.HexNumber, null, out int pid))
+                        {
+                            return (vid, pid);
+                        }
+                    }
+                }
+
+                // Try alternate format: VID&XXXXXXXX_PID&XXXX
+                vidIndex = upperPath.IndexOf("VID&");
+                pidIndex = upperPath.IndexOf("_PID&");
+                
+                if (vidIndex >= 0 && pidIndex >= 0)
+                {
+                    var vidStart = vidIndex + 4;
+                    var pidStart = pidIndex + 5; // Skip "_PID&"
+                    
+                    // Find the end of VID value (up to underscore or ampersand)
+                    var vidEnd = vidStart;
+                    while (vidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[vidEnd]))
+                        vidEnd++;
+                    
+                    // Find the end of PID value (up to ampersand, space, or other delimiter)
+                    var pidEnd = pidStart;
+                    while (pidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[pidEnd]))
+                        pidEnd++;
+                    
+                    if (vidEnd > vidStart && pidEnd > pidStart)
+                    {
+                        var vidStr = interfacePath.Substring(vidStart, vidEnd - vidStart);
+                        var pidStr = interfacePath.Substring(pidStart, pidEnd - pidStart);
+                        
+                        // Handle variable-length hex strings (take last 4 characters for standard VID/PID)
+                        if (vidStr.Length > 4)
+                            vidStr = vidStr.Substring(vidStr.Length - 4);
+                        if (pidStr.Length > 4)
+                            pidStr = pidStr.Substring(pidStr.Length - 4);
 
                         if (int.TryParse(vidStr, System.Globalization.NumberStyles.HexNumber, null, out int vid) &&
                             int.TryParse(pidStr, System.Globalization.NumberStyles.HexNumber, null, out int pid))
@@ -756,39 +1189,63 @@ namespace x360ce.App.Input.Devices
                 return Guid.NewGuid();
             }
         }
-
+        
         /// <summary>
-        /// Generates hardware IDs string for device identification.
+        /// Generates CommonIdentifier for the device by extracting VID, PID, MI, and COL values.
         /// </summary>
-        /// <param name="vendorId">Vendor ID</param>
-        /// <param name="productId">Product ID</param>
-        /// <param name="deviceType">RawInput device type</param>
-        /// <returns>Hardware IDs string</returns>
-        private string GenerateHardwareIds(int vendorId, int productId, RawInputDeviceType deviceType)
+        /// <param name="deviceInfo">Device information to process</param>
+        private void GenerateCommonIdentifier(RawInputDeviceInfo deviceInfo)
         {
-            if (vendorId == 0 && productId == 0)
-                return "";
-
-            string prefix;
-            switch (deviceType)
+            try
             {
-                case RawInputDeviceType.HID:
-                    prefix = "HID";
-                    break;
-                case RawInputDeviceType.Mouse:
-                    prefix = "MOUSE";
-                    break;
-                case RawInputDeviceType.Keyboard:
-                    prefix = "KEYBOARD";
-                    break;
-                default:
-                    prefix = "RAWINPUT";
-                    break;
+                var vid = deviceInfo.VendorId > 0 ? $"{deviceInfo.VendorId:X4}" : "0000";
+                var pid = deviceInfo.ProductId > 0 ? $"{deviceInfo.ProductId:X4}" : "0000";
+                
+                var commonId = $"VID_{vid}&PID_{pid}";
+                
+                // Try to extract MI and COL from InterfacePath if available
+                if (!string.IsNullOrEmpty(deviceInfo.InterfacePath))
+                {
+                    var upperPath = deviceInfo.InterfacePath.ToUpperInvariant();
+                    
+                    // Extract MI
+                    var miIndex = upperPath.IndexOf("&MI_");
+                    if (miIndex < 0) miIndex = upperPath.IndexOf("\\MI_");
+                    if (miIndex >= 0)
+                    {
+                        var miStart = miIndex + 4;
+                        if (miStart + 2 <= upperPath.Length)
+                        {
+                            var mi = upperPath.Substring(miStart, 2);
+                            if (mi != "00") commonId += $"&MI_{mi}";
+                        }
+                    }
+                    
+                    // Extract COL
+                    var colIndex = upperPath.IndexOf("&COL");
+                    if (colIndex < 0) colIndex = upperPath.IndexOf("\\COL");
+                    if (colIndex >= 0)
+                    {
+                        var colStart = colIndex + 4;
+                        var colEnd = colStart;
+                        while (colEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[colEnd]))
+                            colEnd++;
+                        if (colEnd > colStart)
+                        {
+                            var col = upperPath.Substring(colStart, colEnd - colStart);
+                            commonId += $"&COL_{col}";
+                        }
+                    }
+                }
+                
+                deviceInfo.CommonIdentifier = commonId;
             }
-
-            return $"{prefix}\\VID_{vendorId:X4}&PID_{productId:X4}";
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DevicesRawInput: Error generating CommonIdentifier: {ex.Message}");
+                deviceInfo.CommonIdentifier = "VID_0000&PID_0000";
+            }
         }
-
 
         /// <summary>
         /// Checks if device is a known input device based on HID usage page and usage.
@@ -884,6 +1341,14 @@ namespace x360ce.App.Input.Devices
 
 
         /// <summary>
+        /// Formats a property for debug output only if it has a non-empty value.
+        /// </summary>
+        private string FormatProperty(string name, string value)
+        {
+            return !string.IsNullOrEmpty(value) ? $"{name}: {value}, " : "";
+        }
+
+        /// <summary>
         /// Processes a device that has been identified as an input device.
         /// Extracts full device information and adds it to the device list.
         /// </summary>
@@ -923,6 +1388,20 @@ namespace x360ce.App.Input.Devices
                 if (deviceInfoStruct.HasValue)
                 {
                     PopulateDeviceInfo(deviceInfo, deviceInfoStruct.Value);
+                    
+                    // For HID devices, try to parse actual capabilities from HID Report Descriptor
+                    if (deviceInfo.RawInputDeviceType == RawInputDeviceType.HID)
+                    {
+                        int axes, buttons, povs;
+                        bool forceFeedback;
+                        if (GetHidCapabilities(rawDevice.hDevice, out axes, out buttons, out povs, out forceFeedback))
+                        {
+                            deviceInfo.AxeCount = axes;
+                            deviceInfo.ButtonCount = buttons;
+                            deviceInfo.PovCount = povs;
+                            deviceInfo.HasForceFeedback = forceFeedback;
+                        }
+                    }
                 }
 
                 // VID/PID already extracted above for friendly name lookup
@@ -936,18 +1415,24 @@ namespace x360ce.App.Input.Devices
 
                 // Extract additional device identification
                 deviceInfo.DeviceId = ExtractDeviceIdFromPath(deviceName);
-                deviceInfo.HardwareIds = GenerateHardwareIds(deviceInfo.VendorId, deviceInfo.ProductId, deviceInfo.RawInputDeviceType);
+                
+                // Generate CommonIdentifier for device grouping
+                GenerateCommonIdentifier(deviceInfo);
+                
+                // HardwareIds and ParentDeviceId are not natively provided by RawInput API
+                deviceInfo.HardwareIds = "";
+                deviceInfo.ParentDeviceId = "";
 
                 // Set default values for properties not available through RawInput
                 deviceInfo.DriverVersion = 1;
                 deviceInfo.HardwareRevision = 1;
                 deviceInfo.FirmwareRevision = 1;
-                deviceInfo.ParentDeviceId = "";
 
                 deviceListIndex++;
 
                 // Log comprehensive device information for debugging
                 deviceListDebugLines.Add($"\n{deviceListIndex}. DevicesRawInputInfo: " +
+                    $"CommonIdentifier: {deviceInfo.CommonIdentifier}, " +
                     $"DeviceHandle: 0x{deviceInfo.DeviceHandle.ToInt64():X8}, " +
                     $"RawInputDeviceType: {deviceInfo.RawInputDeviceType}, " +
                     $"InstanceGuid: {deviceInfo.InstanceGuid}, " +
@@ -957,19 +1442,40 @@ namespace x360ce.App.Input.Devices
                     $"DeviceTypeName: {deviceInfo.DeviceTypeName}, " +
                     $"Usage: 0x{deviceInfo.Usage:X4}, " +
                     $"UsagePage: 0x{deviceInfo.UsagePage:X4}, " +
-                    $"InterfacePath: {deviceInfo.InterfacePath}");
+                    FormatProperty("InterfacePath", deviceInfo.InterfacePath).TrimEnd(',', ' '));
 
                 deviceListDebugLines.Add($"DevicesRawInputInfo Identification: " +
                     $"VidPidString: {deviceInfo.VidPidString}, " +
                     $"VendorId: {deviceInfo.VendorId} (0x{deviceInfo.VendorId:X4}), " +
                     $"ProductId: {deviceInfo.ProductId} (0x{deviceInfo.ProductId:X4}), " +
-                    $"DeviceId: {deviceInfo.DeviceId}");
+                    FormatProperty("DeviceId", deviceInfo.DeviceId).TrimEnd(',', ' '));
 
-                deviceListDebugLines.Add($"DevicesRawInputInfo Capabilities: " +
-                    $"AxeCount: {deviceInfo.AxeCount}, " +
-                    $"ButtonCount: {deviceInfo.ButtonCount}, " +
-                    $"PovCount: {deviceInfo.PovCount}, " +
-                    $"HasForceFeedback: {deviceInfo.HasForceFeedback}");
+                // Add capability information with appropriate context
+                if (deviceInfo.RawInputDeviceType == RawInputDeviceType.HID)
+                {
+                    // HID devices: Show parsed capabilities from HID Report Descriptor
+                    if (deviceInfo.AxeCount > 0 || deviceInfo.ButtonCount > 0 || deviceInfo.PovCount > 0)
+                    {
+                        deviceListDebugLines.Add($"DevicesRawInputInfo Capabilities (from HID Report Descriptor): " +
+                            $"AxeCount: {deviceInfo.AxeCount}, " +
+                            $"ButtonCount: {deviceInfo.ButtonCount}, " +
+                            $"PovCount: {deviceInfo.PovCount}, " +
+                            $"HasForceFeedback: {deviceInfo.HasForceFeedback}");
+                    }
+                    else
+                    {
+                        deviceListDebugLines.Add($"DevicesRawInputInfo Note: " +
+                            $"Could not parse HID Report Descriptor for this device - capabilities unknown");
+                    }
+                }
+                else
+                {
+                    // Mouse and Keyboard have actual counts from RawInput API
+                    deviceListDebugLines.Add($"DevicesRawInputInfo Capabilities: " +
+                        $"AxeCount: {deviceInfo.AxeCount}, " +
+                        $"ButtonCount: {deviceInfo.ButtonCount}, " +
+                        $"PovCount: {deviceInfo.PovCount}");
+                }
 
                 // Add device to the final list (already filtered as input device)
                 deviceList.Add(deviceInfo);
@@ -1012,35 +1518,6 @@ namespace x360ce.App.Input.Devices
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Checks if device has input capabilities based on device info structure.
-        /// Used for early filtering of HID devices.
-        /// </summary>
-        /// <param name="deviceInfo">RawInput device info structure</param>
-        /// <returns>True if device appears to have input capabilities</returns>
-        private bool HasInputCapabilitiesFromDeviceInfo(RID_DEVICE_INFO deviceInfo)
-        {
-            switch (deviceInfo.dwType)
-            {
-                case RIM_TYPEMOUSE:
-                    var mouse = deviceInfo.union.mouse;
-                    return mouse.dwNumberOfButtons > 0;
-
-                case RIM_TYPEKEYBOARD:
-                    var keyboard = deviceInfo.union.keyboard;
-                    return keyboard.dwNumberOfKeysTotal > 0;
-
-                case RIM_TYPEHID:
-                    var hid = deviceInfo.union.hid;
-                    // For HID devices, we can't easily determine button/axis count from RID_DEVICE_INFO
-                    // So we rely on usage page/usage classification
-                    return IsKnownInputDeviceByUsage(hid.usUsagePage, hid.usUsage);
-
-                default:
-                    return false;
-            }
         }
 
         /// <summary>

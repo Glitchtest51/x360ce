@@ -29,9 +29,10 @@ namespace x360ce.App.Input.Orchestration
 				// Get currently listed devices.
 				var listedDevices = SettingsManager.UserDevices.ItemsToArraySynchronized();
 
-                // List devices: Physical, DirectInput, RawInput, XInput, GamingInput.
+                // List devices: PnPInput, DirectInput, RawInput, XInput, GamingInput.
                 var devicesCombined = new DevicesCombined();
-				devicesCombined.RunDirectInputEnumeration();
+                devicesCombined.RunPnPInputEnumeration();
+                devicesCombined.RunDirectInputEnumeration();
                 devicesCombined.RunXInputEnumeration();
                 devicesCombined.RunRawInputEnumeration();
                 devicesCombined.RunGamingInputEnumeration();
