@@ -317,9 +317,16 @@ namespace x360ce.App.Input.Devices
 					if (!string.IsNullOrEmpty(deviceInfo.InterfacePath))
 						deviceInfo.DeviceId = ExtractDeviceIdFromPath(deviceInfo.InterfacePath);
 				}
-				
-				// Generate CommonIdentifier for all device types
-				GenerateCommonIdentifier(deviceInfo);
+				else if (device is Mouse || device is Keyboard)
+				{
+                    var (vid, pid) = ParseVidPidFromGuid(deviceInfo.ProductGuid);
+                    deviceInfo.VendorId = vid;
+                    deviceInfo.ProductId = pid;
+					deviceInfo.InterfacePath = deviceInfo.ProductGuid.ToString();
+                }
+
+                // Generate CommonIdentifier for all device types
+                GenerateCommonIdentifier(deviceInfo);
 			}
 			catch (Exception ex)
 			{
