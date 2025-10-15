@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
@@ -88,14 +87,19 @@ namespace x360ce.App.Input.States
 		/// <remarks>
 		/// HID Report Structure (typical gamepad):
 		/// • Byte 0: Report ID
-		/// • Bytes 1-2: Button states (bit-packed)
-		/// • Bytes 3+: Axis data (X, Y, Z, Rz, etc.)
+		/// • Bytes 1-2: Button states (bit-packed) - ONLY these bytes for button detection
+		/// • Bytes 3+: Axis data (X, Y, Z, Rz, etc.) - EXCLUDED from button detection
+		///
+		/// CRITICAL FIX: Only check bytes 1-2 which contain button data.
+		/// Axis data in bytes 3+ can have non-zero values during stick movement,
+		/// which was incorrectly triggering button press detection.
 		///
 		/// Performance optimizations:
 		/// • Removed try-catch (exception handling is expensive in hot paths)
 		/// • Direct array access with bounds check
 		/// • Early return on first button press
 		/// • Simplified loop logic
+		/// • Fixed to check ONLY button bytes (1-2), not axis bytes (3+)
 		/// </remarks>
 		private static bool HasButtonPressed(byte[] report)
 		{
@@ -103,16 +107,17 @@ namespace x360ce.App.Input.States
 			if (report.Length < 2)
 				return false;
 
-			// Check button bytes (typically bytes 1-2 for most gamepads)
-			// Byte 1: Buttons 1-8, Byte 2: Buttons 9-16 (if present)
-			int buttonByteCount = Math.Min(2, report.Length - 1);
+			// FIXED: Check ONLY button bytes 1-2 (not axis bytes 3+)
+			// Most HID gamepads use bytes 1-2 for buttons (up to 16 buttons)
+			// Bytes 3+ contain axis data which should NOT trigger button detection
 			
-			for (int i = 1; i <= buttonByteCount; i++)
-			{
-				// If any bits are set in button bytes, a button is pressed
-				if (report[i] != 0)
-					return true;
-			}
+			// Check byte 1 (buttons 1-8)
+			if (report[1] != 0)
+				return true;
+			
+			// Check byte 2 (buttons 9-16) if report is long enough
+			if (report.Length >= 3 && report[2] != 0)
+				return true;
 
 			return false;
 		}
