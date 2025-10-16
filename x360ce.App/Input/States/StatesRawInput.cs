@@ -34,7 +34,9 @@ namespace x360ce.App.Input.States
 		private const uint RID_INPUT = 0x10000003;
 		private const uint RIDEV_INPUTSINK = 0x00000100;
 		private const ushort USAGE_PAGE_GENERIC_DESKTOP = 0x01;
+		private const ushort USAGE_JOYSTICK = 0x04;
 		private const ushort USAGE_GAMEPAD = 0x05;
+		private const ushort USAGE_MULTI_AXIS = 0x08;
 		private const int RAWHID_DATA_OFFSET = 8; // Offset to HID data after RAWINPUTHEADER
 
 		[StructLayout(LayoutKind.Sequential)]
@@ -137,14 +139,29 @@ namespace x360ce.App.Input.States
 				// Create hidden window for WM_INPUT messages
 				_messageWindow = new RawInputMessageWindow(this);
 
-				// Register for HID gamepad devices (non-blocking registration)
-				var devices = new RAWINPUTDEVICE[1];
+				// Register for ALL gaming input devices: Joystick (0x04), Gamepad (0x05), Multi-axis (0x08)
+				// This ensures we receive WM_INPUT messages from Xbox controllers and other gaming devices
+				var devices = new RAWINPUTDEVICE[3];
+				
+				// Joystick (0x04) - Flight sticks, racing wheels, Xbox controllers often report as this
 				devices[0].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[0].usUsage = USAGE_GAMEPAD;
-				devices[0].dwFlags = RIDEV_INPUTSINK; // Receive messages even when not in foreground
+				devices[0].usUsage = USAGE_JOYSTICK;
+				devices[0].dwFlags = RIDEV_INPUTSINK;
 				devices[0].hwndTarget = _messageWindow.Handle;
+				
+				// Gamepad (0x05) - Standard gamepads
+				devices[1].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+				devices[1].usUsage = USAGE_GAMEPAD;
+				devices[1].dwFlags = RIDEV_INPUTSINK;
+				devices[1].hwndTarget = _messageWindow.Handle;
+				
+				// Multi-axis Controller (0x08) - Complex controllers with many axes
+				devices[2].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+				devices[2].usUsage = USAGE_MULTI_AXIS;
+				devices[2].dwFlags = RIDEV_INPUTSINK;
+				devices[2].hwndTarget = _messageWindow.Handle;
 
-				bool success = RegisterRawInputDevices(devices, 1, (uint)s_rawinputDeviceSize);
+				bool success = RegisterRawInputDevices(devices, 3, (uint)s_rawinputDeviceSize);
 				_isInitialized = success;
 			}
 			catch

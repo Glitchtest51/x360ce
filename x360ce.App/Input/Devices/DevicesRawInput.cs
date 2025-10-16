@@ -919,13 +919,17 @@ namespace x360ce.App.Input.Devices
                                     if (valueCap.IsRange)
                                     {
                                         int count = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                        // Count logical axes (for compatibility with existing code)
                                         axeCount += count;
-                                        Debug.WriteLine($"DevicesRawInput: Found {count} axes in range 0x{usage:X2}-0x{usageMax:X2}");
+                                        Debug.WriteLine($"DevicesRawInput: Found {count} logical axes in range 0x{usage:X2}-0x{usageMax:X2}, " +
+                                            $"BitSize: {valueCap.BitSize}, ReportCount: {valueCap.ReportCount}");
                                     }
                                     else
                                     {
+                                        // Count logical axes (for compatibility with existing code)
                                         axeCount++;
-                                        Debug.WriteLine($"DevicesRawInput: Found 1 axis at usage 0x{usage:X2}");
+                                        Debug.WriteLine($"DevicesRawInput: Found 1 logical axis at usage 0x{usage:X2}, " +
+                                            $"BitSize: {valueCap.BitSize}, ReportCount: {valueCap.ReportCount}");
                                     }
                                 }
                                 // Sliders: Slider(0x36), Dial(0x37), Wheel(0x38)
