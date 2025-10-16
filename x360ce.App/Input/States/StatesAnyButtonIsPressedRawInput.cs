@@ -19,6 +19,7 @@ namespace x360ce.App.Input.States
 		private readonly StatesRawInput _statesRawInput = new StatesRawInput();
 		private Dictionary<string, DevicesCombined.AllInputDeviceInfo> _deviceMapping;
 		private Dictionary<string, int> _deviceButtonByteCount; // Cache button byte counts per device
+		private Dictionary<string, RawInputDeviceType> _deviceTypes; // Cache device types for fast lookup
 		private int _lastDeviceCount;
 
 		/// <summary>
@@ -56,35 +57,18 @@ namespace x360ce.App.Input.States
 					continue;
 
 				// Get cached state from WM_INPUT messages (non-blocking)
-				// Use GetRawInputDeviceState (without clearing) so button state persists
-				// until a new WM_INPUT message arrives with different state
 				var report = _statesRawInput.GetRawInputDeviceState(riDevice);
+				
+				// Get device type for this device
+				RawInputDeviceType deviceType = RawInputDeviceType.HID;
+				_deviceTypes?.TryGetValue(riDevice.InterfacePath, out deviceType);
 				
 				// Get stored value for this device (0 if not found = use default)
 				int storedValue = 0;
-				if (_deviceButtonByteCount != null)
-					_deviceButtonByteCount.TryGetValue(riDevice.InterfacePath, out storedValue);
+				_deviceButtonByteCount?.TryGetValue(riDevice.InterfacePath, out storedValue);
 				
-				// Debug: Log report status for Xbox controller
-				if (riDevice.VendorId == 0x045E)
-				{
-					var reportHex = report != null && report.Length >= 12
-						? System.BitConverter.ToString(report, 0, System.Math.Min(report.Length, 12))
-						: "null";
-					System.Diagnostics.Debug.WriteLine(
-						$"Xbox RawInput Report: StoredValue={storedValue}, ReportLen={report?.Length}, " +
-						$"First12Bytes={reportHex}, Report={(report == null ? "NULL" : "EXISTS")}");
-				}
-				
-				// Update button state: true if report has button data, false if idle
-				bool buttonPressed = report != null && HasButtonPressed(report, storedValue);
-				allDevice.ButtonPressed = buttonPressed;
-				
-				// Log when button is detected as pressed
-				if (buttonPressed && riDevice.VendorId == 0x045E)
-				{
-					System.Diagnostics.Debug.WriteLine($"Xbox Button PRESSED DETECTED!");
-				}
+				// Update button state: explicitly set true if button pressed, false otherwise
+				allDevice.ButtonPressed = report != null && HasButtonPressed(report, storedValue, deviceType);
 			}
 		}
 
@@ -99,6 +83,7 @@ namespace x360ce.App.Input.States
 			// Pre-allocate with estimated capacity to reduce resizing
 			_deviceMapping = new Dictionary<string, DevicesCombined.AllInputDeviceInfo>(allDevicesList.Count);
 			_deviceButtonByteCount = new Dictionary<string, int>(rawInputList.Count);
+			_deviceTypes = new Dictionary<string, RawInputDeviceType>(rawInputList.Count);
 
 			foreach (var device in allDevicesList)
 			{
@@ -107,50 +92,50 @@ namespace x360ce.App.Input.States
 					_deviceMapping[device.InterfacePath] = device;
 			}
 			
-			// Build button byte count cache from RawInputDeviceInfo
+			// Build button byte count cache and device type cache from RawInputDeviceInfo
 			foreach (var riDevice in rawInputList)
 			{
 				if (riDevice?.InterfacePath == null)
 					continue;
+				
+				// Store device type for fast lookup
+				_deviceTypes[riDevice.InterfacePath] = riDevice.RawInputDeviceType;
 					
-				// Calculate button byte count from actual button count
+				// Calculate button byte count from actual button/key count
+				// For keyboards, use KeyCount instead of ButtonCount
 				// Each byte holds 8 buttons (bit-packed), so divide by 8 and round up
-				int buttonByteCount = (riDevice.ButtonCount + 7) / 8;
-				
-				// CRITICAL: Button position varies by device!
-				// Xbox controllers: Buttons at bytes 11-12 (middle of 16-byte report)
-				// Other devices: May be at beginning, middle, or end
-				//
-				// SOLUTION: Store button byte count for validation, but check ALL bytes
-				// The HasButtonPressed method will use a smarter detection strategy
-				int storedValue = buttonByteCount;
-				
-				// Log for diagnostics
-				System.Diagnostics.Debug.WriteLine(
-					$"RawInput Button Detection: Device={riDevice.InterfacePath}, " +
-					$"AxeCount={riDevice.AxeCount}, ButtonCount={riDevice.ButtonCount}, " +
-					$"ButtonByteCount={buttonByteCount}, Strategy=CheckLastBytes, StoredValue={storedValue}");
+				int count = riDevice.RawInputDeviceType == RawInputDeviceType.Keyboard
+					? riDevice.KeyCount
+					: riDevice.ButtonCount;
+				int buttonByteCount = (count + 7) / 8;
 				
 				// Store for fast lookup during button detection
-				_deviceButtonByteCount[riDevice.InterfacePath] = storedValue;
+				_deviceButtonByteCount[riDevice.InterfacePath] = buttonByteCount;
 			}
 		}
 
 		/// <summary>
-		/// Checks if any button is pressed in the HID input report using actual device button count.
+		/// Checks if any button/key is pressed in the input report using actual device button count.
+		/// Supports HID devices (gamepads), keyboards, and mice.
 		/// Optimized for performance in high-frequency loops.
 		/// </summary>
-		/// <param name="report">The raw HID input report data from WM_INPUT messages</param>
+		/// <param name="report">The raw input report data from WM_INPUT messages</param>
 		/// <param name="buttonByteCount">Number of bytes containing button data (from HID descriptor), 0 = use default</param>
-		/// <returns>True if any button is pressed, false otherwise</returns>
+		/// <param name="deviceType">Type of device (HID, Keyboard, or Mouse)</param>
+		/// <returns>True if any button/key is pressed, false otherwise</returns>
 		/// <remarks>
 		/// HID Report Structure (typical gamepad):
 		/// • Byte 0: Report ID
 		/// • Bytes 1-N: Button states (bit-packed, N = buttonByteCount)
 		/// • Bytes N+1+: Axis data (X, Y, Z, Rz, etc.) - EXCLUDED from button detection
 		///
+		/// Keyboard/Mouse Reports:
+		/// • Different structure - any non-zero byte indicates key/button press
+		/// • Keyboards: Scan codes in report indicate pressed keys
+		/// • Mice: Button flags in report indicate pressed buttons
+		///
 		/// ENHANCED FIX: Uses actual button count from HID descriptor to determine exact button byte positions.
-		/// This eliminates false positives from axis data and works correctly for ALL HID report structures.
+		/// This eliminates false positives from axis data and works correctly for ALL input device types.
 		///
 		/// Performance optimizations:
 		/// • Removed try-catch (exception handling is expensive in hot paths)
@@ -159,57 +144,94 @@ namespace x360ce.App.Input.States
 		/// • Simplified loop logic
 		/// • Uses device-specific button byte count from HID descriptor
 		/// </remarks>
-		private static bool HasButtonPressed(byte[] report, int buttonByteCount)
+		private static bool HasButtonPressed(byte[] report, int buttonByteCount, RawInputDeviceType deviceType)
 		{
-			// Validate minimum report size (Report ID + at least 1 button byte)
-			if (report.Length < 2)
+			// Validate minimum report size
+			if (report == null || report.Length < 1)
 				return false;
 
-			// CRITICAL: If buttonByteCount is 0, it means ButtonCount was 0 (HID parsing failed)
-			// In this case, we should NOT check any bytes to avoid false positives from axis data
-			if (buttonByteCount == 0)
+			// Handle keyboard and mouse devices differently from HID gamepads
+			if (deviceType == RawInputDeviceType.Keyboard)
 			{
-				return false; // Conservative: don't detect buttons if we don't know the structure
-			}
-			
-			// SMART BUTTON DETECTION STRATEGY:
-			// Problem: Button position varies by device (beginning, middle, or end of report)
-			// Solution: Check bytes that look like button data (sparse bit patterns)
-			//
-			// Button characteristics:
-			// - Use bit flags: 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80
-			// - Typically have only a few bits set (sparse patterns)
-			// - Values are usually < 0x20 for most controllers
-			//
-			// Axis characteristics:
-			// - Use full byte range (0x00-0xFF)
-			// - Values change smoothly and frequently
-			// - Centered around 0x80 (128) for most axes
-			
-			// Check all bytes after Report ID, looking for button-like patterns
-			for (int i = 1; i < report.Length; i++)
-			{
-				byte value = report[i];
+				// Keyboard RawInput reports structure:
+				// - Byte 0: Modifier keys (Ctrl, Shift, Alt, etc.) - bit flags
+				// - Byte 1: Reserved (usually 0)
+				// - Bytes 2-7: Up to 6 simultaneous key scan codes (0 = no key)
+				// A key is pressed if any scan code byte (2-7) is non-zero
+				// We ignore modifier-only presses (byte 0) to avoid false positives
 				
-				// Skip bytes that look like axis data (values near center or full range)
-				// Axes typically use values 0x00-0xFF with center around 0x80
-				// Skip bytes in range 0x40-0xC0 (likely axis data)
-				if (value >= 0x40 && value <= 0xC0)
-					continue;
+				if (report.Length < 3)
+					return false; // Need at least bytes 0-2 for valid keyboard report
 				
-				// Check if this byte has button-like characteristics:
-				// - Non-zero value
-				// - Sparse bit pattern (power of 2 or small combinations)
-				// - Value < 0x40 (typical button range)
-				if (value != 0 && value < 0x40)
+				// Check scan code bytes (skip byte 0 for modifiers, byte 1 is reserved)
+				for (int i = 2; i < report.Length && i < 8; i++)
 				{
-					// This looks like button data - check if it's a valid button pattern
-					// Accept any non-zero value in button range as a button press
+					if (report[i] != 0)
+						return true;
+				}
+				return false;
+			}
+			else if (deviceType == RawInputDeviceType.Mouse)
+			{
+				// Mouse RawInput reports structure:
+				// - Byte 0: Button flags (bit 0=left, bit 1=right, bit 2=middle, bit 3=button4, bit 4=button5)
+				// - Bytes 1-4: Movement data (X, Y deltas)
+				// - Bytes 5+: Wheel data (optional)
+				// We only check byte 0 for button states
+				
+				if (report.Length < 1)
+					return false;
+				
+				// Check all button bits in first byte (bits 0-7)
+				// Common buttons: 0x01 (left), 0x02 (right), 0x04 (middle), 0x08 (button4), 0x10 (button5)
+				// Some mice may use additional bits for extra buttons
+				if (report[0] != 0)
 					return true;
+				
+				return false;
+			}
+			else // RawInputDeviceType.HID (gamepads, joysticks, etc.)
+			{
+				// Validate minimum report size for HID (Report ID + at least 1 button byte)
+				if (report.Length < 2)
+					return false;
+
+				// PRECISE BUTTON DETECTION:
+				// If buttonByteCount is known (> 0), use it for precise detection
+				// Button bytes start at index 1 (after Report ID at index 0)
+				// Each byte contains 8 button states as individual bits
+				
+				if (buttonByteCount > 0)
+				{
+					// PRECISE MODE: We know exactly how many button bytes to check
+					// Calculate the end index for button bytes (exclusive)
+					int buttonEndIndex = 1 + buttonByteCount;
+					
+					// Ensure we don't read beyond the report buffer
+					if (buttonEndIndex > report.Length)
+						buttonEndIndex = report.Length;
+					
+					// Check ONLY the button bytes (indices 1 to buttonEndIndex-1)
+					// Any non-zero byte means at least one button is pressed
+					for (int i = 1; i < buttonEndIndex; i++)
+					{
+						if (report[i] != 0)
+							return true;
+					}
+					
+					// No buttons pressed - explicitly return false
+					return false;
+				}
+				else
+				{
+					// FALLBACK MODE: ButtonCount not available
+					// Without knowing the exact button byte count, we cannot reliably
+					// distinguish button bytes from axis bytes in the HID report.
+					// Return false to avoid false positives from axis movement.
+					// This is safer than guessing and incorrectly detecting axis data as buttons.
+					return false;
 				}
 			}
-
-			return false;
 		}
 
 		/// <summary>
@@ -219,6 +241,7 @@ namespace x360ce.App.Input.States
 		{
 			_deviceMapping = null;
 			_deviceButtonByteCount = null;
+			_deviceTypes = null;
 			_lastDeviceCount = 0;
 		}
 	}

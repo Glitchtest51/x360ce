@@ -448,6 +448,20 @@ namespace x360ce.App.Input.Devices
             ref ushort ValueCapsLength,
             IntPtr PreparsedData);
 
+        /// <summary>
+        /// Gets a usage value from a HID input report.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetUsageValue(
+            HIDP_REPORT_TYPE ReportType,
+            ushort UsagePage,
+            ushort LinkCollection,
+            ushort Usage,
+            out int UsageValue,
+            IntPtr PreparsedData,
+            IntPtr Report,
+            uint ReportLength);
+
         #endregion
 
         /// <summary>
@@ -482,7 +496,8 @@ namespace x360ce.App.Input.Devices
 
                 // Get device count
                 uint deviceCount = 0;
-                uint result = GetRawInputDeviceList(null, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
+                uint structSize = (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>();
+                uint result = GetRawInputDeviceList(null, ref deviceCount, structSize);
                 
                 if (result == uint.MaxValue || deviceCount == 0)
                 {
@@ -494,7 +509,7 @@ namespace x360ce.App.Input.Devices
 
                 // Enumerate devices
                 var rawDevices = new RAWINPUTDEVICELIST[deviceCount];
-                result = GetRawInputDeviceList(rawDevices, ref deviceCount, (uint)Marshal.SizeOf<RAWINPUTDEVICELIST>());
+                result = GetRawInputDeviceList(rawDevices, ref deviceCount, structSize);
 
                 if (result == uint.MaxValue)
                 {
@@ -675,32 +690,21 @@ namespace x360ce.App.Input.Devices
         /// <returns>Device name/interface path</returns>
         private string GetDeviceName(IntPtr hDevice)
         {
+            uint size = 0;
+            GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, IntPtr.Zero, ref size);
+
+            if (size == 0)
+                return "";
+
+            IntPtr buffer = Marshal.AllocHGlobal((int)size * 2); // Unicode characters
             try
             {
-                uint size = 0;
-                GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, IntPtr.Zero, ref size);
-
-                if (size == 0)
-                    return "";
-
-                IntPtr buffer = Marshal.AllocHGlobal((int)size * 2); // Unicode characters
-                try
-                {
-                    uint result = GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, buffer, ref size);
-                    if (result == uint.MaxValue)
-                        return "";
-
-                    return Marshal.PtrToStringUni(buffer) ?? "";
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(buffer);
-                }
+                uint result = GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, buffer, ref size);
+                return result == uint.MaxValue ? "" : (Marshal.PtrToStringUni(buffer) ?? "");
             }
-            catch (Exception ex)
+            finally
             {
-                Debug.WriteLine($"DevicesRawInput: Error getting device name for handle 0x{hDevice.ToInt64():X8}: {ex.Message}");
-                return "";
+                Marshal.FreeHGlobal(buffer);
             }
         }
 
@@ -711,29 +715,21 @@ namespace x360ce.App.Input.Devices
         /// <returns>Device information structure or null if failed</returns>
         private RID_DEVICE_INFO? GetDeviceInfo(IntPtr hDevice)
         {
+            uint size = (uint)Marshal.SizeOf<RID_DEVICE_INFO>();
+            IntPtr buffer = Marshal.AllocHGlobal((int)size);
             try
             {
-                uint size = (uint)Marshal.SizeOf<RID_DEVICE_INFO>();
-                IntPtr buffer = Marshal.AllocHGlobal((int)size);
-                try
-                {
-                    uint result = GetRawInputDeviceInfo(hDevice, RIDI_DEVICEINFO, buffer, ref size);
-                    if (result == uint.MaxValue)
-                        return null;
+                uint result = GetRawInputDeviceInfo(hDevice, RIDI_DEVICEINFO, buffer, ref size);
+                if (result == uint.MaxValue)
+                    return null;
 
-                    var deviceInfo = Marshal.PtrToStructure<RID_DEVICE_INFO>(buffer);
-                    deviceInfo.cbSize = size;
-                    return deviceInfo;
-                }
-                finally
-                {
-                    Marshal.FreeHGlobal(buffer);
-                }
+                var deviceInfo = Marshal.PtrToStructure<RID_DEVICE_INFO>(buffer);
+                deviceInfo.cbSize = size;
+                return deviceInfo;
             }
-            catch (Exception ex)
+            finally
             {
-                Debug.WriteLine($"DevicesRawInput: Error getting device info for handle 0x{hDevice.ToInt64():X8}: {ex.Message}");
-                return null;
+                Marshal.FreeHGlobal(buffer);
             }
         }
 
@@ -846,12 +842,14 @@ namespace x360ce.App.Input.Devices
                             if (valueCap.IsRange)
                             {
                                 Debug.WriteLine($"DevicesRawInput: HID Value Range - UsagePage: 0x{valueCap.UsagePage:X2}, UsageMin: 0x{usage:X2}, UsageMax: 0x{usageMax:X2}, " +
-                                    $"LinkUsage: 0x{linkUsage:X2}, LinkUsagePage: 0x{linkUsagePage:X2}, ReportCount: {valueCap.ReportCount}");
+                                    $"LinkUsage: 0x{linkUsage:X2}, LinkUsagePage: 0x{linkUsagePage:X2}, ReportCount: {valueCap.ReportCount}, " +
+                                    $"BitSize: {valueCap.BitSize}, LogicalMin: {valueCap.LogicalMin}, LogicalMax: {valueCap.LogicalMax}");
                             }
                             else
                             {
                                 Debug.WriteLine($"DevicesRawInput: HID Value - UsagePage: 0x{valueCap.UsagePage:X2}, Usage: 0x{usage:X2}, " +
-                                    $"LinkUsage: 0x{linkUsage:X2}, LinkUsagePage: 0x{linkUsagePage:X2}, ReportCount: {valueCap.ReportCount}");
+                                    $"LinkUsage: 0x{linkUsage:X2}, LinkUsagePage: 0x{linkUsagePage:X2}, ReportCount: {valueCap.ReportCount}, " +
+                                    $"BitSize: {valueCap.BitSize}, LogicalMin: {valueCap.LogicalMin}, LogicalMax: {valueCap.LogicalMax}");
                             }
                             
                             // Special handling for devices with invalid UsagePage (0x00) but valid LinkUsage
@@ -860,54 +858,69 @@ namespace x360ce.App.Input.Devices
                             if (valueCap.UsagePage == 0x00 && linkUsage >= 0x30 && linkUsage <= 0x39 &&
                                 (linkUsagePage == HID_USAGE_PAGE_GENERIC || linkUsagePage == linkUsage))
                             {
-                                Debug.WriteLine($"DevicesRawInput: Found control with invalid UsagePage but valid LinkUsage: 0x{linkUsage:X2}");
+                                Debug.WriteLine($"DevicesRawInput: Found control with invalid UsagePage but valid LinkUsage: 0x{linkUsage:X2}, ReportCount: {valueCap.ReportCount}");
+                                
+                                int physicalCount = Math.Max(1, (int)valueCap.ReportCount);
                                 
                                 // Standard axes: X(0x30), Y(0x31), Z(0x32), Rx(0x33), Ry(0x34), Rz(0x35)
                                 if (linkUsage >= 0x30 && linkUsage <= 0x35)
                                 {
-                                    axeCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 axis at LinkUsage 0x{linkUsage:X2}");
+                                    axeCount += physicalCount;
+                                    Debug.WriteLine($"DevicesRawInput: Found {physicalCount} axis/axes at LinkUsage 0x{linkUsage:X2}");
                                 }
                                 // Sliders: Slider(0x36), Dial(0x37), Wheel(0x38)
                                 else if (linkUsage >= 0x36 && linkUsage <= 0x38)
                                 {
-                                    sliderCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 slider at LinkUsage 0x{linkUsage:X2}");
+                                    sliderCount += physicalCount;
+                                    Debug.WriteLine($"DevicesRawInput: Found {physicalCount} slider(s) at LinkUsage 0x{linkUsage:X2}");
                                 }
                                 // POV Hat Switch (0x39)
                                 else if (linkUsage == 0x39)
                                 {
-                                    povCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 POV at LinkUsage 0x{linkUsage:X2}");
+                                    povCount += physicalCount;
+                                    Debug.WriteLine($"DevicesRawInput: Found {physicalCount} POV(s) at LinkUsage 0x{linkUsage:X2}");
                                 }
                                 continue; // Skip normal processing since we handled it
                             }
                             
-                            // Also check for Pointer collections that might contain nested axes
-                            if (valueCap.UsagePage == HID_USAGE_PAGE_GENERIC && usage == 0x01 &&
-                                linkUsagePage == HID_USAGE_PAGE_GENERIC && linkUsage >= 0x30 && linkUsage <= 0x39)
+                            // Check for Pointer (0x01) usage - this is a collection that may contain multiple axes
+                            // Xbox One controllers report Pointer with ReportCount indicating total axis count
+                            if (valueCap.UsagePage == HID_USAGE_PAGE_GENERIC && usage == 0x01)
                             {
-                                Debug.WriteLine($"DevicesRawInput: Found nested control in Pointer collection - LinkUsage: 0x{linkUsage:X2}");
-                                
-                                // Standard axes: X(0x30), Y(0x31), Z(0x32), Rx(0x33), Ry(0x34), Rz(0x35)
-                                if (linkUsage >= 0x30 && linkUsage <= 0x35)
+                                // Check if this Pointer has nested axes via LinkUsage
+                                if (linkUsagePage == HID_USAGE_PAGE_GENERIC && linkUsage >= 0x30 && linkUsage <= 0x39)
                                 {
-                                    axeCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 axis (nested) at LinkUsage 0x{linkUsage:X2}");
+                                    Debug.WriteLine($"DevicesRawInput: Found nested control in Pointer collection - LinkUsage: 0x{linkUsage:X2}, ReportCount: {valueCap.ReportCount}");
+                                    
+                                    int physicalCount = Math.Max(1, (int)valueCap.ReportCount);
+                                    
+                                    // Standard axes: X(0x30), Y(0x31), Z(0x32), Rx(0x33), Ry(0x34), Rz(0x35)
+                                    if (linkUsage >= 0x30 && linkUsage <= 0x35)
+                                    {
+                                        axeCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} axis/axes (nested) at LinkUsage 0x{linkUsage:X2}");
+                                    }
+                                    // Sliders: Slider(0x36), Dial(0x37), Wheel(0x38)
+                                    else if (linkUsage >= 0x36 && linkUsage <= 0x38)
+                                    {
+                                        sliderCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} slider(s) (nested) at LinkUsage 0x{linkUsage:X2}");
+                                    }
+                                    // POV Hat Switch (0x39)
+                                    else if (linkUsage == 0x39)
+                                    {
+                                        povCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} POV(s) (nested) at LinkUsage 0x{linkUsage:X2}");
+                                    }
+                                    continue; // Skip normal processing for Pointer collections
                                 }
-                                // Sliders: Slider(0x36), Dial(0x37), Wheel(0x38)
-                                else if (linkUsage >= 0x36 && linkUsage <= 0x38)
+                                else
                                 {
-                                    sliderCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 slider (nested) at LinkUsage 0x{linkUsage:X2}");
+                                    // Pointer without specific LinkUsage - might indicate a collection of multiple axes
+                                    // For Xbox One controllers, the Pointer itself might represent multiple axes
+                                    // We'll handle this in the normal processing below, but log it for debugging
+                                    Debug.WriteLine($"DevicesRawInput: Found Pointer collection without specific LinkUsage - ReportCount: {valueCap.ReportCount}, LinkUsage: 0x{linkUsage:X2}, LinkUsagePage: 0x{linkUsagePage:X2}");
                                 }
-                                // POV Hat Switch (0x39)
-                                else if (linkUsage == 0x39)
-                                {
-                                    povCount++;
-                                    Debug.WriteLine($"DevicesRawInput: Found 1 POV (nested) at LinkUsage 0x{linkUsage:X2}");
-                                }
-                                continue; // Skip normal processing for Pointer collections
                             }
                             
                             // Check usage page and usage to determine if it's an axis or POV
@@ -918,18 +931,22 @@ namespace x360ce.App.Input.Devices
                                 {
                                     if (valueCap.IsRange)
                                     {
-                                        int count = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
-                                        // Count logical axes (for compatibility with existing code)
-                                        axeCount += count;
-                                        Debug.WriteLine($"DevicesRawInput: Found {count} logical axes in range 0x{usage:X2}-0x{usageMax:X2}, " +
-                                            $"BitSize: {valueCap.BitSize}, ReportCount: {valueCap.ReportCount}");
+                                        int usageCount = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                        // Multiply by ReportCount to get actual physical axis count
+                                        // ReportCount indicates how many values are reported for each usage
+                                        int physicalCount = usageCount * Math.Max(1, (int)valueCap.ReportCount);
+                                        axeCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} physical axes ({usageCount} usages × {valueCap.ReportCount} reports) " +
+                                            $"in range 0x{usage:X2}-0x{usageMax:X2}, BitSize: {valueCap.BitSize}");
                                     }
                                     else
                                     {
-                                        // Count logical axes (for compatibility with existing code)
-                                        axeCount++;
-                                        Debug.WriteLine($"DevicesRawInput: Found 1 logical axis at usage 0x{usage:X2}, " +
-                                            $"BitSize: {valueCap.BitSize}, ReportCount: {valueCap.ReportCount}");
+                                        // ReportCount indicates how many physical values are reported for this single usage
+                                        // For example, a Pointer collection might report 6 axis values with ReportCount=6
+                                        int physicalCount = Math.Max(1, (int)valueCap.ReportCount);
+                                        axeCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} physical axis/axes at usage 0x{usage:X2} " +
+                                            $"(ReportCount: {valueCap.ReportCount}), BitSize: {valueCap.BitSize}");
                                     }
                                 }
                                 // Sliders: Slider(0x36), Dial(0x37), Wheel(0x38)
@@ -937,14 +954,17 @@ namespace x360ce.App.Input.Devices
                                 {
                                     if (valueCap.IsRange)
                                     {
-                                        int count = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
-                                        sliderCount += count;
-                                        Debug.WriteLine($"DevicesRawInput: Found {count} sliders in range 0x{usage:X2}-0x{usageMax:X2}");
+                                        int usageCount = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                        int physicalCount = usageCount * Math.Max(1, (int)valueCap.ReportCount);
+                                        sliderCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} sliders ({usageCount} usages × {valueCap.ReportCount} reports) " +
+                                            $"in range 0x{usage:X2}-0x{usageMax:X2}");
                                     }
                                     else
                                     {
-                                        sliderCount++;
-                                        Debug.WriteLine($"DevicesRawInput: Found 1 slider at usage 0x{usage:X2}");
+                                        int physicalCount = Math.Max(1, (int)valueCap.ReportCount);
+                                        sliderCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} slider(s) at usage 0x{usage:X2} (ReportCount: {valueCap.ReportCount})");
                                     }
                                 }
                                 // POV Hat Switch (0x39)
@@ -952,14 +972,17 @@ namespace x360ce.App.Input.Devices
                                 {
                                     if (valueCap.IsRange)
                                     {
-                                        int count = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
-                                        povCount += count;
-                                        Debug.WriteLine($"DevicesRawInput: Found {count} POVs in range 0x{usage:X2}-0x{usageMax:X2}");
+                                        int usageCount = (valueCap.Range.UsageMax - valueCap.Range.UsageMin + 1);
+                                        int physicalCount = usageCount * Math.Max(1, (int)valueCap.ReportCount);
+                                        povCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} POVs ({usageCount} usages × {valueCap.ReportCount} reports) " +
+                                            $"in range 0x{usage:X2}-0x{usageMax:X2}");
                                     }
                                     else
                                     {
-                                        povCount++;
-                                        Debug.WriteLine($"DevicesRawInput: Found 1 POV at usage 0x{usage:X2}");
+                                        int physicalCount = Math.Max(1, (int)valueCap.ReportCount);
+                                        povCount += physicalCount;
+                                        Debug.WriteLine($"DevicesRawInput: Found {physicalCount} POV(s) at usage 0x{usage:X2} (ReportCount: {valueCap.ReportCount})");
                                     }
                                 }
                             }
@@ -1117,6 +1140,37 @@ namespace x360ce.App.Input.Devices
                     }
                 }
                 
+                // If we got very few axes from HID parsing (less than expected for a gamepad),
+                // try to analyze the actual input report structure to get accurate counts
+                if (axeCount < 4 && caps.InputReportByteLength > 0)
+                {
+                    Debug.WriteLine($"DevicesRawInput: Low axis count ({axeCount}), attempting to analyze input report structure...");
+                    
+                    // Try to get more accurate counts by analyzing what values we can actually read
+                    int reportAxes = 0, reportButtons = 0, reportPovs = 0;
+                    if (AnalyzeInputReportStructure(preparsedData, caps, out reportAxes, out reportButtons, out reportPovs))
+                    {
+                        Debug.WriteLine($"DevicesRawInput: Input report analysis found - Axes: {reportAxes}, Buttons: {reportButtons}, POVs: {reportPovs}");
+                        
+                        // Use the higher count (report analysis is usually more accurate for complex devices)
+                        if (reportAxes > axeCount)
+                        {
+                            Debug.WriteLine($"DevicesRawInput: Using report-analyzed axis count ({reportAxes}) instead of HID-parsed count ({axeCount})");
+                            axeCount = reportAxes;
+                        }
+                        if (reportButtons > buttonCount)
+                        {
+                            Debug.WriteLine($"DevicesRawInput: Using report-analyzed button count ({reportButtons}) instead of HID-parsed count ({buttonCount})");
+                            buttonCount = reportButtons;
+                        }
+                        if (reportPovs > povCount)
+                        {
+                            Debug.WriteLine($"DevicesRawInput: Using report-analyzed POV count ({reportPovs}) instead of HID-parsed count ({povCount})");
+                            povCount = reportPovs;
+                        }
+                    }
+                }
+                
                 Debug.WriteLine($"DevicesRawInput: Parsed HID capabilities for device 0x{hDevice.ToInt64():X8} - " +
                     $"Axes: {axeCount}, Sliders: {sliderCount}, Buttons: {buttonCount}, POVs: {povCount}, " +
                     $"Throttles: {throttleCount}, Brakes: {brakeCount}, Steering: {steeringCount}, " +
@@ -1135,6 +1189,106 @@ namespace x360ce.App.Input.Devices
                 {
                     Marshal.FreeHGlobal(preparsedData);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Analyzes the input report structure to determine actual axis, button, and POV counts.
+        /// This method attempts to read all possible axis and button values from the HID report
+        /// to get accurate counts, especially for devices with complex reporting structures.
+        /// </summary>
+        /// <param name="preparsedData">HID preparsed data</param>
+        /// <param name="caps">HID capabilities</param>
+        /// <param name="axeCount">Output: number of axes found</param>
+        /// <param name="buttonCount">Output: number of buttons found</param>
+        /// <param name="povCount">Output: number of POVs found</param>
+        /// <returns>True if analysis was successful</returns>
+        private bool AnalyzeInputReportStructure(IntPtr preparsedData, HIDP_CAPS caps,
+            out int axeCount, out int buttonCount, out int povCount)
+        {
+            axeCount = 0;
+            buttonCount = 0;
+            povCount = 0;
+            
+            try
+            {
+                // Try to read all possible axis usages (X, Y, Z, Rx, Ry, Rz, Slider, Dial, Wheel, POV)
+                ushort[] axisUsages = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38 };
+                ushort povUsage = 0x39;
+                
+                // Create a dummy input report buffer
+                byte[] reportBuffer = new byte[caps.InputReportByteLength];
+                
+                // Try to get value for each possible axis usage
+                foreach (var usage in axisUsages)
+                {
+                    IntPtr reportPtr = Marshal.AllocHGlobal(reportBuffer.Length);
+                    try
+                    {
+                        Marshal.Copy(reportBuffer, 0, reportPtr, reportBuffer.Length);
+                        
+                        // Try to get the usage value - if it succeeds, the axis exists
+                        int value;
+                        int status = HidP_GetUsageValue(
+                            HIDP_REPORT_TYPE.HidP_Input,
+                            HID_USAGE_PAGE_GENERIC,
+                            0, // LinkCollection
+                            usage,
+                            out value,
+                            preparsedData,
+                            reportPtr,
+                            (uint)reportBuffer.Length);
+                        
+                        if (status == HIDP_STATUS_SUCCESS)
+                        {
+                            axeCount++;
+                            Debug.WriteLine($"DevicesRawInput: Found axis at usage 0x{usage:X2} via report analysis");
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(reportPtr);
+                    }
+                }
+                
+                // Check for POV
+                IntPtr povReportPtr = Marshal.AllocHGlobal(reportBuffer.Length);
+                try
+                {
+                    Marshal.Copy(reportBuffer, 0, povReportPtr, reportBuffer.Length);
+                    
+                    int povValue;
+                    int status = HidP_GetUsageValue(
+                        HIDP_REPORT_TYPE.HidP_Input,
+                        HID_USAGE_PAGE_GENERIC,
+                        0,
+                        povUsage,
+                        out povValue,
+                        preparsedData,
+                        povReportPtr,
+                        (uint)reportBuffer.Length);
+                    
+                    if (status == HIDP_STATUS_SUCCESS)
+                    {
+                        povCount = 1;
+                        Debug.WriteLine($"DevicesRawInput: Found POV at usage 0x{povUsage:X2} via report analysis");
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(povReportPtr);
+                }
+                
+                // For buttons, use the button caps we already have
+                // The button count from HID parsing is usually accurate
+                buttonCount = 0; // Will be filled by caller if needed
+                
+                return axeCount > 0 || povCount > 0;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"DevicesRawInput: Error analyzing input report structure: {ex.Message}");
+                return false;
             }
         }
 
@@ -1520,23 +1674,10 @@ namespace x360ce.App.Input.Devices
             if (string.IsNullOrEmpty(interfacePath))
                 return "";
 
-            try
-            {
-                // Extract the device ID portion from paths like:
-                // \\?\hid#vid_045e&pid_028e&mi_00#7&1234abcd&0&0000#{...}
-                var parts = interfacePath.Split('#');
-                if (parts.Length >= 2)
-                {
-                    // Return the hardware ID part (e.g., "vid_045e&pid_028e&mi_00")
-                    return parts[1];
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DevicesRawInput: Error extracting device ID from path '{interfacePath}': {ex.Message}");
-            }
-
-            return interfacePath; // Return full path as fallback
+            // Extract the device ID portion from paths like:
+            // \\?\hid#vid_045e&pid_028e&mi_00#7&1234abcd&0&0000#{...}
+            var parts = interfacePath.Split('#');
+            return parts.Length >= 2 ? parts[1] : interfacePath;
         }
 
         /// <summary>
@@ -1549,21 +1690,13 @@ namespace x360ce.App.Input.Devices
             if (string.IsNullOrEmpty(interfacePath))
                 return "Unknown Device";
 
-            try
+            // Try to extract meaningful name from path
+            var parts = interfacePath.Split('#');
+            if (parts.Length >= 2)
             {
-                // Try to extract meaningful name from path
-                var parts = interfacePath.Split('#');
-                if (parts.Length >= 2)
-                {
-                    var devicePart = parts[1];
-                    // Remove VID/PID and return a cleaner name
-                    var cleanName = devicePart.Replace("vid_", "VID_").Replace("pid_", "PID_").Replace("&", " ");
-                    return cleanName;
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DevicesRawInput: Error extracting device name from path '{interfacePath}': {ex.Message}");
+                var devicePart = parts[1];
+                // Remove VID/PID and return a cleaner name
+                return devicePart.Replace("vid_", "VID_").Replace("pid_", "PID_").Replace("&", " ");
             }
 
             return "RawInput Device";
@@ -1577,17 +1710,12 @@ namespace x360ce.App.Input.Devices
         /// <returns>Unique instance GUID</returns>
         private Guid GenerateInstanceGuid(IntPtr hDevice, string deviceName)
         {
-            try
+            // Create a deterministic GUID based on device handle and name
+            var input = $"RawInput_{hDevice.ToInt64():X16}_{deviceName}";
+            using (var md5 = System.Security.Cryptography.MD5.Create())
             {
-                // Create a deterministic GUID based on device handle and name
-                var input = $"RawInput_{hDevice.ToInt64():X16}_{deviceName}";
-                var hash = System.Security.Cryptography.MD5.Create().ComputeHash(Encoding.UTF8.GetBytes(input));
+                var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
                 return new Guid(hash);
-            }
-            catch
-            {
-                // Fallback to random GUID
-                return Guid.NewGuid();
             }
         }
 
@@ -1599,30 +1727,22 @@ namespace x360ce.App.Input.Devices
         /// <returns>Product GUID</returns>
         private Guid GenerateProductGuid(int vendorId, int productId)
         {
-            try
-            {
-                // Create a deterministic GUID based on VID/PID
-                var guidBytes = new byte[16];
-                var vidBytes = BitConverter.GetBytes(vendorId);
-                var pidBytes = BitConverter.GetBytes(productId);
-                
-                // Fill GUID with VID/PID pattern
-                Array.Copy(vidBytes, 0, guidBytes, 0, 4);
-                Array.Copy(pidBytes, 0, guidBytes, 4, 4);
-                
-                // Add RawInput identifier
-                guidBytes[8] = 0x52; // 'R'
-                guidBytes[9] = 0x41; // 'A'
-                guidBytes[10] = 0x57; // 'W'
-                guidBytes[11] = 0x49; // 'I'
-                
-                return new Guid(guidBytes);
-            }
-            catch
-            {
-                // Fallback to random GUID
-                return Guid.NewGuid();
-            }
+            // Create a deterministic GUID based on VID/PID
+            var guidBytes = new byte[16];
+            var vidBytes = BitConverter.GetBytes(vendorId);
+            var pidBytes = BitConverter.GetBytes(productId);
+            
+            // Fill GUID with VID/PID pattern
+            Array.Copy(vidBytes, 0, guidBytes, 0, 4);
+            Array.Copy(pidBytes, 0, guidBytes, 4, 4);
+            
+            // Add RawInput identifier
+            guidBytes[8] = 0x52; // 'R'
+            guidBytes[9] = 0x41; // 'A'
+            guidBytes[10] = 0x57; // 'W'
+            guidBytes[11] = 0x49; // 'I'
+            
+            return new Guid(guidBytes);
         }
         
         /// <summary>
@@ -1631,55 +1751,43 @@ namespace x360ce.App.Input.Devices
         /// <param name="deviceInfo">Device information to process</param>
         private void GenerateCommonIdentifier(RawInputDeviceInfo deviceInfo)
         {
-            try
+            var vid = deviceInfo.VendorId > 0 ? $"{deviceInfo.VendorId:X4}" : "0000";
+            var pid = deviceInfo.ProductId > 0 ? $"{deviceInfo.ProductId:X4}" : "0000";
+            
+            var commonId = $"VID_{vid}&PID_{pid}";
+            
+            // Try to extract MI and COL from InterfacePath if available
+            if (!string.IsNullOrEmpty(deviceInfo.InterfacePath))
             {
-                var vid = deviceInfo.VendorId > 0 ? $"{deviceInfo.VendorId:X4}" : "0000";
-                var pid = deviceInfo.ProductId > 0 ? $"{deviceInfo.ProductId:X4}" : "0000";
+                var upperPath = deviceInfo.InterfacePath.ToUpperInvariant();
                 
-                var commonId = $"VID_{vid}&PID_{pid}";
-                
-                // Try to extract MI and COL from InterfacePath if available
-                if (!string.IsNullOrEmpty(deviceInfo.InterfacePath))
+                // Extract MI
+                var miIndex = upperPath.IndexOf("&MI_");
+                if (miIndex < 0) miIndex = upperPath.IndexOf("\\MI_");
+                if (miIndex >= 0 && miIndex + 6 <= upperPath.Length)
                 {
-                    var upperPath = deviceInfo.InterfacePath.ToUpperInvariant();
-                    
-                    // Extract MI
-                    var miIndex = upperPath.IndexOf("&MI_");
-                    if (miIndex < 0) miIndex = upperPath.IndexOf("\\MI_");
-                    if (miIndex >= 0)
-                    {
-                        var miStart = miIndex + 4;
-                        if (miStart + 2 <= upperPath.Length)
-                        {
-                            var mi = upperPath.Substring(miStart, 2);
-                            if (mi != "00") commonId += $"&MI_{mi}";
-                        }
-                    }
-                    
-                    // Extract COL
-                    var colIndex = upperPath.IndexOf("&COL");
-                    if (colIndex < 0) colIndex = upperPath.IndexOf("\\COL");
-                    if (colIndex >= 0)
-                    {
-                        var colStart = colIndex + 4;
-                        var colEnd = colStart;
-                        while (colEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[colEnd]))
-                            colEnd++;
-                        if (colEnd > colStart)
-                        {
-                            var col = upperPath.Substring(colStart, colEnd - colStart);
-                            commonId += $"&COL_{col}";
-                        }
-                    }
+                    var mi = upperPath.Substring(miIndex + 4, 2);
+                    if (mi != "00") commonId += $"&MI_{mi}";
                 }
                 
-                deviceInfo.CommonIdentifier = commonId;
+                // Extract COL
+                var colIndex = upperPath.IndexOf("&COL");
+                if (colIndex < 0) colIndex = upperPath.IndexOf("\\COL");
+                if (colIndex >= 0)
+                {
+                    var colStart = colIndex + 4;
+                    var colEnd = colStart;
+                    while (colEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[colEnd]))
+                        colEnd++;
+                    if (colEnd > colStart)
+                    {
+                        var col = upperPath.Substring(colStart, colEnd - colStart);
+                        commonId += $"&COL_{col}";
+                    }
+                }
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DevicesRawInput: Error generating CommonIdentifier: {ex.Message}");
-                deviceInfo.CommonIdentifier = "VID_0000&PID_0000";
-            }
+            
+            deviceInfo.CommonIdentifier = commonId;
         }
 
         /// <summary>

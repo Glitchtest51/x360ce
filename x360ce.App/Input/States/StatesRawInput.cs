@@ -175,47 +175,43 @@ namespace x360ce.App.Input.States
 		/// </summary>
 		private void ProcessRawInputMessage(IntPtr lParam)
 		{
+			uint dwSize = 0;
+			GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, (uint)s_rawinputHeaderSize);
+
+			if (dwSize == 0)
+				return;
+
+			IntPtr buffer = Marshal.AllocHGlobal((int)dwSize);
 			try
 			{
-				uint dwSize = 0;
-				GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, (uint)s_rawinputHeaderSize);
-
-				if (dwSize == 0)
+				uint result = GetRawInputData(lParam, RID_INPUT, buffer, ref dwSize, (uint)s_rawinputHeaderSize);
+				if (result != dwSize)
 					return;
 
-				IntPtr buffer = Marshal.AllocHGlobal((int)dwSize);
-				try
+				var rawInput = Marshal.PtrToStructure<RAWINPUT>(buffer);
+				if (rawInput.header.dwType != RIM_TYPEHID)
+					return;
+
+				// Extract HID report data
+				int reportSize = (int)rawInput.hid.dwSizeHid;
+				if (reportSize <= 0)
+					return;
+
+				byte[] report = new byte[reportSize];
+				
+				// Copy report data from buffer
+				IntPtr reportPtr = IntPtr.Add(buffer, s_rawinputHeaderSize + RAWHID_DATA_OFFSET);
+				Marshal.Copy(reportPtr, report, 0, reportSize);
+
+				// Cache the report by device handle
+				if (_handleToPath.TryGetValue(rawInput.header.hDevice, out string path))
 				{
-					uint result = GetRawInputData(lParam, RID_INPUT, buffer, ref dwSize, (uint)s_rawinputHeaderSize);
-					if (result != dwSize)
-						return;
-
-					var rawInput = Marshal.PtrToStructure<RAWINPUT>(buffer);
-					if (rawInput.header.dwType != RIM_TYPEHID)
-						return;
-
-					// Extract HID report data
-					int reportSize = (int)rawInput.hid.dwSizeHid;
-					byte[] report = new byte[reportSize];
-					
-					// Copy report data from buffer
-					IntPtr reportPtr = IntPtr.Add(buffer, s_rawinputHeaderSize + RAWHID_DATA_OFFSET);
-					Marshal.Copy(reportPtr, report, 0, reportSize);
-
-					// Cache the report by device handle
-					if (_handleToPath.TryGetValue(rawInput.header.hDevice, out string path))
-					{
-						_cachedStates[path] = report;
-					}
-				}
-				finally
-				{
-					Marshal.FreeHGlobal(buffer);
+					_cachedStates[path] = report;
 				}
 			}
-			catch
+			finally
 			{
-				// Silently ignore errors in message processing
+				Marshal.FreeHGlobal(buffer);
 			}
 		}
 
@@ -224,7 +220,7 @@ namespace x360ce.App.Input.States
 		/// </summary>
 		public byte[] GetRawInputDeviceState(RawInputDeviceInfo deviceInfo)
 		{
-			if (deviceInfo == null || string.IsNullOrEmpty(deviceInfo.InterfacePath))
+			if (deviceInfo?.InterfacePath == null)
 				return null;
 
 			// Register device handle to path mapping (single lookup optimization)
@@ -243,7 +239,7 @@ namespace x360ce.App.Input.States
 		/// </summary>
 		public byte[] GetAndClearRawInputDeviceState(RawInputDeviceInfo deviceInfo)
 		{
-			if (deviceInfo == null || string.IsNullOrEmpty(deviceInfo.InterfacePath))
+			if (deviceInfo?.InterfacePath == null)
 				return null;
 
 			// Register device handle to path mapping (single lookup optimization)
@@ -265,10 +261,8 @@ namespace x360ce.App.Input.States
 		/// </summary>
 		public byte[] GetRawInputState(string interfacePath)
 		{
-			if (string.IsNullOrEmpty(interfacePath))
-				return null;
-
-			return _cachedStates.TryGetValue(interfacePath, out byte[] cachedState) ? cachedState : null;
+			return string.IsNullOrEmpty(interfacePath) ? null :
+				(_cachedStates.TryGetValue(interfacePath, out byte[] cachedState) ? cachedState : null);
 		}
 
 		public void Dispose()
