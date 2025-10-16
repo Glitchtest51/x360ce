@@ -50,11 +50,11 @@ namespace x360ce.App.Input.States
 				// Skip invalid devices
 				if (riDevice?.InterfacePath == null)
 					continue;
-
+	
 				// Fast lookup - single dictionary access
 				if (!_deviceMapping.TryGetValue(riDevice.InterfacePath, out var allDevice))
 					continue;
-
+	
 				// Get cached state from WM_INPUT messages (non-blocking)
 				var report = _statesRawInput.GetRawInputDeviceState(riDevice);
 				
@@ -63,7 +63,9 @@ namespace x360ce.App.Input.States
 				_rawInputDeviceInfo?.TryGetValue(riDevice.InterfacePath, out deviceInfo);
 				
 				// Update button state: explicitly set true if button pressed, false otherwise
-				allDevice.ButtonPressed = report != null && HasButtonPressed(report, deviceInfo);
+				bool buttonPressed = report != null && HasButtonPressed(report, deviceInfo);
+				
+				allDevice.ButtonPressed = buttonPressed;
 			}
 		}
 
@@ -171,10 +173,7 @@ namespace x360ce.App.Input.States
 				// Check all button bits in first byte (bits 0-7)
 				// Common buttons: 0x01 (left), 0x02 (right), 0x04 (middle), 0x08 (button4), 0x10 (button5)
 				// Some mice may use additional bits for extra buttons
-				if (report[0] != 0)
-					return true;
-				
-				return false;
+				return report[0] != 0;
 			}
 			else // RawInputDeviceType.HID (gamepads, joysticks, etc.)
 			{
