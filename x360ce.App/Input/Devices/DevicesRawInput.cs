@@ -595,18 +595,14 @@ namespace x360ce.App.Input.Devices
         /// </summary>
         private void LogEmptyResult(List<string> debugLines, uint errorCode)
         {
-            if (errorCode != 0)
-            {
-                Debug.WriteLine($"DevicesRawInput: Failed to enumerate devices. Error: {errorCode}");
-                debugLines.Add($"DevicesRawInput: Failed to enumerate devices. Error: {errorCode}");
-            }
-            else
-            {
-                Debug.WriteLine("DevicesRawInput: No RawInput devices found");
-                debugLines.Add("DevicesRawInput: No RawInput devices found");
-            }
-            debugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
-            foreach (var debugLine in debugLines) { Debug.WriteLine(debugLine); }
+        	string message = errorCode != 0
+        		? $"DevicesRawInput: Failed to enumerate devices. Error: {errorCode}"
+        		: "DevicesRawInput: No RawInput devices found";
+        	
+        	Debug.WriteLine(message);
+        	debugLines.Add(message);
+        	debugLines.Add("\nDevicesRawInput: RawInput devices found: 0, HID: 0, Keyboards: 0, Mice: 0, Offline/Failed: 0\n");
+        	foreach (var debugLine in debugLines) { Debug.WriteLine(debugLine); }
         }
 
         /// <summary>
@@ -1425,66 +1421,66 @@ namespace x360ce.App.Input.Devices
         /// <returns>Tuple containing VID and PID values</returns>
         private (int vid, int pid) ExtractVidPidFromPath(string interfacePath)
         {
-            if (string.IsNullOrEmpty(interfacePath))
-                return (0, 0);
-
-            try
-            {
-                Debug.WriteLine($"DevicesRawInput: ExtractVidPidFromPath called with: {interfacePath}");
-                
-                // Common patterns in interface paths:
-                // Standard format: \\?\hid#vid_045e&pid_028e#...
-                // Alternate format: {GUID}_VID&00020111_PID&1431&Col02
-                // Fallback format with VEN/DEV: \\?\HID#VEN_INT&DEV_33D2&Col01#...
-                // Composite format: \\?\HID#INT33D2&Col01#... (vendor+device without prefix)
-                var upperPath = interfacePath.ToUpperInvariant();
-
-                // Try standard format first: VID_XXXX
-                var vidIndex = upperPath.IndexOf("VID_");
-                var pidIndex = upperPath.IndexOf("PID_");
-
-                if (vidIndex >= 0 && pidIndex >= 0)
-                {
-                    var vidStart = vidIndex + 4;
-                    var pidStart = pidIndex + 4;
-
-                    // Extract 4-character hex values
-                    if (vidStart + 4 <= interfacePath.Length && pidStart + 4 <= interfacePath.Length)
-                    {
-                        var vidStr = interfacePath.Substring(vidStart, 4);
-                        var pidStr = interfacePath.Substring(pidStart, 4);
-
-                        if (int.TryParse(vidStr, System.Globalization.NumberStyles.HexNumber, null, out int vid) &&
-                            int.TryParse(pidStr, System.Globalization.NumberStyles.HexNumber, null, out int pid))
-                        {
-                            return (vid, pid);
-                        }
-                    }
-                }
+        	if (string.IsNullOrEmpty(interfacePath))
+        		return (0, 0);
+      
+        	try
+        	{
+        		Debug.WriteLine($"DevicesRawInput: ExtractVidPidFromPath called with: {interfacePath}");
+        		
+        		// Common patterns in interface paths:
+        		// Standard format: \\?\hid#vid_045e&pid_028e#...
+        		// Alternate format: {GUID}_VID&00020111_PID&1431&Col02
+        		// Fallback format with VEN/DEV: \\?\HID#VEN_INT&DEV_33D2&Col01#...
+        		// Composite format: \\?\HID#INT33D2&Col01#... (vendor+device without prefix)
+        		var upperPath = interfacePath.ToUpperInvariant();
+      
+        		// Try standard format first: VID_XXXX
+        		int vidIndex = upperPath.IndexOf("VID_", StringComparison.Ordinal);
+        		int pidIndex = upperPath.IndexOf("PID_", StringComparison.Ordinal);
+      
+        		if (vidIndex >= 0 && pidIndex >= 0)
+        		{
+        			int vidStart = vidIndex + 4;
+        			int pidStart = pidIndex + 4;
+      
+        			// Extract 4-character hex values
+        			if (vidStart + 4 <= upperPath.Length && pidStart + 4 <= upperPath.Length)
+        			{
+        				var vidStr = upperPath.Substring(vidStart, 4);
+        				var pidStr = upperPath.Substring(pidStart, 4);
+      
+        				if (int.TryParse(vidStr, System.Globalization.NumberStyles.HexNumber, null, out int vid) &&
+        					int.TryParse(pidStr, System.Globalization.NumberStyles.HexNumber, null, out int pid))
+        				{
+        					return (vid, pid);
+        				}
+        			}
+        		}
 
                 // Try alternate format: VID&XXXXXXXX_PID&XXXX
-                vidIndex = upperPath.IndexOf("VID&");
-                pidIndex = upperPath.IndexOf("_PID&");
+                vidIndex = upperPath.IndexOf("VID&", StringComparison.Ordinal);
+                pidIndex = upperPath.IndexOf("_PID&", StringComparison.Ordinal);
                 
                 if (vidIndex >= 0 && pidIndex >= 0)
                 {
-                    var vidStart = vidIndex + 4;
-                    var pidStart = pidIndex + 5; // Skip "_PID&"
-                    
-                    // Find the end of VID value (up to underscore or ampersand)
-                    var vidEnd = vidStart;
-                    while (vidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[vidEnd]))
-                        vidEnd++;
-                    
-                    // Find the end of PID value (up to ampersand, space, or other delimiter)
-                    var pidEnd = pidStart;
-                    while (pidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[pidEnd]))
-                        pidEnd++;
-                    
-                    if (vidEnd > vidStart && pidEnd > pidStart)
-                    {
-                        var vidStr = interfacePath.Substring(vidStart, vidEnd - vidStart);
-                        var pidStr = interfacePath.Substring(pidStart, pidEnd - pidStart);
+                	int vidStart = vidIndex + 4;
+                	int pidStart = pidIndex + 5; // Skip "_PID&"
+                	
+                	// Find the end of VID value (up to underscore or ampersand)
+                	int vidEnd = vidStart;
+                	while (vidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[vidEnd]))
+                		vidEnd++;
+                	
+                	// Find the end of PID value (up to ampersand, space, or other delimiter)
+                	int pidEnd = pidStart;
+                	while (pidEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[pidEnd]))
+                		pidEnd++;
+                	
+                	if (vidEnd > vidStart && pidEnd > pidStart)
+                	{
+                		var vidStr = upperPath.Substring(vidStart, vidEnd - vidStart);
+                		var pidStr = upperPath.Substring(pidStart, pidEnd - pidStart);
                         
                         // Handle variable-length hex strings (take last 4 characters for standard VID/PID)
                         if (vidStr.Length > 4)
@@ -1519,20 +1515,20 @@ namespace x360ce.App.Input.Devices
                 int deviceIdStart = -1;
                 
                 // Check for HID devices: look for "HID#" pattern
-                var hidIndex = upperPath.IndexOf("HID#");
+                int hidIndex = upperPath.IndexOf("HID#", StringComparison.Ordinal);
                 if (hidIndex >= 0)
                 {
-                    deviceIdStart = hidIndex + 4; // Skip "HID#"
+                	deviceIdStart = hidIndex + 4; // Skip "HID#"
                 }
                 
                 // Check for ACPI devices if HID not found: look for "ACPI#" pattern
                 if (deviceIdStart < 0)
                 {
-                    var acpiIndex = upperPath.IndexOf("ACPI#");
-                    if (acpiIndex >= 0)
-                    {
-                        deviceIdStart = acpiIndex + 5; // Skip "ACPI#"
-                    }
+                	int acpiIndex = upperPath.IndexOf("ACPI#", StringComparison.Ordinal);
+                	if (acpiIndex >= 0)
+                	{
+                		deviceIdStart = acpiIndex + 5; // Skip "ACPI#"
+                	}
                 }
                 
                 if (deviceIdStart >= 0)
@@ -1787,28 +1783,28 @@ namespace x360ce.App.Input.Devices
                 var upperPath = deviceInfo.InterfacePath.ToUpperInvariant();
                 
                 // Extract MI
-                var miIndex = upperPath.IndexOf("&MI_");
-                if (miIndex < 0) miIndex = upperPath.IndexOf("\\MI_");
+                int miIndex = upperPath.IndexOf("&MI_", StringComparison.Ordinal);
+                if (miIndex < 0) miIndex = upperPath.IndexOf("\\MI_", StringComparison.Ordinal);
                 if (miIndex >= 0 && miIndex + 6 <= upperPath.Length)
                 {
-                    var mi = upperPath.Substring(miIndex + 4, 2);
-                    if (mi != "00") commonId += $"&MI_{mi}";
+                	var mi = upperPath.Substring(miIndex + 4, 2);
+                	if (mi != "00") commonId += $"&MI_{mi}";
                 }
                 
                 // Extract COL
-                var colIndex = upperPath.IndexOf("&COL");
-                if (colIndex < 0) colIndex = upperPath.IndexOf("\\COL");
+                int colIndex = upperPath.IndexOf("&COL", StringComparison.Ordinal);
+                if (colIndex < 0) colIndex = upperPath.IndexOf("\\COL", StringComparison.Ordinal);
                 if (colIndex >= 0)
                 {
-                    var colStart = colIndex + 4;
-                    var colEnd = colStart;
-                    while (colEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[colEnd]))
-                        colEnd++;
-                    if (colEnd > colStart)
-                    {
-                        var col = upperPath.Substring(colStart, colEnd - colStart);
-                        commonId += $"&COL_{col}";
-                    }
+                	int colStart = colIndex + 4;
+                	int colEnd = colStart;
+                	while (colEnd < upperPath.Length && char.IsLetterOrDigit(upperPath[colEnd]))
+                		colEnd++;
+                	if (colEnd > colStart)
+                	{
+                		var col = upperPath.Substring(colStart, colEnd - colStart);
+                		commonId += $"&COL_{col}";
+                	}
                 }
             }
             
@@ -2095,69 +2091,57 @@ namespace x360ce.App.Input.Devices
         /// <returns>True if device is definitely not an input device</returns>
         private bool IsKnownNonInputDeviceByName(string deviceName)
         {
-            if (string.IsNullOrEmpty(deviceName))
-                return false;
-
-            var lowerName = deviceName.ToLowerInvariant();
-
-            // Comprehensive non-input device patterns organized by category
-            // Audio devices
-            if (lowerName.Contains("audio") || lowerName.Contains("sound") ||
-                lowerName.Contains("speaker") || lowerName.Contains("microphone") ||
-                lowerName.Contains("headphone") || lowerName.Contains("headset"))
-                return true;
-
-            // Storage devices
-            if (lowerName.Contains("storage") || lowerName.Contains("disk") ||
-                lowerName.Contains("drive") || lowerName.Contains("mass") ||
-                lowerName.Contains("flash") || lowerName.Contains("card reader"))
-                return true;
-
-            // Network devices
-            if (lowerName.Contains("network") || lowerName.Contains("ethernet") ||
-                lowerName.Contains("wifi") || lowerName.Contains("bluetooth\\radio") ||
-                lowerName.Contains("wireless adapter"))
-                return true;
-
-            // Video/imaging devices
-            if (lowerName.Contains("camera") || lowerName.Contains("webcam") ||
-                lowerName.Contains("video") || lowerName.Contains("capture") ||
-                lowerName.Contains("imaging"))
-                return true;
-
-            // Printing/scanning devices
-            if (lowerName.Contains("printer") || lowerName.Contains("scanner") ||
-                lowerName.Contains("fax"))
-                return true;
-
-            // Communication devices
-            if (lowerName.Contains("modem") || lowerName.Contains("serial") ||
-                lowerName.Contains("parallel"))
-                return true;
-
-            // System/infrastructure devices
-            if (lowerName.Contains("hub") || lowerName.Contains("root") ||
-                lowerName.Contains("composite\\interface") || lowerName.Contains("system") ||
-                lowerName.Contains("acpi") || lowerName.Contains("pci") ||
-                lowerName.Contains("processor") || lowerName.Contains("chipset"))
-                return true;
-
-            // Display/monitor devices
-            if (lowerName.Contains("monitor") || lowerName.Contains("display") ||
-                lowerName.Contains("screen"))
-                return true;
-
-            // Power/battery devices
-            if (lowerName.Contains("battery") || lowerName.Contains("power") ||
-                lowerName.Contains("ups"))
-                return true;
-
-            // Sensor devices (non-input)
-            if (lowerName.Contains("sensor") || lowerName.Contains("accelerometer") ||
-                lowerName.Contains("gyroscope") || lowerName.Contains("proximity"))
-                return true;
-
-            return false;
+        	if (string.IsNullOrEmpty(deviceName))
+        		return false;
+      
+        	// Use IndexOf with StringComparison.OrdinalIgnoreCase for better performance
+        	// than ToLowerInvariant() + Contains()
+        	return deviceName.IndexOf("audio", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("sound", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("speaker", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("microphone", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("headphone", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("headset", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("storage", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("disk", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("drive", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("mass", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("flash", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("card reader", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("network", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("ethernet", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("wifi", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("bluetooth\\radio", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("wireless adapter", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("camera", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("webcam", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("video", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("capture", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("imaging", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("printer", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("scanner", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("fax", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("modem", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("serial", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("parallel", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("hub", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("root", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("composite\\interface", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("system", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("acpi", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("pci", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("processor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("chipset", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("monitor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("display", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("screen", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("battery", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("power", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("ups", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("sensor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("accelerometer", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("gyroscope", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        		   deviceName.IndexOf("proximity", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>

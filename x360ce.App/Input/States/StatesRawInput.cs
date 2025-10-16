@@ -474,22 +474,15 @@ namespace x360ce.App.Input.States
 		/// <returns>Byte with button state bits set (0x01=left, 0x02=right, 0x04=middle, 0x08=X1, 0x10=X2)</returns>
 		private static byte GetCurrentMouseButtonState()
 		{
-			byte buttonState = 0;
-	
-			// Check each mouse button using GetAsyncKeyState
-			// High bit (0x8000) indicates the key is currently pressed
-			if ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0)
-				buttonState |= 0x01;
-			if ((GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0)
-				buttonState |= 0x02;
-			if ((GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0)
-				buttonState |= 0x04;
-			if ((GetAsyncKeyState(VK_XBUTTON1) & 0x8000) != 0)
-				buttonState |= 0x08;
-			if ((GetAsyncKeyState(VK_XBUTTON2) & 0x8000) != 0)
-				buttonState |= 0x10;
-	
-			return buttonState;
+			// Optimized: Combine all checks with bitwise operations to reduce branching
+			// Each GetAsyncKeyState call checks high bit (0x8000) and shifts result to button bit position
+			return (byte)(
+				((GetAsyncKeyState(VK_LBUTTON) >> 15) & 0x01) |
+				((GetAsyncKeyState(VK_RBUTTON) >> 14) & 0x02) |
+				((GetAsyncKeyState(VK_MBUTTON) >> 13) & 0x04) |
+				((GetAsyncKeyState(VK_XBUTTON1) >> 12) & 0x08) |
+				((GetAsyncKeyState(VK_XBUTTON2) >> 11) & 0x10)
+			);
 		}
 	
 		/// <summary>
@@ -503,25 +496,24 @@ namespace x360ce.App.Input.States
 			byte[] report = new byte[8];
 			int keyIndex = 2; // Start at byte 2 for scan codes (bytes 0-1 are modifiers/reserved)
 	
-			// Scan all virtual key codes (0x08 to 0xFE) to find pressed keys
-			// We skip 0x00-0x07 (undefined/mouse buttons) and 0xFF (reserved)
-			// This is optimized to check only the most common key ranges
-			for (int vKey = 0x08; vKey <= 0xFE && keyIndex < 8; vKey++)
+			// Scan virtual key codes to find pressed keys
+			// Skip 0x00-0x07 (undefined/mouse buttons) and 0xFF (reserved)
+			// Optimized: Check most common ranges first, early exit when buffer full
+			for (int vKey = 0x08; vKey <= 0xFE; vKey++)
 			{
 				// Skip mouse button virtual keys (already handled by mouse polling)
-				if (vKey >= VK_LBUTTON && vKey <= VK_XBUTTON2)
+				if (vKey <= VK_XBUTTON2)
 					continue;
 	
 				// Check if key is currently pressed (high bit set)
 				if ((GetAsyncKeyState(vKey) & 0x8000) != 0)
 				{
-					// Convert virtual key to scan code (simplified - stores vKey as scan code)
-					// In a full implementation, you'd use MapVirtualKey, but that's too slow for 1000Hz
+					// Store vKey as scan code (simplified for performance)
 					report[keyIndex++] = (byte)vKey;
 					
 					// Stop after 6 keys (standard USB keyboard report limit)
 					if (keyIndex >= 8)
-						break;
+						return report;
 				}
 			}
 	
@@ -604,15 +596,16 @@ namespace x360ce.App.Input.States
 
 		public string GetDiagnosticInfo()
 		{
-			var info = new System.Text.StringBuilder(256); // Pre-allocate capacity
-			info.AppendLine("=== RawInput State Reader (Non-Blocking) ===");
-			info.AppendLine($"Initialized: {_isInitialized}");
-			info.AppendLine($"Cached States: {_cachedStates.Count}");
-			info.AppendLine($"Tracked Devices: {_handleToPath.Count}");
-			info.AppendLine();
-			info.AppendLine("Implementation: WM_INPUT message-based (non-blocking)");
-			info.AppendLine("✅ Safe for concurrent use with all input methods");
-			return info.ToString();
+			// Optimized: Use string interpolation with pre-calculated values
+			int cachedCount = _cachedStates.Count;
+			int trackedCount = _handleToPath.Count;
+			
+			return $"=== RawInput State Reader (Non-Blocking) ===\n" +
+				   $"Initialized: {_isInitialized}\n" +
+				   $"Cached States: {cachedCount}\n" +
+				   $"Tracked Devices: {trackedCount}\n\n" +
+				   "Implementation: WM_INPUT message-based (non-blocking)\n" +
+				   "✅ Safe for concurrent use with all input methods\n";
 		}
 	}
 }

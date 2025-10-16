@@ -130,93 +130,59 @@ namespace x360ce.App.Input.States
 		/// </remarks>
 		private static bool HasButtonPressed(byte[] report, RawInputDeviceInfo deviceInfo)
 		{
-			// Validate minimum report size
-			if (report == null || report.Length < 1)
-				return false;
-			
-			// If no device info available, cannot reliably detect buttons
-			if (deviceInfo == null)
+			// Validate inputs
+			if (report == null || report.Length < 1 || deviceInfo == null)
 				return false;
 	
-			// Handle keyboard and mouse devices differently from HID gamepads
+			// Handle keyboard devices
 			if (deviceInfo.RawInputDeviceType == RawInputDeviceType.Keyboard)
 			{
-				// Keyboard RawInput reports structure:
-				// - Byte 0: Modifier keys (Ctrl, Shift, Alt, etc.) - bit flags
-				// - Byte 1: Reserved (usually 0)
-				// - Bytes 2-7: Up to 6 simultaneous key scan codes (0 = no key)
-				// A key is pressed if any scan code byte (2-7) is non-zero
-				// We ignore modifier-only presses (byte 0) to avoid false positives
-				
+				// Keyboard: Check scan code bytes (2-7), ignore modifiers (byte 0) and reserved (byte 1)
 				if (report.Length < 3)
-					return false; // Need at least bytes 0-2 for valid keyboard report
+					return false;
 				
-				// Check scan code bytes (skip byte 0 for modifiers, byte 1 is reserved)
-				for (int i = 2; i < report.Length && i < 8; i++)
+				// Optimized: Check up to 6 scan codes with single loop
+				int maxIndex = report.Length < 8 ? report.Length : 8;
+				for (int i = 2; i < maxIndex; i++)
 				{
 					if (report[i] != 0)
 						return true;
 				}
 				return false;
 			}
-			else if (deviceInfo.RawInputDeviceType == RawInputDeviceType.Mouse)
+			
+			// Handle mouse devices
+			if (deviceInfo.RawInputDeviceType == RawInputDeviceType.Mouse)
 			{
-				// Mouse RawInput reports structure:
-				// - Byte 0: Button flags (bit 0=left, bit 1=right, bit 2=middle, bit 3=button4, bit 4=button5)
-				// - Bytes 1-4: Movement data (X, Y deltas)
-				// - Bytes 5+: Wheel data (optional)
-				// We only check byte 0 for button states
-				
-				if (report.Length < 1)
-					return false;
-				
-				// Check all button bits in first byte (bits 0-7)
-				// Common buttons: 0x01 (left), 0x02 (right), 0x04 (middle), 0x08 (button4), 0x10 (button5)
-				// Some mice may use additional bits for extra buttons
+				// Mouse: Check button flags in first byte only
 				return report[0] != 0;
 			}
-			else // RawInputDeviceType.HID (gamepads, joysticks, etc.)
-			{
-				// Get button count and report layout information
-				int buttonCount = deviceInfo.ButtonCount;
-				int buttonDataOffset = deviceInfo.ButtonDataOffset;
-				
-				// If no buttons reported, device has no button capability
-				if (buttonCount <= 0)
-					return false;
-				
-				// Calculate button byte count from button count
-				// Each byte holds 8 buttons (bit-packed), so divide by 8 and round up
-				int buttonByteCount = (buttonCount + 7) / 8;
-				
-				// Validate minimum report size based on report layout
-				// Report must contain at least: offset + button bytes
-				int minReportSize = buttonDataOffset + buttonByteCount;
-				if (report.Length < minReportSize)
-					return false;
-	
-				// PRECISE BUTTON DETECTION with Report ID awareness:
-				// Button bytes start at ButtonDataOffset (0 if no Report ID, 1 if Report ID present)
-				// Each byte contains 8 button states as individual bits
-				
-				// Calculate the end index for button bytes (exclusive)
-				int buttonEndIndex = buttonDataOffset + buttonByteCount;
-				
-				// Ensure we don't read beyond the report buffer
-				if (buttonEndIndex > report.Length)
-					buttonEndIndex = report.Length;
-				
-				// Check ONLY the button bytes (from buttonDataOffset to buttonEndIndex-1)
-				// Any non-zero byte means at least one button is pressed
-				for (int i = buttonDataOffset; i < buttonEndIndex; i++)
-				{
-					if (report[i] != 0)
-						return true;
-				}
-				
-				// No buttons pressed
+			
+			// Handle HID devices (gamepads, joysticks)
+			int buttonCount = deviceInfo.ButtonCount;
+			if (buttonCount <= 0)
 				return false;
+			
+			int buttonDataOffset = deviceInfo.ButtonDataOffset;
+			int buttonByteCount = (buttonCount + 7) >> 3; // Optimized: bit shift instead of division
+			int minReportSize = buttonDataOffset + buttonByteCount;
+			
+			if (report.Length < minReportSize)
+				return false;
+			
+			// Calculate end index, clamped to report length
+			int buttonEndIndex = buttonDataOffset + buttonByteCount;
+			if (buttonEndIndex > report.Length)
+				buttonEndIndex = report.Length;
+			
+			// Check button bytes for any non-zero value
+			for (int i = buttonDataOffset; i < buttonEndIndex; i++)
+			{
+				if (report[i] != 0)
+					return true;
 			}
+			
+			return false;
 		}
 
 		/// <summary>
