@@ -15,7 +15,7 @@ namespace x360ce.App.Input.States
 		/// Returns the current state of a DirectInput device.
 		/// The device must be acquired before reading state.
 		/// </summary>
-		/// <param name="deviceInfo">DirectInputDeviceInfo containing the device to read</param>
+		/// <param name="diDeviceInfo">DirectInputDeviceInfo containing the device to read</param>
 		/// <returns>Device state object (JoystickState, KeyboardState, or MouseState) or null if failed</returns>
 		/// <remarks>
 		/// This method reads the current input state from a DirectInput device.
@@ -27,12 +27,12 @@ namespace x360ce.App.Input.States
 		/// The device must be acquired before reading. If acquisition fails,
 		/// this method will attempt to acquire it automatically.
 		/// </remarks>
-		public object GetDirectInputDeviceState(DirectInputDeviceInfo deviceInfo)
+		public object GetDirectInputDeviceState(DirectInputDeviceInfo diDeviceInfo)
 		{
-			if (deviceInfo?.DirectInputDevice == null)
+			if (diDeviceInfo?.DirectInputDevice == null)
 				return null;
 
-			var device = deviceInfo.DirectInputDevice;
+			var device = diDeviceInfo.DirectInputDevice;
 
 			try
 			{
@@ -67,12 +67,12 @@ namespace x360ce.App.Input.States
 			{
 				// Device may be unplugged or access lost
 				// Return null to indicate state unavailable
-				System.Diagnostics.Debug.WriteLine($"StatesDirectInput: Error reading state for {deviceInfo.InstanceName}: {ex.Message}");
+				System.Diagnostics.Debug.WriteLine($"StatesDirectInput: Error reading state for {diDeviceInfo.InstanceName}: {ex.Message}");
 				return null;
 			}
 			catch (Exception ex)
 			{
-				System.Diagnostics.Debug.WriteLine($"StatesDirectInput: Unexpected error reading state for {deviceInfo.InstanceName}: {ex.Message}");
+				System.Diagnostics.Debug.WriteLine($"StatesDirectInput: Unexpected error reading state for {diDeviceInfo.InstanceName}: {ex.Message}");
 				return null;
 			}
 		}

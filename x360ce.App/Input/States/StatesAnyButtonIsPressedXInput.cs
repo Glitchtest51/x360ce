@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using SharpDX.XInput;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
@@ -9,7 +8,7 @@ namespace x360ce.App.Input.States
 	/// </summary>
 	internal class StatesAnyButtonIsPressedXInput
 	{
-		private readonly StatesXinput _statesXinput = new StatesXinput();
+		private readonly StatesConvertToListType _statesConverter = new StatesConvertToListType();
 
 		// Cache for XInput device to AllInputDeviceInfo mapping
 		private Dictionary<string, DevicesCombined.AllInputDeviceInfo> _deviceMapping;
@@ -34,13 +33,13 @@ namespace x360ce.App.Input.States
 				if (xiDevice == null)
 					continue;
 
-				// Get the current state and check for button presses
-				var state = _statesXinput.GetXInputDeviceState(xiDevice);
-				if (state == null)
+				// Get the current state as ListTypeState and check for button presses
+				var listState = _statesConverter.GetXInputStateAsListTypeState(xiDevice);
+				if (listState == null)
 					continue;
 
-				// Determine if any button is pressed
-				bool anyButtonPressed = IsAnyButtonPressed(state.Value);
+				// Determine if any button is pressed by checking if Buttons list contains value 1
+				bool anyButtonPressed = IsAnyButtonPressed(listState);
 	
 				// Use cached mapping for faster lookup using CommonIdentifier
 				if (_deviceMapping.TryGetValue(xiDevice.CommonIdentifier, out var allDevice))
@@ -68,24 +67,28 @@ namespace x360ce.App.Input.States
 		}
 
 		/// <summary>
-		/// Checks if any button is pressed in the given XInput state.
+		/// Checks if any button is pressed in the given ListTypeState.
 		/// </summary>
-		/// <param name="state">The XInput State structure</param>
-		/// <returns>True if any button is pressed, false otherwise</returns>
+		/// <param name="listState">The standardized ListTypeState containing button states</param>
+		/// <returns>True if any button is pressed (value 1 in Buttons list) or any POV is pressed (value > -1), false otherwise</returns>
 		/// <remarks>
-		/// Checks all XInput buttons including:
-		/// • Face buttons (A, B, X, Y)
-		/// • Shoulder buttons (LB, RB)
-		/// • Thumbstick buttons (LS, RS)
-		/// • System buttons (Start, Back)
-		/// • D-Pad directions (Up, Down, Left, Right)
+		/// This method checks the standardized button list where:
+		/// • 0 = button released
+		/// • 1 = button pressed
+		///
+		/// And POV list where:
+		/// • -1 = neutral/centered
+		/// • 0-31500 = direction pressed (in centidegrees)
+		///
+		/// Returns true if the Buttons list contains at least one value of 1 or POVs list contains any value > -1.
+		/// Returns false if the Buttons list is empty or contains only 0 values and POVs list is empty or contains only -1 values.
 		/// </remarks>
-		private static bool IsAnyButtonPressed(State state)
+		private static bool IsAnyButtonPressed(ListTypeState listState)
 		{
-			var buttons = state.Gamepad.Buttons;
-
-			// Check if any button flag is set
-			return buttons != GamepadButtonFlags.None;
+			// Check if Buttons list exists and contains any pressed button (value 1)
+			// or if POVs list exists and contains any pressed POV (value > -1)
+			return (listState?.Buttons != null && listState.Buttons.Contains(1)) ||
+				(listState?.POVs != null && listState.POVs.Exists(pov => pov > -1));
 		}
 
 		/// <summary>

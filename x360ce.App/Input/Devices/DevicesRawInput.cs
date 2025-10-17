@@ -89,6 +89,13 @@ namespace x360ce.App.Input.Devices
         public int ButtonDataOffset { get; set; }
         
         /// <summary>
+        /// Cached preparsed data pointer for HID API operations (HidP_GetUsages, etc.).
+        /// This is allocated during device enumeration and must be freed on disposal.
+        /// Only valid for HID devices (RawInputDeviceType.HID).
+        /// </summary>
+        public IntPtr PreparsedData { get; set; }
+        
+        /// <summary>
         /// Note: RawInput API does not provide native friendly names or manufacturer information.
         /// RawInput only provides device interface paths and basic HID information.
         /// Friendly names would require additional Windows Registry queries or device manager APIs
@@ -744,16 +751,19 @@ namespace x360ce.App.Input.Devices
 
         /// <summary>
         /// Gets HID device capabilities by parsing the HID Report Descriptor.
+        /// IMPORTANT: This method allocates preparsed data that must be stored in the device info
+        /// and freed when the device is disposed.
         /// </summary>
         /// <param name="hDevice">Device handle</param>
         /// <param name="axeCount">Output: number of axes</param>
         /// <param name="buttonCount">Output: number of buttons</param>
         /// <param name="povCount">Output: number of POV hats</param>
         /// <param name="hasForceFeedback">Output: whether device supports force feedback</param>
+        /// <param name="preparsedDataOut">Output: preparsed data pointer (must be freed by caller)</param>
         /// <returns>True if capabilities were successfully retrieved</returns>
         private bool GetHidCapabilities(IntPtr hDevice, out int axeCount, out int sliderCount, out int buttonCount, out int povCount,
             out int throttleCount, out int brakeCount, out int steeringCount, out int acceleratorCount, out int clutchCount,
-            out bool hasForceFeedback, out bool usesReportIds, out int buttonDataOffset)
+            out bool hasForceFeedback, out bool usesReportIds, out int buttonDataOffset, out IntPtr preparsedDataOut)
         {
             axeCount = 0;
             sliderCount = 0;
@@ -767,6 +777,7 @@ namespace x360ce.App.Input.Devices
             hasForceFeedback = false;
             usesReportIds = false;
             buttonDataOffset = 0;
+            preparsedDataOut = IntPtr.Zero;
 
             IntPtr preparsedData = IntPtr.Zero;
             
@@ -1198,6 +1209,11 @@ namespace x360ce.App.Input.Devices
                     $"Accelerators: {acceleratorCount}, Clutches: {clutchCount}, ForceFeedback: {hasForceFeedback}, " +
                     $"UsesReportIds: {usesReportIds}, ButtonDataOffset: {buttonDataOffset}");
                 
+                // IMPORTANT: Return preparsed data to caller instead of freeing it
+                // The caller must store it in RawInputDeviceInfo.PreparsedData and free it on disposal
+                preparsedDataOut = preparsedData;
+                preparsedData = IntPtr.Zero; // Prevent cleanup in finally block
+                
                 return true;
             }
             catch (Exception ex)
@@ -1207,6 +1223,7 @@ namespace x360ce.App.Input.Devices
             }
             finally
             {
+                // Only free if we didn't return it to caller (error case)
                 if (preparsedData != IntPtr.Zero)
                 {
                     Marshal.FreeHGlobal(preparsedData);
@@ -1214,59 +1231,9 @@ namespace x360ce.App.Input.Devices
             }
         }
 
+ 
   /// <summary>
-  /// Heuristic method to find button offset by analyzing actual report data.
-  /// Scans backwards from end of report to find last "large" value (likely last axis).
-  /// Buttons come after axes, so button offset = last_large_value_position + 1.
-  /// </summary>
-  /// <param name="report">Sample HID report data</param>
-  /// <param name="baseOffset">Starting offset (1 if Report ID present, 0 otherwise)</param>
-  /// <param name="buttonCount">Number of buttons device has</param>
-  /// <returns>Estimated button offset, or -1 if cannot determine</returns>
-  private static int FindButtonOffsetHeuristic(byte[] report, int baseOffset, int buttonCount)
-  {
-   if (report == null || report.Length < baseOffset + 2)
-    return -1;
-   
-   // Calculate maximum expected button byte value
-   // For N buttons, max value in any button byte depends on which buttons are in that byte
-   // Conservative approach: use 0x7F (127) as threshold - values above this are likely axes
-   const int AXIS_THRESHOLD = 0x7F;
-   
-   // Scan backwards from end to find last "large" value (likely last axis)
-   int lastLargeValueIndex = -1;
-   for (int i = report.Length - 1; i >= baseOffset; i--)
-   {
-    byte value = report[i];
-    
-    // Skip zeros (could be axis at min or button not pressed)
-    if (value == 0)
-     continue;
-    
-    // Found a large value - likely an axis
-    if (value > AXIS_THRESHOLD)
-    {
-     lastLargeValueIndex = i;
-     Debug.WriteLine($"DevicesRawInput: Heuristic found last large value 0x{value:X2} at byte {i}");
-     break;
-    }
-   }
-   
-   // If we found a large value, buttons start right after it
-   if (lastLargeValueIndex >= baseOffset)
-   {
-    int buttonOffset = lastLargeValueIndex + 1;
-    Debug.WriteLine($"DevicesRawInput: Heuristic button offset = {buttonOffset}");
-    return buttonOffset;
-   }
-   
-   // Fallback: if no large values found, buttons might start right after base offset
-   Debug.WriteLine($"DevicesRawInput: Heuristic found no large values, using base offset {baseOffset}");
-   return baseOffset;
-  }
-  
-        /// <summary>
-        /// Calculates the actual byte offset where button data starts in the HID report.
+  /// Calculates the actual byte offset where button data starts in the HID report.
   /// CRITICAL: In HID reports, buttons ALWAYS come after axis/value data.
   /// Structure: [Report ID] + [Axis/Value Data] + [Button Data] + [Padding]
   /// Uses both HID descriptor analysis AND heuristic fallback for reliability.
@@ -2104,9 +2071,10 @@ namespace x360ce.App.Input.Devices
                         int axes, sliders, buttons, povs, throttles, brakes, steering, accelerators, clutches;
                         bool forceFeedback, usesReportIds;
                         int buttonDataOffset;
+                        IntPtr preparsedData;
                         if (GetHidCapabilities(rawDevice.hDevice, out axes, out sliders, out buttons, out povs,
                             out throttles, out brakes, out steering, out accelerators, out clutches, out forceFeedback,
-                            out usesReportIds, out buttonDataOffset))
+                            out usesReportIds, out buttonDataOffset, out preparsedData))
                         {
                             deviceInfo.AxeCount = axes;
                             deviceInfo.SliderCount = sliders;
@@ -2120,6 +2088,9 @@ namespace x360ce.App.Input.Devices
                             deviceInfo.HasForceFeedback = forceFeedback;
                             deviceInfo.UsesReportIds = usesReportIds;
                             deviceInfo.ButtonDataOffset = buttonDataOffset;
+                            // CRITICAL: Store preparsed data for later use by HidP_GetUsages
+                            // This will be freed when the device is disposed
+                            deviceInfo.PreparsedData = preparsedData;
                         }
                     }
                 }

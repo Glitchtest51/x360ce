@@ -1,6 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
-using SharpDX.DirectInput;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
@@ -11,7 +9,7 @@ namespace x360ce.App.Input.States
 	/// </summary>
 	internal class StatesAnyButtonIsPressedDirectInput
 	{
-		private readonly StatesDirectInput _statesDirectInput = new StatesDirectInput();
+		private readonly StatesConvertToListType _statesConvertToListType = new StatesConvertToListType();
 		
 		// Cache for DirectInput device to AllInputDeviceInfo mapping
 		private Dictionary<string, DevicesCombined.AllInputDeviceInfo> _deviceMapping;
@@ -36,13 +34,15 @@ namespace x360ce.App.Input.States
 				if (diDevice?.DirectInputDevice == null)
 					continue;
 			
-				// Get the current state and check for button presses
-				var state = _statesDirectInput.GetDirectInputDeviceState(diDevice);
-				if (state == null)
+				// Get the current state as ListTypeState
+				var listState = _statesConvertToListType.GetDirectInputStateAsListTypeState(diDevice);
+				if (listState == null)
 					continue;
 			
-				// Determine if any button is pressed based on device type
-				bool anyButtonPressed = IsAnyButtonPressed(state);
+				// Check if any button is pressed (button list contains value '1')
+				// or if any POV is pressed (value > -1, where -1 is neutral)
+				bool anyButtonPressed = (listState.Buttons != null && listState.Buttons.Contains(1)) ||
+					(listState.POVs != null && listState.POVs.Exists(pov => pov > -1));
 			
 				// Use cached mapping for faster lookup
 				if (_deviceMapping.TryGetValue(diDevice.InterfacePath, out var allDevice))
@@ -67,25 +67,6 @@ namespace x360ce.App.Input.States
 					_deviceMapping[device.InterfacePath] = device;
 				}
 			}
-		}
-
-		/// <summary>
-		/// Checks if any button is pressed in the given device state.
-		/// </summary>
-		/// <param name="state">The device state (JoystickState, KeyboardState, or MouseState)</param>
-		/// <returns>True if any button is pressed, false otherwise</returns>
-		private static bool IsAnyButtonPressed(object state)
-		{
-			if (state is JoystickState joystickState)
-				return joystickState.Buttons.Any(b => b);
-			
-			if (state is KeyboardState keyboardState)
-				return keyboardState.PressedKeys.Count > 0;
-			
-			if (state is MouseState mouseState)
-				return mouseState.Buttons.Any(b => b);
-			
-			return false;
 		}
 
 		/// <summary>

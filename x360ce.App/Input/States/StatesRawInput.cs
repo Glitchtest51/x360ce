@@ -423,20 +423,20 @@ namespace x360ce.App.Input.States
 		/// Returns cached RawInput device state (non-blocking).
 		/// For mouse and keyboard devices, polls ACTUAL current state using GetAsyncKeyState to ensure accuracy.
 		/// </summary>
-		public byte[] GetRawInputDeviceState(RawInputDeviceInfo deviceInfo)
+		public byte[] GetRawInputDeviceState(RawInputDeviceInfo riDeviceInfo)
 		{
-			if (deviceInfo?.InterfacePath == null)
+			if (riDeviceInfo?.InterfacePath == null)
 				return null;
 	
 			// Register device handle to path mapping (thread-safe)
-			if (deviceInfo.DeviceHandle != IntPtr.Zero)
+			if (riDeviceInfo.DeviceHandle != IntPtr.Zero)
 			{
-				_handleToPath.TryAdd(deviceInfo.DeviceHandle, deviceInfo.InterfacePath);
+				_handleToPath.TryAdd(riDeviceInfo.DeviceHandle, riDeviceInfo.InterfacePath);
 			}
 	
 			// For mouse devices, poll ACTUAL current button state directly
 			// This ensures we detect button holds even if WM_INPUT messages are missed between polling intervals
-			if (deviceInfo.RawInputDeviceType == RawInputDeviceType.Mouse)
+			if (riDeviceInfo.RawInputDeviceType == RawInputDeviceType.Mouse)
 			{
 				// Poll actual current button state using GetAsyncKeyState
 				byte currentButtonState = GetCurrentMouseButtonState();
@@ -445,12 +445,12 @@ namespace x360ce.App.Input.States
 				byte[] report = new byte[1] { currentButtonState };
 				
 				// Update cache with current polled state
-				_cachedStates[deviceInfo.InterfacePath] = report;
+				_cachedStates[riDeviceInfo.InterfacePath] = report;
 				
 				// Also update accumulated state for consistency with WM_INPUT processing
-				if (deviceInfo.DeviceHandle != IntPtr.Zero)
+				if (riDeviceInfo.DeviceHandle != IntPtr.Zero)
 				{
-					_mouseButtonStates[deviceInfo.DeviceHandle] = currentButtonState;
+					_mouseButtonStates[riDeviceInfo.DeviceHandle] = currentButtonState;
 				}
 				
 				return report;
@@ -458,25 +458,25 @@ namespace x360ce.App.Input.States
 	
 			// For keyboard devices, poll ACTUAL current key state directly
 			// This ensures we detect key holds even if WM_INPUT messages are missed between polling intervals
-			if (deviceInfo.RawInputDeviceType == RawInputDeviceType.Keyboard)
+			if (riDeviceInfo.RawInputDeviceType == RawInputDeviceType.Keyboard)
 			{
 				// Poll actual current keyboard state using GetAsyncKeyState
 				byte[] currentKeyState = GetCurrentKeyboardState();
 				
 				// Update cache with current polled state
-				_cachedStates[deviceInfo.InterfacePath] = currentKeyState;
+				_cachedStates[riDeviceInfo.InterfacePath] = currentKeyState;
 				
 				// Also update accumulated state for consistency with WM_INPUT processing
-				if (deviceInfo.DeviceHandle != IntPtr.Zero)
+				if (riDeviceInfo.DeviceHandle != IntPtr.Zero)
 				{
-					_keyboardKeyStates[deviceInfo.DeviceHandle] = currentKeyState;
+					_keyboardKeyStates[riDeviceInfo.DeviceHandle] = currentKeyState;
 				}
 				
 				return currentKeyState;
 			}
 	
 			// For HID devices, return cached state (non-blocking, thread-safe)
-			_cachedStates.TryGetValue(deviceInfo.InterfacePath, out byte[] cachedState);
+			_cachedStates.TryGetValue(riDeviceInfo.InterfacePath, out byte[] cachedState);
 			return cachedState;
 		}
 	

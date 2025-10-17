@@ -25,7 +25,7 @@ namespace x360ce.App.Input.States
 	///   - RightThumbX/Y: Right stick position (-32768 to 32767)
 	///   - LeftTrigger/RightTrigger: Trigger pressure (0-255)
 	/// </remarks>
-	internal class StatesXinput
+	internal class StatesXInput
 	{
 		#region XInput Controller Management
 
@@ -42,7 +42,7 @@ namespace x360ce.App.Input.States
 		/// <summary>
 		/// Initializes the XInput state reader with controllers for all 4 slots.
 		/// </summary>
-		public StatesXinput()
+		public StatesXInput()
 		{
 			_controllers = new Controller[MaxControllers];
 			for (int i = 0; i < MaxControllers; i++)
@@ -80,12 +80,12 @@ namespace x360ce.App.Input.States
 		/// • Gamepad.LeftTrigger: Left trigger (0-255)
 		/// • Gamepad.RightTrigger: Right trigger (0-255)
 		/// </remarks>
-		public State? GetXInputDeviceState(XInputDeviceInfo xiDevice)
+		public State? GetXInputDeviceState(XInputDeviceInfo xiDeviceInfo)
 		{
-			if (xiDevice == null)
+			if (xiDeviceInfo == null)
 				return null;
 
-			int slotIndex = xiDevice.SlotIndex;
+			int slotIndex = xiDeviceInfo.SlotIndex;
 
 			if (slotIndex < 0 || slotIndex >= MaxControllers)
 			{

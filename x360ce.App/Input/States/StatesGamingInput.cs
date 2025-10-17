@@ -33,7 +33,7 @@ namespace x360ce.App.Input.States
 		/// Returns the current state of a Gaming Input device.
 		/// The device info must contain a valid GamingInputDevice (Gamepad object).
 		/// </summary>
-		/// <param name="deviceInfo">GamingInputDeviceInfo containing the gamepad to read</param>
+		/// <param name="giDeviceInfo">GamingInputDeviceInfo containing the gamepad to read</param>
 		/// <returns>GamepadReading structure or null if read failed or device is null</returns>
 		/// <remarks>
 		/// This method reads the current input state from a Gaming Input gamepad.
@@ -56,9 +56,9 @@ namespace x360ce.App.Input.States
 		/// • LeftTrigger: Left trigger (0.0 to 1.0, unpressed = 0.0)
 		/// • RightTrigger: Right trigger (0.0 to 1.0, unpressed = 0.0)
 		/// </remarks>
-		public GamepadReading? GetGamingInputDeviceState(GamingInputDeviceInfo deviceInfo)
+		public GamepadReading? GetGamingInputDeviceState(GamingInputDeviceInfo giDeviceInfo)
 		{
-			if (deviceInfo?.GamingInputDevice == null)
+			if (giDeviceInfo?.GamingInputDevice == null)
 			{
 				Debug.WriteLine("StatesGamingInput: Device info or gamepad is null");
 				return null;
@@ -67,13 +67,13 @@ namespace x360ce.App.Input.States
 			try
 			{
 				// Read Gaming Input state - no acquisition or polling needed
-				var reading = deviceInfo.GamingInputDevice.GetCurrentReading();
+				var reading = giDeviceInfo.GamingInputDevice.GetCurrentReading();
 				return reading;
 			}
 			catch (Exception ex)
 			{
 				// Device may be disconnected or access lost
-				Debug.WriteLine($"StatesGamingInput: Error reading state for {deviceInfo.InstanceName}: {ex.Message}");
+				Debug.WriteLine($"StatesGamingInput: Error reading state for {giDeviceInfo.InstanceName}: {ex.Message}");
 				return null;
 			}
 		}

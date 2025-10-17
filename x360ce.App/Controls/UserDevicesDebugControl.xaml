@@ -7,7 +7,7 @@
              mc:Ignorable="d" 
              Loaded="UserControl_Loaded"
 	d:DesignHeight="400"
-	d:DesignWidth="720"
+	d:DesignWidth="900"
 	Background="{StaticResource BackgroundLight}">
     <Grid VerticalAlignment="Stretch">
         <Grid.RowDefinitions>
@@ -42,7 +42,17 @@
                     <Label Content="Clear" Padding="0" />
                 </StackPanel>
             </Button>
-            
+
+            <Border Margin="0,3,3,3" Style="{StaticResource BorderDescriptionNormal}">
+                <Label
+				Content="Press and hold any button or POV to find device inputs in the list."				
+                Padding="3,3,3,4"
+				HorizontalAlignment="Center" />
+            </Border>
+
+
+
+
         </DockPanel>
         <Border
    Grid.Row="1"
@@ -131,15 +141,6 @@
                                 <Setter Property="TextAlignment" Value="Center"/>
                             </Style>
                         </DataGridTextColumn.ElementStyle>
-                        <DataGridTextColumn.CellStyle>
-                            <Style TargetType="DataGridCell">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding ButtonPressed}" Value="True">
-                                        <Setter Property="Background" Value="Red"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </DataGridTextColumn.CellStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn x:Name="KeyColumn" Header="K" Binding="{Binding KeyCount}" Width="Auto">
                         <DataGridTextColumn.ElementStyle>
@@ -155,13 +156,19 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <DataGridTemplateColumn Header="ProductName" SortMemberPath="ProductName" Width="*">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBox Text="{Binding ProductName, Mode=OneWay}"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn x:Name="ProductName" Header="ProductName" Binding="{Binding ProductName}" Width="*" SortMemberPath="ProductName" >
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ButtonPressed}" Value="True">
+                                        <Setter Property="Background" Value="#88ff0000"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
+                    </DataGridTextColumn>
+
                     <DataGridTemplateColumn Header="InterfacePath" SortMemberPath="InterfacePath" Width="2*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

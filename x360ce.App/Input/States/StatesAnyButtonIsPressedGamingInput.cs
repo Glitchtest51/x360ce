@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using Windows.Gaming.Input;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
@@ -10,7 +9,7 @@ namespace x360ce.App.Input.States
 	/// </summary>
 	internal class StatesAnyButtonIsPressedGamingInput
 	{
-		private readonly StatesGamingInput _statesGamingInput = new StatesGamingInput();
+		private readonly StatesConvertToListType _statesConverter = new StatesConvertToListType();
 
 		// Cache for Gaming Input device to AllInputDeviceInfo mapping
 		private Dictionary<string, DevicesCombined.AllInputDeviceInfo> _deviceMapping;
@@ -35,13 +34,13 @@ namespace x360ce.App.Input.States
 				if (giDevice?.GamingInputDevice == null)
 					continue;
 
-				// Get the current state and check for button presses
-				var state = _statesGamingInput.GetGamingInputDeviceState(giDevice);
-				if (state == null)
+				// Get the current state as ListTypeState and check for button presses
+				var listState = _statesConverter.GetGamingInputStateAsListTypeState(giDevice);
+				if (listState == null)
 					continue;
 
-				// Determine if any button is pressed
-				bool anyButtonPressed = IsAnyButtonPressed(state.Value);
+				// Determine if any button is pressed by checking if button list contains value '1'
+				bool anyButtonPressed = IsAnyButtonPressed(listState);
 	
 				// Use cached mapping for faster lookup using CommonIdentifier
 				if (_deviceMapping.TryGetValue(giDevice.CommonIdentifier, out var allDevice))
@@ -69,22 +68,31 @@ namespace x360ce.App.Input.States
 		}
 
 		/// <summary>
-		/// Checks if any button is pressed in the given Gaming Input state.
+		/// Checks if any button is pressed in the given ListTypeState.
 		/// </summary>
-		/// <param name="reading">The Gaming Input GamepadReading structure</param>
-		/// <returns>True if any button is pressed, false otherwise</returns>
+		/// <param name="listState">The standardized ListTypeState containing button states</param>
+		/// <returns>True if any button is pressed (button list contains value '1') or any POV is pressed (value > -1), false otherwise</returns>
 		/// <remarks>
-		/// Checks all Gaming Input buttons including:
-		/// • Face buttons (A, B, X, Y)
-		/// • Shoulder buttons (LeftShoulder, RightShoulder)
-		/// • Thumbstick buttons (LeftThumbstick, RightThumbstick)
-		/// • System buttons (Menu, View)
-		/// • D-Pad directions (DPadUp, DPadDown, DPadLeft, DPadRight)
+		/// This method checks the Buttons list in ListTypeState format where:
+		/// • 0 = button released
+		/// • 1 = button pressed
+		///
+		/// And POV list where:
+		/// • -1 = neutral/centered
+		/// • 0-31500 = direction pressed (in centidegrees)
+		///
+		/// Returns true if the button list contains at least one value of '1' or POVs list contains any value > -1.
+		/// Returns false if the button list is empty or contains no value of '1' and POVs list is empty or contains only -1 values.
 		/// </remarks>
-		private static bool IsAnyButtonPressed(GamepadReading reading)
+		private static bool IsAnyButtonPressed(ListTypeState listState)
 		{
-			// Check if any button flag is set
-			return reading.Buttons != GamepadButtons.None;
+			// Check if button list contains value '1' (pressed)
+			bool buttonPressed = listState?.Buttons != null && listState.Buttons.Contains(1);
+			
+			// Check if POV list contains any value > -1 (pressed)
+			bool povPressed = listState?.POVs != null && listState.POVs.Exists(pov => pov > -1);
+			
+			return buttonPressed || povPressed;
 		}
 
 		/// <summary>
