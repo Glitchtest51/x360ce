@@ -23,9 +23,11 @@ namespace x360ce.App.Input.States
 		///   DPadUp, DPadDown, DPadLeft, DPadRight, Paddle1-4 (if available)
 		/// • 1 POV: D-Pad direction converted to centidegrees (-1 for neutral, 0-27000 for directions)
 		/// </remarks>
-		public static InputStateAsList ConvertGamingInputStateToList(GamepadReading reading)
+		public static InputStateAsList ConvertGamingInputStateToList(GamepadReading? gamepadReading)
 		{
-			var result = new InputStateAsList();
+			
+			GamepadReading reading = gamepadReading.Value;
+            var result = new InputStateAsList();
 
 			// Convert axes (6 axes in Gaming Input)
 			// Thumbsticks: Convert from -1.0..1.0 to 0..65535

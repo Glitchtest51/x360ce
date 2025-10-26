@@ -12,14 +12,14 @@ namespace x360ce.App.Input.States
         private readonly DirectInputState _statesDirectInput = new DirectInputState();
 		
 		// Cache for DirectInput device to AllInputDeviceInfo mapping
-		private Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo> _deviceMapping;
+		private Dictionary<string, UnifiedInputDeviceInfo> _deviceMapping;
 
 		/// <summary>
 		/// Checks each DirectInput device for button presses and updates the ButtonPressed property
 		/// in AllInputDevicesList.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		public void IsDirectInputButtonPressed(UnifiedInputDevice devicesCombined)
+		public void IsDirectInputButtonPressed(UnifiedInputDeviceManager devicesCombined)
 		{
 			if (devicesCombined.DirectInputDeviceInfoList == null || devicesCombined.UnifiedInputDeviceInfoList == null)
 				return;
@@ -62,9 +62,9 @@ namespace x360ce.App.Input.States
 		/// Builds a mapping dictionary from InterfacePath to AllInputDeviceInfo for fast lookups.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		private void BuildDeviceMapping(UnifiedInputDevice devicesCombined)
+		private void BuildDeviceMapping(UnifiedInputDeviceManager devicesCombined)
 		{
-			_deviceMapping = new Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo>();
+			_deviceMapping = new Dictionary<string, UnifiedInputDeviceInfo>();
 			
 			foreach (var device in devicesCombined.UnifiedInputDeviceInfoList)
 			{

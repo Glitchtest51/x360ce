@@ -21,7 +21,7 @@ namespace x360ce.App.Input.States
 	internal class RawInputButtonPressed
 	{
         private readonly RawInputState _statesRawInput = new RawInputState();
-		private Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo> _deviceMapping;
+		private Dictionary<string, UnifiedInputDeviceInfo> _deviceMapping;
 		private int _lastDeviceCount;
 		private DateTime _lastDebugOutput = DateTime.MinValue;
 
@@ -32,7 +32,7 @@ namespace x360ce.App.Input.States
 		/// Button state persists until a new WM_INPUT message arrives with different state.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		public void IsRawInputButtonPressed(UnifiedInputDevice devicesCombined)
+		public void IsRawInputButtonPressed(UnifiedInputDeviceManager devicesCombined)
 		{
 			var rawInputList = devicesCombined?.RawInputDeviceInfoList;
 			var allDevicesList = devicesCombined?.UnifiedInputDeviceInfoList;
@@ -101,10 +101,10 @@ namespace x360ce.App.Input.States
 		/// Builds a mapping dictionary from InterfacePath to AllInputDeviceInfo for fast lookups.
 		/// </summary>
 		private void BuildDeviceMapping(
-			System.Collections.ObjectModel.ObservableCollection<UnifiedInputDevice.UnifiedInputDeviceInfo> allDevicesList)
+			System.Collections.ObjectModel.ObservableCollection<UnifiedInputDeviceInfo> allDevicesList)
 		{
 			// Pre-allocate with estimated capacity to reduce resizing
-			_deviceMapping = new Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo>(allDevicesList.Count);
+			_deviceMapping = new Dictionary<string, UnifiedInputDeviceInfo>(allDevicesList.Count);
 		
 			foreach (var device in allDevicesList)
 			{

@@ -12,24 +12,24 @@ namespace x360ce.App.Input.States
         private readonly GamingInputState _statesGamingInput = new GamingInputState();
 
 		// Cache for Gaming Input device to AllInputDeviceInfo mapping
-		private Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo> _deviceMapping;
+		private Dictionary<string, UnifiedInputDeviceInfo> _deviceMapping;
 
 		/// <summary>
 		/// Checks each Gaming Input device for button presses and updates the ButtonPressed property
 		/// in AllInputDevicesList.
 		/// </summary>
-		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		public void IsGamingInputButtonPressed(UnifiedInputDevice devicesCombined)
+		/// <param name="unifiedInputDevice">The combined devices instance containing device lists</param>
+		public void IsGamingInputButtonPressed(UnifiedInputDeviceManager unifiedInputDevice)
 		{
-			if (devicesCombined.GamingInputDeviceInfoList == null || devicesCombined.UnifiedInputDeviceInfoList == null)
+			if (unifiedInputDevice.GamingInputDeviceInfoList == null || unifiedInputDevice.UnifiedInputDeviceInfoList == null)
 				return;
 
 			// Build mapping cache on first run or when device list changes
-			if (_deviceMapping == null || _deviceMapping.Count != devicesCombined.GamingInputDeviceInfoList.Count)
-				BuildDeviceMapping(devicesCombined);
+			if (_deviceMapping == null || _deviceMapping.Count != unifiedInputDevice.GamingInputDeviceInfoList.Count)
+				BuildDeviceMapping(unifiedInputDevice);
 
 			// Check each Gaming Input device
-			foreach (var giDeviceInfo in devicesCombined.GamingInputDeviceInfoList)
+			foreach (var giDeviceInfo in unifiedInputDevice.GamingInputDeviceInfoList)
 			{
 				if (giDeviceInfo?.GamingInputDevice == null)
 					continue;
@@ -39,7 +39,7 @@ namespace x360ce.App.Input.States
 				if (giState == null) continue;
 
                 // Convert GamingInput state to ListTypeState format (non-blocking)
-                var listState = GamingInputStateToList.ConvertGamingInputStateToList(giState.Value);
+                var listState = GamingInputStateToList.ConvertGamingInputStateToList(giState);
                 if (listState == null)
 					continue;
 
@@ -58,9 +58,9 @@ namespace x360ce.App.Input.States
 		/// Builds a mapping dictionary from CommonIdentifier to AllInputDeviceInfo for fast lookups.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		private void BuildDeviceMapping(UnifiedInputDevice devicesCombined)
+		private void BuildDeviceMapping(UnifiedInputDeviceManager devicesCombined)
 		{
-			_deviceMapping = new Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo>();
+			_deviceMapping = new Dictionary<string, UnifiedInputDeviceInfo>();
 
 			foreach (var device in devicesCombined.UnifiedInputDeviceInfoList)
 			{

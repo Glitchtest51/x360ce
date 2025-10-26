@@ -11,14 +11,14 @@ namespace x360ce.App.Input.States
         private readonly XInputState _statesXInput = new XInputState();
 
 		// Cache for XInput device to AllInputDeviceInfo mapping
-		private Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo> _deviceMapping;
+		private Dictionary<string, UnifiedInputDeviceInfo> _deviceMapping;
 
 		/// <summary>
 		/// Checks each XInput device for button presses and updates the ButtonPressed property
 		/// in AllInputDevicesList.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		public void IsXInputButtonPressed(UnifiedInputDevice devicesCombined)
+		public void IsXInputButtonPressed(UnifiedInputDeviceManager devicesCombined)
 		{
 			if (devicesCombined.XInputDeviceInfoList == null || devicesCombined.UnifiedInputDeviceInfoList == null)
 				return;
@@ -58,9 +58,9 @@ namespace x360ce.App.Input.States
 		/// Builds a mapping dictionary from CommonIdentifier to AllInputDeviceInfo for fast lookups.
 		/// </summary>
 		/// <param name="devicesCombined">The combined devices instance containing device lists</param>
-		private void BuildDeviceMapping(UnifiedInputDevice devicesCombined)
+		private void BuildDeviceMapping(UnifiedInputDeviceManager devicesCombined)
 		{
-			_deviceMapping = new Dictionary<string, UnifiedInputDevice.UnifiedInputDeviceInfo>();
+			_deviceMapping = new Dictionary<string, UnifiedInputDeviceInfo>();
 
 			foreach (var device in devicesCombined.UnifiedInputDeviceInfoList)
 			{

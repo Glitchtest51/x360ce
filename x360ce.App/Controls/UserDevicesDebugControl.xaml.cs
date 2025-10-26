@@ -64,15 +64,16 @@ namespace x360ce.App.Controls
         }
 
         // Input device management and state checking components
-        private readonly UnifiedInputDevice _devicesCombined = new UnifiedInputDevice();
-        private readonly UnifiedInputDeviceConnection _deviceMonitor = new UnifiedInputDeviceConnection();
+        private readonly UnifiedInputDeviceManager _unifiedInputDeviceInfo = new UnifiedInputDeviceManager();
+        private readonly UnifiedInputDeviceConnection _unifiedInputDeviceConnection = new UnifiedInputDeviceConnection();
         private readonly DirectInputButtonPressed _statesIsDiDeviceButtonPressed = new DirectInputButtonPressed();
         private readonly XInputButtonPressed _statesIsXiDeviceButtonPressed = new XInputButtonPressed();
         private readonly GamingInputButtonPressed _statesIsGiDeviceButtonPressed = new GamingInputButtonPressed();
         private readonly RawInputButtonPressed _statesIsRiDeviceButtonPressed = new RawInputButtonPressed();
 
-        // Device selection handler
-        private DevicesTab_DeviceSelected _deviceSelectedHandler;
+        // Device selection handlers
+        private DevicesTab_DeviceSelectedInfo _devicesTab_DeviceSelectedInfo;
+        private DevicesTab_DeviceSelectedInput _devicesTab_DeviceSelectedInput;
 
         // Device connection triggers - monitor actual device connect/disconnect events
         private readonly PnPInputDeviceConnection _pnpTrigger = new PnPInputDeviceConnection();
@@ -84,8 +85,8 @@ namespace x360ce.App.Controls
         private void RefreshButton_Click(object sender, RoutedEventArgs e)
         {
             // Refresh device list
-            _devicesCombined.GetUnifiedInputDeviceList();
-            _viewSource.Source = _devicesCombined.UnifiedInputDeviceInfoList;
+            _unifiedInputDeviceInfo.GetUnifiedInputDeviceList();
+            _viewSource.Source = _unifiedInputDeviceInfo.UnifiedInputDeviceInfoList;
 
             // Clear caches when data source changes
             InvalidateVisualCache();
@@ -100,34 +101,35 @@ namespace x360ce.App.Controls
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             // Set dispatcher for UI thread synchronization
-            _devicesCombined.SetDispatcher(Dispatcher);
+            _unifiedInputDeviceInfo.SetDispatcher(Dispatcher);
 
             // Create input devices lists: PnPInput, RawInput, DirectInput, XInput, GamingInput
-            _devicesCombined.GetUnifiedInputDeviceList();
+            _unifiedInputDeviceInfo.GetUnifiedInputDeviceList();
 
             // Set up CollectionViewSource for filtering
-            _viewSource = new CollectionViewSource { Source = _devicesCombined.UnifiedInputDeviceInfoList };
+            _viewSource = new CollectionViewSource { Source = _unifiedInputDeviceInfo.UnifiedInputDeviceInfoList };
             _viewSource.Filter += ViewSource_Filter;
 
             UnifiedInputDeviceInfoDataGrid.ItemsSource = _viewSource.View;
 
-            // Initialize device selection handler
-            _deviceSelectedHandler = new DevicesTab_DeviceSelected(_devicesCombined);
+            // Initialize device selection handlers
+            _devicesTab_DeviceSelectedInfo = new DevicesTab_DeviceSelectedInfo(_unifiedInputDeviceInfo);
+            //_devicesTab_DeviceSelectedInput = new DevicesTab_DeviceSelectedInput(_unifiedInputDeviceInfo);
 
             // Attach SelectionChanged event handler
             UnifiedInputDeviceInfoDataGrid.SelectionChanged += UnifiedInputDeviceInfoDataGrid_SelectionChanged;
 
             // Cache filter properties once
-            if (_devicesCombined.UnifiedInputDeviceInfoList?.Count > 0)
+            if (_unifiedInputDeviceInfo.UnifiedInputDeviceInfoList?.Count > 0)
             {
-                var firstItem = _devicesCombined.UnifiedInputDeviceInfoList[0];
+                var firstItem = _unifiedInputDeviceInfo.UnifiedInputDeviceInfoList[0];
                 _cachedFilterProperties = firstItem.GetType().GetProperties()
                  .Where(p => !ExcludedSearchProperties.Contains(p.Name))
                  .ToArray();
             }
 
             // Subscribe to device monitoring events for automatic updates
-            _deviceMonitor.UnifiedListUpdateRequired += DeviceMonitor_UnifiedListUpdateRequired;
+            _unifiedInputDeviceConnection.UnifiedListUpdateRequired += DeviceMonitor_UnifiedListUpdateRequired;
 
             // Start device connection monitoring - these trigger only on actual device connect/disconnect
             StartDeviceConnectionMonitoring();
@@ -200,14 +202,14 @@ namespace x360ce.App.Controls
         private void OnDeviceConnectionChanged(object sender, DeviceConnectionEventArgs e)
         {
             // Refresh all device lists when a connection change is detected
-            _devicesCombined.GetUnifiedInputDeviceList();
+            _unifiedInputDeviceInfo.GetUnifiedInputDeviceList();
 
             // Monitor the refreshed lists to detect what changed
-            _deviceMonitor.MonitorPnPInputDeviceList(_devicesCombined.PnPInputDeviceInfoList);
-            _deviceMonitor.MonitorRawInputDeviceList(_devicesCombined.RawInputDeviceInfoList);
-            _deviceMonitor.MonitorDirectInputDeviceList(_devicesCombined.DirectInputDeviceInfoList);
-            _deviceMonitor.MonitorXInputDeviceList(_devicesCombined.XInputDeviceInfoList);
-            _deviceMonitor.MonitorGamingInputDeviceList(_devicesCombined.GamingInputDeviceInfoList);
+            _unifiedInputDeviceConnection.MonitorPnPInputDeviceList(_unifiedInputDeviceInfo.PnPInputDeviceInfoList);
+            _unifiedInputDeviceConnection.MonitorRawInputDeviceList(_unifiedInputDeviceInfo.RawInputDeviceInfoList);
+            _unifiedInputDeviceConnection.MonitorDirectInputDeviceList(_unifiedInputDeviceInfo.DirectInputDeviceInfoList);
+            _unifiedInputDeviceConnection.MonitorXInputDeviceList(_unifiedInputDeviceInfo.XInputDeviceInfoList);
+            _unifiedInputDeviceConnection.MonitorGamingInputDeviceList(_unifiedInputDeviceInfo.GamingInputDeviceInfoList);
         }
 
         /// <summary>
@@ -247,10 +249,10 @@ namespace x360ce.App.Controls
             // Check all input methods for button states - each will only update its own device type
             // Using logical OR in each checker preserves button states across methods
             // NOTE: Device monitoring is handled separately by connection triggers, not here
-            _statesIsDiDeviceButtonPressed.IsDirectInputButtonPressed(_devicesCombined);
-            _statesIsXiDeviceButtonPressed.IsXInputButtonPressed(_devicesCombined);
-            _statesIsGiDeviceButtonPressed.IsGamingInputButtonPressed(_devicesCombined);
-            _statesIsRiDeviceButtonPressed.IsRawInputButtonPressed(_devicesCombined);
+            _statesIsDiDeviceButtonPressed.IsDirectInputButtonPressed(_unifiedInputDeviceInfo);
+            _statesIsXiDeviceButtonPressed.IsXInputButtonPressed(_unifiedInputDeviceInfo);
+            _statesIsGiDeviceButtonPressed.IsGamingInputButtonPressed(_unifiedInputDeviceInfo);
+            _statesIsRiDeviceButtonPressed.IsRawInputButtonPressed(_unifiedInputDeviceInfo);
         }
 
 
@@ -606,8 +608,8 @@ namespace x360ce.App.Controls
             StopDeviceConnectionMonitoring();
 
             // Unsubscribe from device monitoring events
-            if (_deviceMonitor != null)
-                _deviceMonitor.UnifiedListUpdateRequired -= DeviceMonitor_UnifiedListUpdateRequired;
+            if (_unifiedInputDeviceConnection != null)
+                _unifiedInputDeviceConnection.UnifiedListUpdateRequired -= DeviceMonitor_UnifiedListUpdateRequired;
 
             // Detach SelectionChanged event handler
             UnifiedInputDeviceInfoDataGrid.SelectionChanged -= UnifiedInputDeviceInfoDataGrid_SelectionChanged;
@@ -628,12 +630,13 @@ namespace x360ce.App.Controls
         {
             // Clear previous content
             SelectedDeviceInformationStackPanel.Children.Clear();
+            //SelectedDeviceInputStackPanel.Children.Clear();
 
             // Get selected device
-            if (UnifiedInputDeviceInfoDataGrid.SelectedItem is UnifiedInputDevice.UnifiedInputDeviceInfo selectedDevice)
+            if (UnifiedInputDeviceInfoDataGrid.SelectedItem is UnifiedInputDeviceInfo selectedDevice)
             {
                 // Get device information as XAML elements
-                var deviceInfoElement = _deviceSelectedHandler?.GetDeviceInformationAsXamlElements(
+                var deviceInfoElement = _devicesTab_DeviceSelectedInfo?.GetDeviceInformationAsXamlElements(
                     selectedDevice.InputType,
                     selectedDevice.InterfacePath);
 
@@ -642,6 +645,11 @@ namespace x360ce.App.Controls
                 {
                     SelectedDeviceInformationStackPanel.Children.Add(deviceInfoElement);
                 }
+
+                // Get device input as XAML elements
+                var deviceInputElement = _devicesTab_DeviceSelectedInput?.GetDeviceInputAsXamlElements(selectedDevice);
+                // Add to StackPanel if we got valid content
+                if (deviceInputElement != null) { SelectedDeviceInputStackPanel.Children.Add(deviceInputElement); }
             }
         }
 
@@ -649,6 +657,5 @@ namespace x360ce.App.Controls
         {
             InputDeviceSearch.Text = string.Empty;
         }
-
     }
 }

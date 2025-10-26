@@ -13,17 +13,17 @@ namespace x360ce.App.Input.Triggers
 	/// Handles device selection events and generates device information display.
 	/// Extracts detailed device properties and formats them for display in a 3-column layout.
 	/// </summary>
-	internal class DevicesTab_DeviceSelected
+	internal class DevicesTab_DeviceSelectedInfo
 	{
-		private readonly UnifiedInputDevice _devicesCombined;
+		private readonly UnifiedInputDeviceManager _unifiedInputDeviceInfoInternal;
 
 		/// <summary>
 		/// Initializes a new instance with reference to the unified device collection.
 		/// </summary>
-		/// <param name="devicesCombined">The unified device collection containing all device lists</param>
-		public DevicesTab_DeviceSelected(UnifiedInputDevice devicesCombined)
+		/// <param name="unifiedInputDevice">The unified device collection containing all device lists</param>
+		public DevicesTab_DeviceSelectedInfo(UnifiedInputDeviceManager unifiedInputDevice)
 		{
-			_devicesCombined = devicesCombined ?? throw new ArgumentNullException(nameof(devicesCombined));
+			_unifiedInputDeviceInfoInternal = unifiedInputDevice ?? throw new ArgumentNullException(nameof(unifiedInputDevice));
 		}
 
 		/// <summary>
@@ -60,28 +60,28 @@ namespace x360ce.App.Input.Triggers
 			switch (inputType)
 			{
 				case "PnPInput":
-					deviceObject = _devicesCombined.PnPInputDeviceInfoList?
+					deviceObject = _unifiedInputDeviceInfoInternal.PnPInputDeviceInfoList?
 						.FirstOrDefault(d => string.Equals(d.HardwareIds, interfacePath, StringComparison.OrdinalIgnoreCase) ||
 											 string.Equals(d.DeviceInstanceId, interfacePath, StringComparison.OrdinalIgnoreCase));
 					break;
 
 				case "RawInput":
-					deviceObject = _devicesCombined.RawInputDeviceInfoList?
+					deviceObject = _unifiedInputDeviceInfoInternal.RawInputDeviceInfoList?
 						.FirstOrDefault(d => string.Equals(d.InterfacePath, interfacePath, StringComparison.OrdinalIgnoreCase));
 					break;
 
 				case "DirectInput":
-					deviceObject = _devicesCombined.DirectInputDeviceInfoList?
+					deviceObject = _unifiedInputDeviceInfoInternal.DirectInputDeviceInfoList?
 						.FirstOrDefault(d => string.Equals(d.InterfacePath, interfacePath, StringComparison.OrdinalIgnoreCase));
 					break;
 
 				case "XInput":
-					deviceObject = _devicesCombined.XInputDeviceInfoList?
+					deviceObject = _unifiedInputDeviceInfoInternal.XInputDeviceInfoList?
 						.FirstOrDefault(d => string.Equals(d.InterfacePath, interfacePath, StringComparison.OrdinalIgnoreCase));
 					break;
 
 				case "GamingInput":
-					deviceObject = _devicesCombined.GamingInputDeviceInfoList?
+					deviceObject = _unifiedInputDeviceInfoInternal.GamingInputDeviceInfoList?
 						.FirstOrDefault(d => string.Equals(d.InterfacePath, interfacePath, StringComparison.OrdinalIgnoreCase));
 					break;
 			}

@@ -10,162 +10,6 @@
 	d:DesignHeight="400"
 	d:DesignWidth="900"
 	Background="{StaticResource BackgroundLight}">
-    <UserControl.Resources>
-        <ResourceDictionary>
-            <!--  MergedDictionaries  -->
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary>
-                    <!--  Converter  -->
-                    <!--<conv:ContainsKeywordConverterType x:Key="ContainsKeywordConverterType" />-->
-                    <!--  Invert Button  -->
-                    <!--<Style
-					x:Key="Button_Invert"
-					BasedOn="{StaticResource Button_Default}"
-					TargetType="Button">
-                        <Setter Property="Width" Value="25" />
-                        <Setter Property="Height" Value="25" />
-                        <Setter Property="Margin" Value="0,3,3,3" />
-                        <Setter Property="ToolTip" Value="Invert" />
-                        <Setter Property="Background" Value="{StaticResource BackgroundDark}" />
-                        <Setter Property="Visibility" Value="Collapsed" />
-                        <Setter Property="Content" Value="{x:Null}" />
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="Button">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Button}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="IButton">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Button_Inverted}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="Axis">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="IAxis">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Inverted}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="HAxis">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Half}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="IHAxis">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Half_Inverted}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="Slider">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="ISlider">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Inverted}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="HSlider">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Half}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Tag.Text, RelativeSource={RelativeSource Self}, Converter={StaticResource ContainsKeywordConverterType}}" Value="IHSlider">
-                                <Setter Property="Content" Value="{StaticResource Icon_DragAndDrop_Axis_Half_Inverted}" />
-                                <Setter Property="Visibility" Value="Visible" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>-->
-                    <!--  Drag and Drop menu GroupBox  -->
-                    <Style
-					x:Key="DragAndDropGroupBox"
-					BasedOn="{StaticResource GroupBox_Default}"
-					TargetType="GroupBox">
-                        <Setter Property="Margin" Value="0,-1,0,0" />
-                        <Setter Property="Padding" Value="5,0,2,3" />
-                    </Style>
-                    <!--  Drag and Drop menu Input Label  -->
-                    <Style x:Key="DragAndDropDInputLabel" TargetType="Label">
-                        <Setter Property="HorizontalAlignment" Value="Center" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Setter Property="Content" Value="STEP 3 - Drag and drop labels into text boxes." />
-                    </Style>
-                    <Style x:Key="DragAndDropXInputBorder" TargetType="Border">
-                        <Setter Property="Margin" Value="0,2,0,0" />
-                        <Setter Property="HorizontalAlignment" Value="Center" />
-                        <Setter Property="VerticalAlignment" Value="Top" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Setter Property="CornerRadius" Value="5" />
-                        <Setter Property="Background" Value="{StaticResource BackgroundDark}" />
-                    </Style>
-                    <Style x:Key="DragAndDropXInputLabel" TargetType="Label">
-                        <Setter Property="HorizontalAlignment" Value="Center" />
-                        <Setter Property="Padding" Value="7,2,8,3" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Setter Property="Content" Value="Virtual Xbox 360 Controller" />
-                    </Style>
-                    <!--  Drag and Drop menu Title Label  -->
-                    <Style x:Key="DragAndDropDInputTitleLabel" TargetType="Label">
-                        <Setter Property="Margin" Value="0" />
-                        <Setter Property="Padding" Value="0" />
-                        <Setter Property="HorizontalAlignment" Value="Center" />
-                        <Setter Property="Opacity" Value="0.3" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Setter Property="Content" Value="Drag and Drop Menu" />
-                        <Setter Property="Visibility" Value="Collapsed" />
-                    </Style>
-                    <!--  Drag and Drop menu "Loading..." Label  -->
-                    <Style x:Key="DragAndDropLoadingLabel" TargetType="Label">
-                        <Setter Property="Margin" Value="0,20,0,20" />
-                        <Setter Property="Padding" Value="9,3,9,6" />
-                        <Setter Property="HorizontalAlignment" Value="Center" />
-                        <Setter Property="IsHitTestVisible" Value="False" />
-                        <Setter Property="Content" Value="Loading..." />
-                    </Style>
-                    <!--  Drag and Drop menu Label  -->
-                    <Style x:Key="DragAndDropLabel" TargetType="Label">
-                        <Setter Property="IsHitTestVisible" Value="True" />
-                        <Setter Property="Background" Value="{StaticResource BackgroundDark}" />
-                        <Setter Property="Padding" Value="5,3,5,3" />
-                        <Setter Property="Margin" Value="0,0,3,3" />
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Label">
-                                    <Border
-									Name="MouseOverBorder"
-									Background="{StaticResource BackgroundDark}"
-									CornerRadius="5">
-                                        <Border
-										Padding="{TemplateBinding Padding}"
-										Background="{TemplateBinding Background}"
-										CornerRadius="5">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="MouseOverBorder" Property="Background" Value="{StaticResource BackgroundDarkSelected}" />
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                    <!--  XInput value Label  -->
-                    <Style x:Key="ValuesLeftLabel" TargetType="Label">
-                        <Setter Property="HorizontalAlignment" Value="Left" />
-                        <Setter Property="Foreground" Value="Green" />
-                        <Setter Property="Padding" Value="0" />
-                        <Setter Property="FontSize" Value="8" />
-                        <Setter Property="Content" Value="0" />
-                        <Setter Property="Margin" Value="3,-1,3,0" />
-                    </Style>
-                    <Style
-					x:Key="ValuesRightLabel"
-					BasedOn="{StaticResource ValuesLeftLabel}"
-					TargetType="Label">
-                        <Setter Property="HorizontalAlignment" Value="Right" />
-                    </Style>
-                </ResourceDictionary>
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </UserControl.Resources>
 
     <Grid VerticalAlignment="Stretch">
         <Grid.RowDefinitions>
@@ -202,10 +46,10 @@
                             DockPanel.Dock="Right"
                             Margin="0,3,3,3"
                             Click="RefreshButton_Click">
-                        <StackPanel>
-                            <ContentControl Content="{StaticResource Icon_Refresh}" />
-                            <Label Content="Refresh" Padding="0" />
-                        </StackPanel>
+                            <StackPanel>
+                                <ContentControl Content="{StaticResource Icon_Refresh}" />
+                                <Label Content="Refresh" Padding="0" />
+                            </StackPanel>
                         </Button>
                         <TextBox
                             Name="InputDeviceSearch"
@@ -383,11 +227,54 @@
                 </TabItem.Header>
 
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Name="DragAndDropStackPanel" Margin="3,0,3,3" MinWidth="200">
+                    <ScrollViewer.Resources>
+                        <!--  Input GroupBox  -->
+                        <Style BasedOn="{StaticResource GroupBox_Default}" TargetType="GroupBox">
+                            <Setter Property="Margin" Value="0,-1,0,0" />
+                            <Setter Property="Padding" Value="5,0,6,3" />
+                        </Style>
+                        <!--  Input UniformGrid  -->
+                        <Style TargetType="UniformGrid">
+                            <Setter Property="Margin" Value="-2" />
+                            <Setter Property="Columns" Value="8" />
+                        </Style>
+                        <!--  Input StackPanel  -->
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Margin" Value="2" />
+                        </Style>
+                        <!--  Input Label  -->
+                        <Style x:Key="InputLabel" TargetType="Label">
+                            <Setter Property="Background" Value="{StaticResource BackgroundDark}" />
+                            <Setter Property="Padding" Value="0,0,0,1" />
+                            <Setter Property="Margin" Value="0,0,0,0" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Label">
+                                        <Border
+									Padding="{TemplateBinding Padding}"
+									Background="{TemplateBinding Background}"
+									CornerRadius="5">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                        <!--  Value Label  -->
+                        <Style x:Key="ValueLabel" TargetType="Label">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="IsHitTestVisible" Value="False" />
+                            <Setter Property="FontSize" Value="8" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="HorizontalContentAlignment" Value="Center" />
+                        </Style>
+                    </ScrollViewer.Resources>
+
+                    <StackPanel Name="SelectedDeviceInputStackPanel" Margin="3,0,3,3" MinWidth="200">
                         <StackPanel.Resources>
-                            <Style BasedOn="{StaticResource DragAndDropGroupBox}" TargetType="GroupBox" />
-                            <Style BasedOn="{StaticResource DragAndDropLabel}" TargetType="Label" />
+                            <Style TargetType="Label" BasedOn="{StaticResource InputLabel}" />
                         </StackPanel.Resources>
+
                     </StackPanel>
                 </ScrollViewer>
 
