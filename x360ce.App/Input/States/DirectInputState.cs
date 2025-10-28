@@ -97,9 +97,17 @@ namespace x360ce.App.Input.States
 						return GetCurrentKeyboardStateAsListPolled(diDeviceInfo.InterfacePath);
 						
 					case Mouse mouse:
-						// For mice, return InputStateAsList directly from polling
-						// This bypasses DirectInput's unreliable GetCurrentState()
-						return GetCurrentMouseStateAsListPolled(diDeviceInfo.InterfacePath);
+						// For mice, read raw MouseState from DirectInput
+						try
+						{
+							mouse.Acquire();
+						}
+						catch (SharpDXException)
+						{
+							// Device may already be acquired
+						}
+						mouse.Poll();
+						return mouse.GetCurrentState();
 						
 					default:
 						return null;

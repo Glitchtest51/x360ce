@@ -129,6 +129,7 @@ namespace x360ce.App.Input.States
 
 		private readonly RawInputState _rawInputState;
 		private readonly DirectInputState _directInputState;
+		private readonly DirectInputStateToList _directInputStateToList;
 		private readonly XInputState _xInputState;
 		private readonly GamingInputState _gamingInputState;
 
@@ -141,6 +142,7 @@ namespace x360ce.App.Input.States
 		{
 			_rawInputState = RawInputState.Instance;
 			_directInputState = new DirectInputState();
+			_directInputStateToList = new DirectInputStateToList();
 			_xInputState = new XInputState();
 			_gamingInputState = new GamingInputState();
 		}
@@ -206,8 +208,8 @@ namespace x360ce.App.Input.States
 				if (diState == null)
 					return false;
 
-				// Convert DirectInput state to InputStateAsList format
-				var stateList = DirectInputStateToList.ConvertDirectInputStateToList(diState);
+				// Convert DirectInput state to InputStateAsList format with sensitivity control
+				var stateList = _directInputStateToList.ConvertDirectInputStateToList(diState, deviceInfo);
 				
 				if (stateList == null)
 					return false;
