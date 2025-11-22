@@ -24,9 +24,9 @@ namespace x360ce.App.Input.Devices
 		public string InputType { get; set; }
         public ListInputState ListInputState { get; set; }
         public int AxeCount { get; set; }
-  public int SliderCount { get; set; }
-  public int ButtonCount { get; set; }
-  public int PovCount { get; set; }
+		public int SliderCount { get; set; }
+		public int ButtonCount { get; set; }
+		public int PovCount { get; set; }
 		public bool HasForceFeedback { get; set; }
 		public int DriverVersion { get; set; }
 		public int HardwareRevision { get; set; }

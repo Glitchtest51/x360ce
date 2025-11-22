@@ -24,9 +24,9 @@ namespace x360ce.App.Input.Devices
 		public string InputType { get; set; }
         public ListInputState ListInputState { get; set; }
         public int AxeCount { get; set; }
-  public int SliderCount { get; set; }
-  public int ButtonCount { get; set; }
-  public int PovCount { get; set; }
+	    public int SliderCount { get; set; }
+	    public int ButtonCount { get; set; }
+	    public int PovCount { get; set; }
 		public bool HasForceFeedback { get; set; }
 		public int DriverVersion { get; set; }
 		public int HardwareRevision { get; set; }
@@ -38,13 +38,19 @@ namespace x360ce.App.Input.Devices
 		// Common identifier for grouping devices from same physical hardware
 		public string CommonIdentifier { get; set; }
 	
-		public int MouseXAxisSensitivity { get; set; } = 20;	
-		public int MouseYAxisSensitivity { get; set; } = 20;
-		public int MouseZAxisSensitivity { get; set; } = 50;
+        /// <summary>
+        /// Mouse axis sensitivity values for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
+        /// Defaults: {20, 20, 50, 50}.
+        /// Minimum is 1.
+        /// </summary>
+        public List<int> MouseAxisSensitivity { get; set; } = new List<int> { 20, 20, 50, 50 };
 
-        public int MouseXAxisAccumulated { get; set; } = 32767;
-        public int MouseYAxisAccumulated { get; set; } = 32767;
-        public int MouseZAxisAccumulated { get; set; } = 0;
+        /// <summary>
+        /// Mouse axis delta accumulated positions for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
+        /// Defaults: {32767, 32767, 0, 0}.
+        /// Minimum is 0, maximum is 65535, center is 32767.
+        /// </summary>
+        public List<int> MouseAxisAccumulatedDelta { get; set; } = new List<int> { 32767, 32767, 0, 0 };
 
         // Additional identification properties
         public int VendorId { get; set; }
@@ -246,7 +252,8 @@ namespace x360ce.App.Input.Devices
 						// Set cooperative level for mouse (non-exclusive, background access)
 						try
 						{
-							device.SetCooperativeLevel(IntPtr.Zero, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
+							var hwnd = Process.GetCurrentProcess().MainWindowHandle;
+							device.SetCooperativeLevel(hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
 						}
 						catch (Exception ex)
 						{
@@ -259,7 +266,8 @@ namespace x360ce.App.Input.Devices
 						// Set cooperative level for keyboard (non-exclusive, background access)
 						try
 						{
-							device.SetCooperativeLevel(IntPtr.Zero, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
+							var hwnd = Process.GetCurrentProcess().MainWindowHandle;
+							device.SetCooperativeLevel(hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
 						}
 						catch (Exception ex)
 						{

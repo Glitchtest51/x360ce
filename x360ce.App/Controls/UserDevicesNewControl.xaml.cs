@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using x360ce.App.Input.Devices;
 using x360ce.App.Input.States;
 using x360ce.App.Input.Triggers;
+using x360ce.App.Timers;
 
 namespace x360ce.App.Controls
 {
@@ -37,9 +38,8 @@ namespace x360ce.App.Controls
         private DispatcherTimer _searchDebounceTimer;
         private const int SearchDebounceMs = 150;
 
-        // Timer for checking button states
-        private DispatcherTimer _inputDevicesControlUIUpdateTimer;
-        private const int inputDevicesControlUIUpdateIntervalMs = 100; // Run 10 times per second
+        // UI update timer for checking button states
+        private readonly UserInterfaceUpdatingTimer _uiUpdateTimer = new UserInterfaceUpdatingTimer();
 
         public UserDevicesDebugControl()
         {
@@ -152,9 +152,8 @@ namespace x360ce.App.Controls
                 }
             }));
 
-            // Initialize button check timer and visibility handling
-            InitializeInputDevicesControlUIUpdateTimer();
-            InitializeVisibilityHandling();
+            // Initialize button check timer (includes visibility handling)
+            InitializeUIUpdateTimer();
         }
 
         /// <summary>
@@ -227,37 +226,19 @@ namespace x360ce.App.Controls
         }
 
         /// <summary>
-        /// Initializes the timer that checks DirectInput button states every second.
+        /// Initializes the timer that checks DirectInput button states.
+        /// User interface timer. Always ticks if app is open, and updates only open-visible tabs.
         /// </summary>
-        private void InitializeInputDevicesControlUIUpdateTimer()
+        private void InitializeUIUpdateTimer()
         {
-            _inputDevicesControlUIUpdateTimer = new DispatcherTimer
+            _uiUpdateTimer.Initialize(this, () =>
             {
-                Interval = TimeSpan.FromMilliseconds(inputDevicesControlUIUpdateIntervalMs)
-            };
-            _inputDevicesControlUIUpdateTimer.Tick += (s, e) => _inputDevicesControlUIUpdates.InputDevicesControlUIUpdateTimer(_unifiedInputDeviceManager);
-            
-            if (IsVisible)
-                _inputDevicesControlUIUpdateTimer.Start();
-        }
-
-
-        /// <summary>
-        /// Initializes visibility change handling to start/stop the button check timer.
-        /// </summary>
-        private void InitializeVisibilityHandling()
-        {
-            IsVisibleChanged += (s, e) =>
-            {
-                if (IsVisible)
+                // if "Devices" Tab is open, update Tab UI.
+                if (DevicesTab.IsVisible)
                 {
-                    _inputDevicesControlUIUpdateTimer.Start();
+                    _inputDevicesControlUIUpdates.DevicesTab_UIUpdate(_unifiedInputDeviceManager);
                 }
-                else
-                {
-                    _inputDevicesControlUIUpdateTimer.Stop();
-                }
-            };
+            });
         }
 
         /// <summary>
@@ -581,8 +562,8 @@ namespace x360ce.App.Controls
 
         private void UserControl_Unloaded(object sender, RoutedEventArgs e)
         {
-            // Stop button check timer
-            _inputDevicesControlUIUpdateTimer?.Stop();
+            // Stop and dispose UI update timer
+            _uiUpdateTimer?.Dispose();
 
             // Stop continuous state collection
             InputStateManager.Instance.StopStateCollection();

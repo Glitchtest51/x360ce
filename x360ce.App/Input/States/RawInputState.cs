@@ -1,1062 +1,845 @@
 ﻿using System;
-using System.Collections.Concurrent;
-using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
 {
-	/// <summary>
-	/// Provides NON-BLOCKING RawInput device state reading using Windows WM_INPUT messages.
-	/// This is the ONLY way to read RawInput without blocking other input methods.
-	/// </summary>
-	/// <remarks>
-	/// NON-BLOCKING ARCHITECTURE:
-	/// • Uses Windows Raw Input API (RegisterRawInputDevices + WM_INPUT messages)
-	/// • Message-based system runs in background without blocking
-	/// • Caches latest states from WM_INPUT messages
-	/// • Never opens HID device handles directly
-	/// • Safe for concurrent use with DirectInput, XInput, GamingInput
-	/// 
-	/// This is a lightweight, self-contained implementation that doesn't depend on
-	/// RawInputProcessor or any other processor classes.
-	/// </remarks>
-	internal class RawInputState : IDisposable
-	{
-		#region Singleton Pattern
+    /// <summary>
+    /// Provides NON-BLOCKING RawInput device state reading using Windows WM_INPUT messages.
+    /// This is the ONLY way to read RawInput without blocking other input methods.
+    /// </summary>
+    /// <remarks>
+    /// NON-BLOCKING ARCHITECTURE:
+    /// • Uses Windows Raw Input API (RegisterRawInputDevices + WM_INPUT messages)
+    /// • Message-based system runs in background without blocking
+    /// • Caches latest states from WM_INPUT messages
+    /// • Never opens HID device handles directly
+    /// • Safe for concurrent use with DirectInput, XInput, GamingInput
+    ///
+    /// SELF-CONTAINED DESIGN:
+    /// • Manages its own internal device list to avoid circular dependencies
+    /// • Does NOT depend on UnifiedInputDeviceManager or InputStateManager
+    /// • External code can register device lists for state updates
+    /// • This is a lightweight, self-contained implementation
+    /// </remarks>
+    internal class RawInputState : IDisposable
+    {
+        #region Singleton Pattern
 
-		private static readonly object _lock = new object();
-		private static RawInputState _instance;
+        private static readonly object _lock = new object();
+        private static RawInputState _rawInputState;
 
-		/// <summary>
-		/// Gets the singleton instance of RawInputState.
-		/// CRITICAL: Only ONE instance can exist to prevent WM_INPUT message routing conflicts.
-		/// </summary>
-		public static RawInputState Instance
-		{
-			get
-			{
-				if (_instance == null)
-				{
-					lock (_lock)
-					{
-						if (_instance == null)
-						{
-							_instance = new RawInputState();
-						}
-					}
-				}
-				return _instance;
-			}
-		}
+        /// <summary>
+        /// Gets the singleton instance of RawInputState.
+        /// CRITICAL: Only ONE instance can exist to prevent WM_INPUT message routing conflicts.
+        /// </summary>
+        public static RawInputState rawInputState
+        {
+            get
+            {
+                if (_rawInputState == null)
+                {
+                    lock (_lock)
+                    {
+                        if (_rawInputState == null)
+                        {
+                            _rawInputState = new RawInputState();
+                        }
+                    }
+                }
+                return _rawInputState;
+            }
+        }
 
-		#endregion
+        #endregion
 
-		#region Windows Raw Input API
-	
-		[DllImport("user32.dll", SetLastError = true)]
-		private static extern bool RegisterRawInputDevices(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize);
-	
-		[DllImport("user32.dll", SetLastError = true)]
-		private static extern uint GetRawInputData(IntPtr hRawInput, uint uiCommand, IntPtr pData, ref uint pcbSize, uint cbSizeHeader);
-	
-		[DllImport("kernel32.dll")]
-		private static extern uint GetLastError();
-	
-		/// <summary>
-		/// Gets the current state of a virtual key (used for keyboard polling).
-		/// Returns non-zero if the key is currently pressed.
-		/// </summary>
-		[DllImport("user32.dll")]
-		private static extern short GetAsyncKeyState(int vKey);
+        #region Windows Raw Input API
 
-		private const uint RIM_TYPEMOUSE = 0;
-		private const uint RIM_TYPEKEYBOARD = 1;
-		private const uint RIM_TYPEHID = 2;
-		private const uint RID_INPUT = 0x10000003;
-		private const uint RIDEV_INPUTSINK = 0x00000100;
-		private const uint RIDEV_NOLEGACY = 0x00000030;
-		private const ushort USAGE_PAGE_GENERIC_DESKTOP = 0x01;
-		private const ushort USAGE_JOYSTICK = 0x04;
-		private const ushort USAGE_GAMEPAD = 0x05;
-		private const ushort USAGE_MULTI_AXIS = 0x08;
-		// RAWHID_DATA_OFFSET removed - now computed dynamically using Marshal.SizeOf
+        [DllImport("user32.dll", SetLastError = true, EntryPoint = "RegisterRawInputDevices")]
+        private static extern bool RegisterRawInputDevicesNative(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize);
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWINPUTDEVICE
-		{
-			public ushort usUsagePage;
-			public ushort usUsage;
-			public uint dwFlags;
-			public IntPtr hwndTarget;
-		}
+        /// <summary>
+        /// Wrapper for RegisterRawInputDevices that logs all calls for debugging.
+        /// </summary>
+        private static bool RegisterRawInputDevices(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize)
+        {
+            // Log what devices are being registered
+            var deviceTypes = new System.Text.StringBuilder();
+            deviceTypes.Append("RegisterRawInputDevices called with devices: ");
+            for (int i = 0; i < uiNumDevices; i++)
+            {
+                var device = pRawInputDevices[i];
+                string deviceType = device.usUsage == 0x02 ? "Mouse" :
+                                   device.usUsage == 0x06 ? "Keyboard" :
+                                   device.usUsage == 0x04 ? "Joystick" :
+                                   device.usUsage == 0x05 ? "Gamepad" :
+                                   device.usUsage == 0x08 ? "MultiAxis" :
+                                   $"Unknown(0x{device.usUsage:X2})";
+                deviceTypes.Append($"{deviceType}(Page:0x{device.usUsagePage:X2}, Flags:0x{device.dwFlags:X8}) ");
+            }
+            System.Diagnostics.Debug.WriteLine(deviceTypes.ToString());
+            System.Diagnostics.Debug.WriteLine($"  Stack trace: {new System.Diagnostics.StackTrace(1, true).ToString().Split('\n')[0]}");
+            
+            return RegisterRawInputDevicesNative(pRawInputDevices, uiNumDevices, cbSize);
+        }
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWINPUTHEADER
-		{
-			public uint dwType;
-			public uint dwSize;
-			public IntPtr hDevice;
-			public IntPtr wParam;
-		}
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetRawInputData(IntPtr hRawInput, uint uiCommand, IntPtr pData, ref uint pcbSize, uint cbSizeHeader);
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWINPUT
-		{
-			public RAWINPUTHEADER header;
-			public RAWHID hid;
-		}
+        [DllImport("kernel32.dll")]
+        private static extern uint GetLastError();
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWHID
-		{
-			public uint dwSizeHid;
-			public uint dwCount;
-			// Variable length data follows
-		}
+        /// <summary>
+        /// Gets the current state of a virtual key (used for keyboard polling).
+        /// Returns non-zero if the key is currently pressed.
+        /// </summary>
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int vKey);
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWMOUSE
-		{
-			public ushort usFlags;
-			public ushort usButtonFlags;
-			public ushort usButtonData;
-			public uint ulRawButtons;
-			public int lLastX;
-			public int lLastY;
-			public uint ulExtraInformation;
-		}
+        /// <summary>
+        /// Gets a usage value from a HID input report.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetUsageValue(
+            HIDP_REPORT_TYPE ReportType,
+            ushort UsagePage,
+            ushort LinkCollection,
+            ushort Usage,
+            out int UsageValue,
+            IntPtr PreparsedData,
+            IntPtr Report,
+            uint ReportLength);
 
-		[StructLayout(LayoutKind.Sequential)]
-		private struct RAWKEYBOARD
-		{
-			public ushort MakeCode;
-			public ushort Flags;
-			public ushort Reserved;
-			public ushort VKey;
-			public uint Message;
-			public uint ExtraInformation;
-		}
+        /// <summary>
+        /// Gets all button usages that are currently pressed.
+        /// </summary>
+        [DllImport("hid.dll", SetLastError = true)]
+        private static extern int HidP_GetUsages(
+            HIDP_REPORT_TYPE ReportType,
+            ushort UsagePage,
+            ushort LinkCollection,
+            [Out] ushort[] UsageList,
+            ref ushort UsageLength,
+            IntPtr PreparsedData,
+            IntPtr Report,
+            uint ReportLength);
 
-		// Mouse button flags
-		private const ushort RI_MOUSE_LEFT_BUTTON_DOWN = 0x0001;
-		private const ushort RI_MOUSE_LEFT_BUTTON_UP = 0x0002;
-		private const ushort RI_MOUSE_RIGHT_BUTTON_DOWN = 0x0004;
-		private const ushort RI_MOUSE_RIGHT_BUTTON_UP = 0x0008;
-		private const ushort RI_MOUSE_MIDDLE_BUTTON_DOWN = 0x0010;
-		private const ushort RI_MOUSE_MIDDLE_BUTTON_UP = 0x0020;
-		private const ushort RI_MOUSE_BUTTON_4_DOWN = 0x0040;
-		private const ushort RI_MOUSE_BUTTON_4_UP = 0x0080;
-		private const ushort RI_MOUSE_BUTTON_5_DOWN = 0x0100;
-		private const ushort RI_MOUSE_BUTTON_5_UP = 0x0200;
-		private const ushort RI_MOUSE_WHEEL = 0x0400;
-		private const ushort RI_MOUSE_HWHEEL = 0x0800;
+        // HID report types
+        private enum HIDP_REPORT_TYPE
+        {
+            HidP_Input = 0,
+            HidP_Output = 1,
+            HidP_Feature = 2
+        }
 
-		#endregion
+        // HID status codes
+        private const int HIDP_STATUS_SUCCESS = 0x00110000;
 
-		#region Message Window for WM_INPUT
+        // HID Usage Pages
+        private const ushort HID_USAGE_PAGE_GENERIC = 0x01;
+        private const ushort HID_USAGE_PAGE_BUTTON = 0x09;
 
-		/// <summary>
-		/// Hidden window that receives WM_INPUT messages without blocking.
-		/// </summary>
-		private class RawInputMessageWindow : System.Windows.Forms.NativeWindow, IDisposable
-		{
-			private const int WM_INPUT = 0x00FF;
-			private readonly RawInputState _parent;
+        private const uint RIM_TYPEMOUSE = 0;
+        private const uint RIM_TYPEKEYBOARD = 1;
+        private const uint RIM_TYPEHID = 2;
+        private const uint RID_INPUT = 0x10000003;
 
-			public RawInputMessageWindow(RawInputState parent)
-			{
-				_parent = parent;
-				CreateHandle(new System.Windows.Forms.CreateParams
-				{
-					Caption = "RawInputStatesWindow",
-					Style = 0,
-					ExStyle = 0,
-					ClassStyle = 0,
-					X = 0,
-					Y = 0,
-					Width = 0,
-					Height = 0,
-					Parent = IntPtr.Zero
-				});
-			}
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RAWINPUTDEVICE
+        {
+            public ushort usUsagePage;
+            public ushort usUsage;
+            public uint dwFlags;
+            public IntPtr hwndTarget;
+        }
 
-			protected override void WndProc(ref System.Windows.Forms.Message m)
-			{
-				if (m.Msg == WM_INPUT)
-				{
-					_parent.ProcessRawInputMessage(m.LParam);
-				}
-				base.WndProc(ref m);
-			}
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RAWINPUTHEADER
+        {
+            public uint dwType;
+            public uint dwSize;
+            public IntPtr hDevice;
+            public IntPtr wParam;
+        }
 
-			public void Dispose()
-			{
-				if (Handle != IntPtr.Zero)
-					DestroyHandle();
-			}
-		}
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RAWHID
+        {
+            public uint dwSizeHid;
+            public uint dwCount;
+        }
 
-		#endregion
+        [StructLayout(LayoutKind.Explicit)]
+        private struct RAWMOUSE
+        {
+            [FieldOffset(0)]
+            public ushort usFlags;           // Mouse movement flags
+            [FieldOffset(4)]
+            public ushort usButtonFlags;     // Button transition flags (press/release events)
+            [FieldOffset(6)]
+            public ushort usButtonData;      // Wheel delta OR extra button data
+            [FieldOffset(8)]
+            public uint ulRawButtons;        // Raw button state (rarely used)
+            [FieldOffset(12)]
+            public int lLastX;               // X-axis movement delta
+            [FieldOffset(16)]
+            public int lLastY;               // Y-axis movement delta
+            [FieldOffset(20)]
+            public uint ulExtraInformation;  // Extra device-specific info
+        }
 
-		private RawInputMessageWindow _messageWindow;
-		private readonly ConcurrentDictionary<string, byte[]> _cachedStates = new ConcurrentDictionary<string, byte[]>();
-		private readonly ConcurrentDictionary<IntPtr, string> _handleToPath = new ConcurrentDictionary<IntPtr, string>();
-		private readonly ConcurrentDictionary<IntPtr, byte> _mouseButtonStates = new ConcurrentDictionary<IntPtr, byte>();
-		private readonly ConcurrentDictionary<IntPtr, byte[]> _keyboardKeyStates = new ConcurrentDictionary<IntPtr, byte[]>();
-		
-		// Per-device mouse axis accumulation to prevent conflicts between multiple mouse devices
-		private readonly ConcurrentDictionary<IntPtr, int> _mouseAccumulatedX = new ConcurrentDictionary<IntPtr, int>();
-		private readonly ConcurrentDictionary<IntPtr, int> _mouseAccumulatedY = new ConcurrentDictionary<IntPtr, int>();
-		private readonly ConcurrentDictionary<IntPtr, int> _mouseAccumulatedZ = new ConcurrentDictionary<IntPtr, int>();
-		private readonly ConcurrentDictionary<IntPtr, int> _mouseAccumulatedW = new ConcurrentDictionary<IntPtr, int>();
-		private bool _isInitialized;
-		private bool _disposed;
-		
-		// Device list for immediate state conversion
-		private System.Collections.Generic.List<Devices.RawInputDeviceInfo> _deviceInfoList;
-		
-		// Queue for buffering WM_INPUT messages received before device list is ready
-		private readonly System.Collections.Generic.Queue<PendingInputMessage> _pendingMessages = new System.Collections.Generic.Queue<PendingInputMessage>();
-		private readonly object _pendingMessagesLock = new object();
-		
-		/// <summary>
-		/// Represents a WM_INPUT message received before the device list was ready
-		/// </summary>
-		private struct PendingInputMessage
-		{
-			public string DevicePath;
-			public byte[] RawReport;
-			public System.DateTime Timestamp;
-		}
-		
-		// Cached struct sizes to avoid repeated Marshal.SizeOf calls
-		private static readonly int s_rawinputDeviceSize = Marshal.SizeOf(typeof(RAWINPUTDEVICE));
-		private static readonly int s_rawinputHeaderSize = Marshal.SizeOf(typeof(RAWINPUTHEADER));
-		private static readonly int s_rawhidSize = Marshal.SizeOf(typeof(RAWHID));
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RAWKEYBOARD
+        {
+            public ushort MakeCode;
+            public ushort Flags;
+            public ushort Reserved;
+            public ushort VKey;
+            public uint Message;
+            public uint ExtraInformation;
+        }
 
-		/// <summary>
-		/// Initializes the RawInput message receiver (non-blocking).
-		/// </summary>
-		public RawInputState()
-		{
-			try
-			{
-				// Create hidden window for WM_INPUT messages
-				_messageWindow = new RawInputMessageWindow(this);
+        // Mouse button flags
+        private const ushort RI_MOUSE_LEFT_BUTTON_DOWN = 0x0001;
+        private const ushort RI_MOUSE_LEFT_BUTTON_UP = 0x0002;
+        private const ushort RI_MOUSE_RIGHT_BUTTON_DOWN = 0x0004;
+        private const ushort RI_MOUSE_RIGHT_BUTTON_UP = 0x0008;
+        private const ushort RI_MOUSE_MIDDLE_BUTTON_DOWN = 0x0010;
+        private const ushort RI_MOUSE_MIDDLE_BUTTON_UP = 0x0020;
+        private const ushort RI_MOUSE_BUTTON_4_DOWN = 0x0040;
+        private const ushort RI_MOUSE_BUTTON_4_UP = 0x0080;
+        private const ushort RI_MOUSE_BUTTON_5_DOWN = 0x0100;
+        private const ushort RI_MOUSE_BUTTON_5_UP = 0x0200;
+        private const ushort RI_MOUSE_WHEEL = 0x0400;
+        private const ushort RI_MOUSE_HWHEEL = 0x0800;
 
-				// Register for ALL input devices: Gaming devices, Keyboard, and Mouse
-				// This ensures we receive WM_INPUT messages from all input device types
-				var devices = new RAWINPUTDEVICE[5];
-				
-				// Joystick (0x04) - Flight sticks, racing wheels, Xbox controllers often report as this
-				devices[0].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[0].usUsage = USAGE_JOYSTICK;
-				devices[0].dwFlags = RIDEV_INPUTSINK;
-				devices[0].hwndTarget = _messageWindow.Handle;
-				
-				// Gamepad (0x05) - Standard gamepads
-				devices[1].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[1].usUsage = USAGE_GAMEPAD;
-				devices[1].dwFlags = RIDEV_INPUTSINK;
-				devices[1].hwndTarget = _messageWindow.Handle;
-				
-				// Multi-axis Controller (0x08) - Complex controllers with many axes
-				devices[2].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[2].usUsage = USAGE_MULTI_AXIS;
-				devices[2].dwFlags = RIDEV_INPUTSINK;
-				devices[2].hwndTarget = _messageWindow.Handle;
-				
-				// Keyboard (0x06) - All keyboard devices
-				devices[3].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[3].usUsage = 0x06;
-				devices[3].dwFlags = RIDEV_INPUTSINK;
-				devices[3].hwndTarget = _messageWindow.Handle;
-				
-				// Mouse (0x02) - All mouse devices with NOLEGACY to capture wheel events properly
-				devices[4].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
-				devices[4].usUsage = 0x02;
-				devices[4].dwFlags = RIDEV_INPUTSINK | RIDEV_NOLEGACY;
-				devices[4].hwndTarget = _messageWindow.Handle;
-	
-				bool success = RegisterRawInputDevices(devices, 5, (uint)s_rawinputDeviceSize);
-				if (!success)
-				{
-					uint errorCode = GetLastError();
-					System.Diagnostics.Debug.WriteLine($"RawInputState: RegisterRawInputDevices failed with error code: {errorCode}");
-				}
-				_isInitialized = success;
-			}
-			catch
-			{
-				_isInitialized = false;
-			}
-		}
+        #endregion
 
-		/// <summary>
-		/// Processes WM_INPUT messages and caches device states (non-blocking).
-		/// Handles HID devices (gamepads), mice, and keyboards.
-		/// </summary>
-		private void ProcessRawInputMessage(IntPtr lParam)
-		{
-			uint dwSize = 0;
-			uint headerSize = (uint)s_rawinputHeaderSize;
-			
-			// First call: get required buffer size
-			uint sizeResult = GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, headerSize);
-			if (sizeResult == uint.MaxValue || dwSize == 0)
-				return;
-			
-			// Debug: Log ALL WM_INPUT messages to see what's arriving
-			// System.Diagnostics.Debug.WriteLine($"RawInputState: WM_INPUT message received, size: {dwSize}");
-	
-			IntPtr buffer = Marshal.AllocHGlobal((int)dwSize);
-			try
-			{
-				// Second call: get actual data
-				uint result = GetRawInputData(lParam, RID_INPUT, buffer, ref dwSize, headerSize);
-				if (result == uint.MaxValue || result < headerSize)
-					return;
-	
-				var rawInput = Marshal.PtrToStructure<RAWINPUT>(buffer);
-				
-				// Debug: Log device type
-				string deviceTypeName = rawInput.header.dwType == RIM_TYPEHID ? "HID" :
-				                       rawInput.header.dwType == RIM_TYPEMOUSE ? "Mouse" :
-				                       rawInput.header.dwType == RIM_TYPEKEYBOARD ? "Keyboard" : "Unknown";
-				//System.Diagnostics.Debug.WriteLine($"RawInputState: Processing {deviceTypeName} input, Handle: 0x{rawInput.header.hDevice.ToInt64():X8}");
-				
-				// Process based on device type
-				if (rawInput.header.dwType == RIM_TYPEHID)
-				{
-					ProcessHidInput(buffer, dwSize, rawInput);
-				}
-				else if (rawInput.header.dwType == RIM_TYPEMOUSE)
-				{
-					ProcessMouseInput(buffer, rawInput);
-				}
-				else if (rawInput.header.dwType == RIM_TYPEKEYBOARD)
-				{
-					ProcessKeyboardInput(buffer, rawInput);
-				}
-			}
-			finally
-			{
-				Marshal.FreeHGlobal(buffer);
-			}
-		}
+        #region Message Window for WM_INPUT
 
-		/// <summary>
-		/// Processes HID device input (gamepads, joysticks).
-		/// </summary>
-		private void ProcessHidInput(IntPtr buffer, uint dwSize, RAWINPUT rawInput)
-		{
-			// Compute sizes dynamically to avoid hard-coded offsets
-			int offset = s_rawinputHeaderSize + s_rawhidSize;
-			int totalAvailable = (int)dwSize - offset;
-			int hidReportSize = (int)rawInput.hid.dwSizeHid;
-			int hidCount = Math.Max(1, (int)rawInput.hid.dwCount);
-			int bytesToCopy = Math.Min(totalAvailable, hidReportSize * hidCount);
-	
-			if (bytesToCopy <= 0)
-				return;
-	
-			// Copy HID report data (handles multiple reports if dwCount > 1)
-			byte[] report = new byte[bytesToCopy];
-			Marshal.Copy(IntPtr.Add(buffer, offset), report, 0, bytesToCopy);
-	
-			// Get interface path from device handle (handles may change between enumeration and runtime)
-			string path = null;
-			if (!_handleToPath.TryGetValue(rawInput.header.hDevice, out path))
-			{
-				path = GetDeviceInterfacePath(rawInput.header.hDevice);
-				if (!string.IsNullOrEmpty(path))
-				{
-					_handleToPath[rawInput.header.hDevice] = path;
-				}
-			}
-	
-			if (!string.IsNullOrEmpty(path))
-			{
-				// Check for button state changes before updating cache
-				if (_cachedStates.TryGetValue(path, out byte[] previousReport))
-				{
-					DetectHidButtonStateChanges(path, previousReport, report, rawInput.header.hDevice);
-				}
-				else
-				{
-					// First time seeing this device - log initial state
-					//Debug.WriteLine($"RawInputState: HID device first seen - Handle: 0x{rawInput.header.hDevice.ToInt64():X8}, Path: {path}, ReportSize: {bytesToCopy}");
-				}
-				
-				// Update cached state with report
-				_cachedStates[path] = report;
-				
-				// IMMEDIATE CONVERSION: Convert and save to device ListInputState property
-				ConvertAndUpdateDeviceState(path, report);
-			}
-		}
+        /// <summary>
+        /// Hidden window that receives WM_INPUT messages without blocking.
+        /// </summary>
+        private class RawInputMessageWindow : System.Windows.Forms.NativeWindow, IDisposable
+        {
+            private const int WM_INPUT = 0x00FF;
+            private readonly RawInputState _parent;
 
-		/// <summary>
-		/// Processes mouse input and creates a raw report with button states and RAW axis deltas.
-		/// Report format: [0]=buttons, [1-4]=X delta (int), [5-8]=Y delta (int), [9-12]=Z delta (int)
-		/// </summary>
-		private void ProcessMouseInput(IntPtr buffer, RAWINPUT rawInput)
-		{
-			// Read RAWMOUSE structure from buffer at the correct offset
-			// RAWINPUTHEADER is followed immediately by the device-specific data
-			int mouseOffset = s_rawinputHeaderSize;
-			IntPtr mousePtr = IntPtr.Add(buffer, mouseOffset);
-			var mouse = Marshal.PtrToStructure<RAWMOUSE>(mousePtr);
-			
-			// Debug: Log the raw structure values to verify we're reading correctly
-			//System.Diagnostics.Debug.WriteLine($"RawInputState: RAWMOUSE structure - lLastX={mouse.lLastX}, lLastY={mouse.lLastY}, " +
-			//	$"usButtonFlags=0x{mouse.usButtonFlags:X4}, usButtonData={mouse.usButtonData}");
-	
-			// Get current button state for this device (or 0 if first time)
-			byte previousButtonState = _mouseButtonStates.GetOrAdd(rawInput.header.hDevice, 0);
-			byte buttonState = previousButtonState;
-			
-			// Track button changes for debug output
-			bool hasButtonChanges = mouse.usButtonFlags != 0;
-			
-			// Update button state based on DOWN events (set bits)
-			if ((mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) != 0)
-				buttonState |= 0x01;
-			if ((mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) != 0)
-				buttonState |= 0x02;
-			if ((mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_DOWN) != 0)
-				buttonState |= 0x04;
-			if ((mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) != 0)
-				buttonState |= 0x08;
-			if ((mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) != 0)
-				buttonState |= 0x10;
-	
-			// Update button state based on UP events (clear bits)
-			if ((mouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) != 0)
-				buttonState &= unchecked((byte)~0x01);
-			if ((mouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_UP) != 0)
-				buttonState &= unchecked((byte)~0x02);
-			if ((mouse.usButtonFlags & RI_MOUSE_MIDDLE_BUTTON_UP) != 0)
-				buttonState &= unchecked((byte)~0x04);
-			if ((mouse.usButtonFlags & RI_MOUSE_BUTTON_4_UP) != 0)
-				buttonState &= unchecked((byte)~0x08);
-			if ((mouse.usButtonFlags & RI_MOUSE_BUTTON_5_UP) != 0)
-				buttonState &= unchecked((byte)~0x10);
-	
-			// Debug: Log mouse button state changes
-			if (hasButtonChanges && buttonState != previousButtonState)
-			{
-				string path = GetDeviceInterfacePath(rawInput.header.hDevice);
-				//Debug.WriteLine($"RawInputState: Mouse button change - Handle: 0x{rawInput.header.hDevice.ToInt64():X8}, " +
-				//              $"Flags: 0x{mouse.usButtonFlags:X4}, Previous: 0x{previousButtonState:X2}, New: 0x{buttonState:X2}, " +
-				 //             $"Path: {path ?? "Unknown"}");
-			}
-	
-			// Store updated button state for this device
-			_mouseButtonStates[rawInput.header.hDevice] = buttonState;
-	
-			// Get interface path
-			string devicePath = GetDeviceInterfacePath(rawInput.header.hDevice);
-		
-			// Get RAW axis deltas from WM_INPUT (NO accumulation, NO sensitivity)
-			int rawDeltaX = mouse.lLastX;
-			int rawDeltaY = mouse.lLastY;
-			int rawDeltaZ = 0; // Vertical wheel
-			int rawDeltaW = 0; // Horizontal wheel
-			
-			// Handle mouse wheel (Z axis) - usButtonData contains wheel delta when wheel flags are set
-			if ((mouse.usButtonFlags & RI_MOUSE_WHEEL) != 0)
-			{
-				// Vertical wheel: usButtonData is a signed short representing wheel delta (typically ±120 per notch)
-				rawDeltaZ = unchecked((short)mouse.usButtonData);
-				System.Diagnostics.Debug.WriteLine($"RawInputState: WHEEL DETECTED - Vertical wheel delta: {rawDeltaZ}, usButtonFlags=0x{mouse.usButtonFlags:X4}, usButtonData=0x{mouse.usButtonData:X4}");
-			}
-			else if ((mouse.usButtonFlags & RI_MOUSE_HWHEEL) != 0)
-			{
-				// Horizontal wheel: separate W axis movement
-				rawDeltaW = unchecked((short)mouse.usButtonData);
-				System.Diagnostics.Debug.WriteLine($"RawInputState: HWHEEL DETECTED - Horizontal wheel delta: {rawDeltaW}, usButtonFlags=0x{mouse.usButtonFlags:X4}, usButtonData=0x{mouse.usButtonData:X4}");
-			}
-			
-			// Debug: Log usButtonFlags even when no wheel is detected to see what flags are actually coming through
-			if (mouse.usButtonFlags != 0)
-			{
-				System.Diagnostics.Debug.WriteLine($"RawInputState: Mouse flags detected - usButtonFlags=0x{mouse.usButtonFlags:X4}, usButtonData=0x{mouse.usButtonData:X4}, WHEEL={(mouse.usButtonFlags & RI_MOUSE_WHEEL) != 0}, HWHEEL={(mouse.usButtonFlags & RI_MOUSE_HWHEEL) != 0}");
-			}
-			
-			// ENHANCED DEBUG: Log ALL mouse activity to diagnose wheel issues
-			if (rawDeltaX != 0 || rawDeltaY != 0 || mouse.usButtonFlags != 0)
-			{
-				System.Diagnostics.Debug.WriteLine($"RawInputState: COMPLETE MOUSE DATA - Handle=0x{rawInput.header.hDevice.ToInt64():X8}, " +
-					$"lLastX={mouse.lLastX}, lLastY={mouse.lLastY}, " +
-					$"usButtonFlags=0x{mouse.usButtonFlags:X4}, usButtonData=0x{mouse.usButtonData:X4} (signed={(short)mouse.usButtonData}), " +
-					$"WHEEL_FLAG={((mouse.usButtonFlags & RI_MOUSE_WHEEL) != 0 ? "YES" : "NO")}, " +
-					$"HWHEEL_FLAG={((mouse.usButtonFlags & RI_MOUSE_HWHEEL) != 0 ? "YES" : "NO")}, " +
-					$"Computed: rawDeltaX={rawDeltaX}, rawDeltaY={rawDeltaY}, rawDeltaZ={rawDeltaZ}, rawDeltaW={rawDeltaW}");
-			}
-			
-			// Debug: Log RAW deltas from WM_INPUT to verify they're being read correctly
-			if (rawDeltaX != 0 || rawDeltaY != 0 || rawDeltaZ != 0 || rawDeltaW != 0)
-			{
-				System.Diagnostics.Debug.WriteLine($"RawInputState: RAW WM_INPUT deltas - X={rawDeltaX}, Y={rawDeltaY}, Z={rawDeltaZ}, W={rawDeltaW}, " +
-					$"ButtonFlags=0x{mouse.usButtonFlags:X4}, Handle=0x{rawInput.header.hDevice.ToInt64():X8}");
-			}
-			
-			// CRITICAL: Perform accumulation here per-device to prevent conflicts between multiple mice
-			// Get current accumulated values for this specific device handle
-			// Use device's MouseAxisAccumulated list as defaults if available, otherwise use standard defaults
-			int defaultX = 32767, defaultY = 32767, defaultZ = 0, defaultW = 0;
-			
-			// Find device info to get per-device accumulated defaults
-			if (_deviceInfoList != null && !string.IsNullOrEmpty(devicePath))
-			{
-				foreach (var device in _deviceInfoList)
-				{
-					if (device.DeviceHandle == rawInput.header.hDevice ||
-					    string.Equals(device.InterfacePath, devicePath, StringComparison.OrdinalIgnoreCase))
-					{
-						// Use list-based accumulated values (index: 0=X, 1=Y, 2=Z, 3=W)
-						if (device.MouseAxisAccumulated != null && device.MouseAxisAccumulated.Count >= 4)
-						{
-							defaultX = device.MouseAxisAccumulated[0]; // X axis
-							defaultY = device.MouseAxisAccumulated[1]; // Y axis
-							defaultZ = device.MouseAxisAccumulated[2]; // Z axis (vertical wheel)
-							defaultW = device.MouseAxisAccumulated[3]; // W axis (horizontal wheel)
-						}
-						break;
-					}
-				}
-			}
-			
-			int currentX = _mouseAccumulatedX.GetOrAdd(rawInput.header.hDevice, defaultX);
-			int currentY = _mouseAccumulatedY.GetOrAdd(rawInput.header.hDevice, defaultY);
-			int currentZ = _mouseAccumulatedZ.GetOrAdd(rawInput.header.hDevice, defaultZ);
-			int currentW = _mouseAccumulatedW.GetOrAdd(rawInput.header.hDevice, defaultW);
-			
-			// Get per-device sensitivity values (default: X=20, Y=20, Z=50, W=50 if device not found)
-			int sensitivityX = 20;
-			int sensitivityY = 20;
-			int sensitivityZ = 50;
-			int sensitivityW = 50;
-			
-			// Find device info to get per-device sensitivity settings
-			if (_deviceInfoList != null && !string.IsNullOrEmpty(devicePath))
-			{
-				foreach (var device in _deviceInfoList)
-				{
-					if (device.DeviceHandle == rawInput.header.hDevice ||
-					    string.Equals(device.InterfacePath, devicePath, StringComparison.OrdinalIgnoreCase))
-					{
-						// Use list-based sensitivity values (index: 0=X, 1=Y, 2=Z, 3=W)
-						if (device.MouseAxisSensitivity != null && device.MouseAxisSensitivity.Count >= 4)
-						{
-							sensitivityX = device.MouseAxisSensitivity[0]; // X axis
-							sensitivityY = device.MouseAxisSensitivity[1]; // Y axis
-							sensitivityZ = device.MouseAxisSensitivity[2]; // Z axis (vertical wheel)
-							sensitivityW = device.MouseAxisSensitivity[3]; // W axis (horizontal wheel)
-						}
-						break;
-					}
-				}
-			}
-			
-			int newX = currentX + (rawDeltaX * sensitivityX);
-			int newY = currentY + (rawDeltaY * sensitivityY);
-			int newZ = currentZ + (rawDeltaZ * sensitivityZ);
-			int newW = currentW + (rawDeltaW * sensitivityW);
-			
-			// Clamp to 0-65535 range
-			newX = Math.Max(0, Math.Min(65535, newX));
-			newY = Math.Max(0, Math.Min(65535, newY));
-			newZ = Math.Max(0, Math.Min(65535, newZ));
-			newW = Math.Max(0, Math.Min(65535, newW));
-			
-			// Store accumulated values back to per-device dictionaries
-			_mouseAccumulatedX[rawInput.header.hDevice] = newX;
-			_mouseAccumulatedY[rawInput.header.hDevice] = newY;
-			_mouseAccumulatedZ[rawInput.header.hDevice] = newZ;
-			_mouseAccumulatedW[rawInput.header.hDevice] = newW;
-			
-			// Debug: Log accumulation for this specific device
-			if (rawDeltaX != 0 || rawDeltaY != 0 || rawDeltaZ != 0 || rawDeltaW != 0)
-			{
-				System.Diagnostics.Debug.WriteLine($"RawInputState: Device 0x{rawInput.header.hDevice.ToInt64():X8} accumulated - " +
-					$"Deltas: X={rawDeltaX}, Y={rawDeltaY}, Z={rawDeltaZ}, W={rawDeltaW}, " +
-					$"Accumulated: X={newX}, Y={newY}, Z={newZ}, W={newW}");
-			}
-		
-			// Create 17-byte report: [0]=buttons, [1-4]=X accumulated, [5-8]=Y accumulated, [9-12]=Z accumulated, [13-16]=W accumulated
-			byte[] report = new byte[17];
-			report[0] = buttonState;
-			
-			// Store ACCUMULATED axis values as int (little-endian, 4 bytes each)
-			byte[] xBytes = BitConverter.GetBytes(newX);
-			byte[] yBytes = BitConverter.GetBytes(newY);
-			byte[] zBytes = BitConverter.GetBytes(newZ);
-			byte[] wBytes = BitConverter.GetBytes(newW);
-			
-			Array.Copy(xBytes, 0, report, 1, 4);
-			Array.Copy(yBytes, 0, report, 5, 4);
-			Array.Copy(zBytes, 0, report, 9, 4);
-			Array.Copy(wBytes, 0, report, 13, 4);
-	
-			if (!string.IsNullOrEmpty(devicePath))
-			{
-				// Update cached state with RAW report
-				_cachedStates[devicePath] = report;
-				// Also update handle-to-path mapping for future lookups
-				_handleToPath[rawInput.header.hDevice] = devicePath;
-				
-				// IMMEDIATE CONVERSION: Convert and save to device ListInputState property
-				ConvertAndUpdateDeviceState(devicePath, report);
-			}
-		}
+            public RawInputMessageWindow(RawInputState parent)
+            {
+                _parent = parent;
+                CreateHandle(new System.Windows.Forms.CreateParams
+                {
+                    Caption = "RawInputStatesWindow",
+                    Style = 0,
+                    ExStyle = 0,
+                    ClassStyle = 0,
+                    X = 0,
+                    Y = 0,
+                    Width = 0,
+                    Height = 0,
+                    Parent = IntPtr.Zero
+                });
+            }
 
-		/// <summary>
-		/// Processes keyboard input and creates a synthetic report with key states.
-		/// </summary>
-		private void ProcessKeyboardInput(IntPtr buffer, RAWINPUT rawInput)
-		{
-			// Read RAWKEYBOARD structure from buffer
-			int keyboardOffset = s_rawinputHeaderSize;
-			IntPtr keyboardPtr = IntPtr.Add(buffer, keyboardOffset);
-			var keyboard = Marshal.PtrToStructure<RAWKEYBOARD>(keyboardPtr);
-	
-			// Create a synthetic report with scan code
-			// Byte 0: Reserved (0)
-			// Byte 1: Reserved (0)
-			// Byte 2: Scan code (if key is pressed)
-			byte[] report = new byte[8];
-			
-			// Check if this is a key down event (bit 0 of Flags is 0 for key down)
-			bool isKeyDown = (keyboard.Flags & 0x01) == 0;
-			
-			if (isKeyDown && keyboard.MakeCode != 0)
-			{
-				report[2] = (byte)keyboard.MakeCode; // Store scan code in byte 2
-			}
-			
-			// Debug: Log keyboard state changes
-			if (keyboard.MakeCode != 0)
-			{
-				string path = GetDeviceInterfacePath(rawInput.header.hDevice);
-				//Debug.WriteLine($"RawInputState: Keyboard {(isKeyDown ? "DOWN" : "UP")} - Handle: 0x{rawInput.header.hDevice.ToInt64():X8}, " +
-				//              $"VKey: 0x{keyboard.VKey:X2}, MakeCode: 0x{keyboard.MakeCode:X2}, " +
-				//              $"Path: {path ?? "Unknown"}");
-			}
-	
-			// Get interface path
-			string devicePath = null;
-			if (!_handleToPath.TryGetValue(rawInput.header.hDevice, out devicePath))
-			{
-				devicePath = GetDeviceInterfacePath(rawInput.header.hDevice);
-				if (!string.IsNullOrEmpty(devicePath))
-				{
-					_handleToPath[rawInput.header.hDevice] = devicePath;
-				}
-			}
-	
-			if (!string.IsNullOrEmpty(devicePath))
-			{
-				// Update cached state with report
-				_cachedStates[devicePath] = report;
-				
-				// IMMEDIATE CONVERSION: Convert and save to device ListInputState property
-				ConvertAndUpdateDeviceState(devicePath, report);
-			}
-		}
+            protected override void WndProc(ref System.Windows.Forms.Message m)
+            {
+                if (m.Msg == WM_INPUT)
+                {
+                    _parent.ProcessRawInputMessage(m.LParam);
+                }
+                else if (m.Msg == 0x0002) // WM_DESTROY
+                {
+                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow: WM_DESTROY received for handle 0x{Handle:X}");
+                }
+                else if (m.Msg == 0x0082) // WM_NCDESTROY
+                {
+                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow: WM_NCDESTROY received for handle 0x{Handle:X}");
+                }
+                base.WndProc(ref m);
+            }
 
-		/// <summary>
-		/// Returns cached RawInput device state (non-blocking).
-		/// Uses per-device states from WM_INPUT message processing for accurate per-device tracking.
-		/// </summary>
-		/// 
+            public void Dispose()
+            {
+                if (Handle != IntPtr.Zero)
+                {
+                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow.Dispose: Destroying handle 0x{Handle:X}");
+                    DestroyHandle();
+                }
+            }
+        }
 
-		/// <summary>
-		/// Starts listening to WM_INPUT messages from RawInput devices.
-		/// Message window is already created in constructor and registered for WM_INPUT.
-		/// This method is called when state collection starts (event-driven, NOT timer-based).
-		/// </summary>
-		/// <param name="startListening">True to start listening (no-op, already listening)</param>
-		public void StartListeningWMInputMessagesFromRawInputDevices(bool startListening)
-		{
-			if (startListening)
-			{
-				// Message window is already created in constructor and registered for WM_INPUT
-				// No additional action needed - messages are automatically processed
-				//Debug.WriteLine("RawInputState: Started listening to WM_INPUT messages (event-driven, not timer-based)");
-			}
-			else
-			{
-				// This should not be called - use StopListeningWMInputMessagesFromRawInputDevices instead
-				//Debug.WriteLine("RawInputState: Warning - StartListeningWMInputMessagesFromRawInputDevices called with false");
-			}
-		}
-	
-		/// <summary>
-		/// Stops listening to WM_INPUT messages from RawInput devices.
-		/// Clears all cached states when stopping.
-		/// </summary>
-		/// <param name="stopListening">True to stop listening (clears caches)</param>
-		public void StopListeningWMInputMessagesFromRawInputDevices(bool stopListening)
-		{
-			if (stopListening)
-			{
-				// Clear cached states when stopping
-				_cachedStates.Clear();
-				_handleToPath.Clear();
-				_mouseButtonStates.Clear();
-				_keyboardKeyStates.Clear();
-				Debug.WriteLine("RawInputState: Stopped listening to WM_INPUT messages and cleared cached states");
-			}
-		}
+        #endregion
 
+        private RawInputMessageWindow _messageWindow;
+        private bool _isInitialized;
+        private bool _disposed;
 
-        public byte[] GetRawInputState(RawInputDeviceInfo riDeviceInfo)
-		{
-			if (riDeviceInfo?.InterfacePath == null)
-				return null;
-	
-			// Register device handle to path mapping (thread-safe)
-			if (riDeviceInfo.DeviceHandle != IntPtr.Zero)
-			{
-				_handleToPath.TryAdd(riDeviceInfo.DeviceHandle, riDeviceInfo.InterfacePath);
-			}
-	
-			// For mouse devices, use per-device button state from WM_INPUT and return cached axis deltas
-			if (riDeviceInfo.RawInputDeviceType == RawInputDeviceType.Mouse)
-			{
-				// Get per-device button state from WM_INPUT processing (not global polling)
-				byte currentButtonState = _mouseButtonStates.GetOrAdd(riDeviceInfo.DeviceHandle, 0);
-				
-				// Get cached report from ProcessMouseInput (contains RAW WM_INPUT deltas)
-				if (_cachedStates.TryGetValue(riDeviceInfo.InterfacePath, out byte[] cachedReport) && cachedReport != null && cachedReport.Length >= 17)
-				{
-					// Update button state in cached report with per-device WM_INPUT state
-					cachedReport[0] = currentButtonState;
-					return cachedReport;
-				}
-				
-				// No cached report yet - return initial state with per-device buttons
-				byte[] report = new byte[17];
-				report[0] = currentButtonState;
-				// Axes default to accumulated center values for this device
-				// Use device's MouseAxisAccumulated list as defaults if available
-				int defaultX = 32767, defaultY = 32767, defaultZ = 0, defaultW = 0;
-				if (riDeviceInfo.MouseAxisAccumulated != null && riDeviceInfo.MouseAxisAccumulated.Count >= 4)
-				{
-					defaultX = riDeviceInfo.MouseAxisAccumulated[0]; // X axis
-					defaultY = riDeviceInfo.MouseAxisAccumulated[1]; // Y axis
-					defaultZ = riDeviceInfo.MouseAxisAccumulated[2]; // Z axis (vertical wheel)
-					defaultW = riDeviceInfo.MouseAxisAccumulated[3]; // W axis (horizontal wheel)
-				}
-				
-				int accumulatedX = _mouseAccumulatedX.GetOrAdd(riDeviceInfo.DeviceHandle, defaultX);
-				int accumulatedY = _mouseAccumulatedY.GetOrAdd(riDeviceInfo.DeviceHandle, defaultY);
-				int accumulatedZ = _mouseAccumulatedZ.GetOrAdd(riDeviceInfo.DeviceHandle, defaultZ);
-				int accumulatedW = _mouseAccumulatedW.GetOrAdd(riDeviceInfo.DeviceHandle, defaultW);
-				
-				// Store accumulated axis values in report
-				byte[] xBytes = BitConverter.GetBytes(accumulatedX);
-				byte[] yBytes = BitConverter.GetBytes(accumulatedY);
-				byte[] zBytes = BitConverter.GetBytes(accumulatedZ);
-				byte[] wBytes = BitConverter.GetBytes(accumulatedW);
-				Array.Copy(xBytes, 0, report, 1, 4);
-				Array.Copy(yBytes, 0, report, 5, 4);
-				Array.Copy(zBytes, 0, report, 9, 4);
-				Array.Copy(wBytes, 0, report, 13, 4);
-				
-				// Update cache
-				_cachedStates[riDeviceInfo.InterfacePath] = report;
-				
-				return report;
-			}
-	
-			// For keyboard devices, use cached state from WM_INPUT processing
-			if (riDeviceInfo.RawInputDeviceType == RawInputDeviceType.Keyboard)
-			{
-				// Get cached keyboard state from WM_INPUT processing
-				if (_cachedStates.TryGetValue(riDeviceInfo.InterfacePath, out byte[] cachedKeyState))
-				{
-					return cachedKeyState;
-				}
-				
-				// No cached state yet - return empty keyboard report
-				byte[] emptyKeyState = new byte[8];
-				_cachedStates[riDeviceInfo.InterfacePath] = emptyKeyState;
-				return emptyKeyState;
-			}
-	
-			// For HID devices, return cached state (non-blocking, thread-safe)
-			_cachedStates.TryGetValue(riDeviceInfo.InterfacePath, out byte[] cachedState);
-			return cachedState;
-		}
-	
-	
+        // Optimization: Reuse buffer for WM_INPUT messages to avoid AllocHGlobal/FreeHGlobal overhead
+        private IntPtr _buffer;
+        private int _bufferSize;
 
+        // Cached struct sizes (used multiple times in hot path)
+        private static readonly int s_rawinputHeaderSize = Marshal.SizeOf(typeof(RAWINPUTHEADER));
+        private static readonly int s_rawhidSize = Marshal.SizeOf(typeof(RAWHID));
 
-		/// <summary>
-		/// Returns cached RawInput device state and clears it (non-blocking).
-		/// This ensures button detection only happens when NEW messages arrive between checks.
-		/// </summary>
-		public byte[] GetAndClearRawInputDeviceState(RawInputDeviceInfo deviceInfo)
-		{
-			if (deviceInfo?.InterfacePath == null)
-				return null;
+        // HID Usage Page and Usage constants (Static Readonly for performance)
+        private static readonly ushort[] _axisUsages = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35 };
+        private static readonly ushort[] _sliderUsages = { 0x36, 0x37, 0x38 };
 
-			// Register device handle to path mapping (thread-safe)
-			if (deviceInfo.DeviceHandle != IntPtr.Zero)
-			{
-				_handleToPath.TryAdd(deviceInfo.DeviceHandle, deviceInfo.InterfacePath);
-			}
-	
-			// Get and remove cached state in one operation (non-blocking, thread-safe)
-			_cachedStates.TryRemove(deviceInfo.InterfacePath, out byte[] cachedState);
-			return cachedState;
-		}
+        // Reusable buffer for button usages to avoid allocation in hot path
+        private ushort[] _buttonUsagesBuffer = new ushort[256];
 
-	/// <summary>
-	/// Gets the device interface path from a device handle using GetRawInputDeviceInfo.
-	/// This is necessary because device handles can change between enumeration and runtime.
-	/// </summary>
-	private string GetDeviceInterfacePath(IntPtr hDevice)
-	{
-		uint size = 0;
-		GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, IntPtr.Zero, ref size);
+        // HID Usage Page and Usage constants
+        private const ushort USAGE_PAGE_GENERIC_DESKTOP = 0x01;
+        private const ushort USAGE_JOYSTICK = 0x04;
+        private const ushort USAGE_GAMEPAD = 0x05;
+        private const ushort USAGE_MULTI_AXIS = 0x08;
+        private const uint RIDEV_INPUTSINK = 0x00000100;
 
-		if (size == 0)
-			return null;
+        /// <summary>
+        /// Initializes the RawInput message receiver (non-blocking).
+        /// </summary>
+        private RawInputState()
+        {
+            try
+            {
+                // Create hidden window for WM_INPUT messages
+                _messageWindow = new RawInputMessageWindow(this);
 
-		IntPtr buffer = Marshal.AllocHGlobal((int)size * 2); // Unicode characters
-		try
-		{
-			uint result = GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, buffer, ref size);
-			return result == uint.MaxValue ? null : Marshal.PtrToStringUni(buffer);
-		}
-		finally
-		{
-			Marshal.FreeHGlobal(buffer);
-		}
-	}
+                // Perform initial device registration
+                RegisterDevices();
+            }
+            catch
+            {
+                _isInitialized = false;
+            }
+        }
 
-	[DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-	private static extern uint GetRawInputDeviceInfo(IntPtr hDevice, uint uiCommand, IntPtr pData, ref uint pcbSize);
+        /// <summary>
+        /// Registers (or re-registers) Raw Input devices.
+        /// CRITICAL: This must be called whenever device lists are recreated to maintain mouse input.
+        /// Windows Raw Input registration is per-process and can be overwritten by subsequent calls.
+        /// </summary>
+        public void RegisterDevices()
+        {
+            // CRITICAL: Ensure message window exists and has valid handle before registration
+            // This prevents registration failures that cause mouse messages to stop
+            if (_messageWindow == null || _messageWindow.Handle == IntPtr.Zero)
+            {
+                System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Message window invalid (null={_messageWindow == null}, handle={_messageWindow?.Handle ?? IntPtr.Zero:X}), recreating...");
+                try
+                {
+                    // Dispose old window if it exists
+                    if (_messageWindow != null)
+                    {
+                        try { _messageWindow.Dispose(); } catch { }
+                        _messageWindow = null;
+                    }
+                    
+                    // Create new message window
+                    _messageWindow = new RawInputMessageWindow(this);
+                    
+                    // Verify handle was created successfully
+                    if (_messageWindow.Handle == IntPtr.Zero)
+                    {
+                        System.Diagnostics.Debug.WriteLine("RawInputState.RegisterDevices: CRITICAL - Failed to create valid window handle!");
+                        return;
+                    }
+                    
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Created new message window with handle: 0x{_messageWindow.Handle:X}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: CRITICAL - Failed to create message window: {ex.Message}");
+                    _messageWindow = null;
+                    return;
+                }
+            }
 
-	private const uint RIDI_DEVICENAME = 0x20000007;
+            try
+            {
+                // Register for ALL input devices: Gaming devices, Keyboard, and Mouse
+                // This ensures we receive WM_INPUT messages from all input device types
+                var devices = new RAWINPUTDEVICE[5];
 
-		/// <summary>
-		/// Detects button state changes in HID device reports and logs them for debugging.
-		/// This method analyzes the button data portion of HID reports to identify state changes.
-		/// </summary>
-		/// <param name="devicePath">Device interface path for identification</param>
-		/// <param name="previousReport">Previous HID report data</param>
-		/// <param name="currentReport">Current HID report data</param>
-		/// <param name="deviceHandle">Device handle for identification</param>
-		private void DetectHidButtonStateChanges(string devicePath, byte[] previousReport, byte[] currentReport, IntPtr deviceHandle)
-		{
-			// Skip if reports are null or different sizes
-			if (previousReport == null || currentReport == null || previousReport.Length != currentReport.Length)
-				return;
-			
-			// Compare reports byte by byte to detect changes
-			bool hasChanges = false;
-			for (int i = 0; i < Math.Min(previousReport.Length, currentReport.Length); i++)
-			{
-				if (previousReport[i] != currentReport[i])
-				{
-					hasChanges = true;
-					break;
-				}
-			}
-			
-			// Only log if there are actual changes
-			if (hasChanges)
-			{
-				// Create a compact hex representation of the changed bytes
-				var changedBytes = new System.Text.StringBuilder();
-				for (int i = 0; i < Math.Min(previousReport.Length, currentReport.Length); i++)
-				{
-					if (previousReport[i] != currentReport[i])
-					{
-						if (changedBytes.Length > 0) changedBytes.Append(" ");
-						changedBytes.Append($"[{i}]: 0x{previousReport[i]:X2}→0x{currentReport[i]:X2}");
-					}
-				}
-				
-				Debug.WriteLine($"RawInputState: HID button change - Handle: 0x{deviceHandle.ToInt64():X8}, " +
-				              $"Path: {devicePath}, Changes: {changedBytes}");
-			}
-		}
+                // Joystick (0x04) - Flight sticks, racing wheels, Xbox controllers often report as this
+                devices[0].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+                devices[0].usUsage = USAGE_JOYSTICK;
+                devices[0].dwFlags = RIDEV_INPUTSINK;
+                devices[0].hwndTarget = _messageWindow.Handle;
 
-		/// <summary>
-		/// Sets the device list for immediate state conversion.
-		/// This enables ConvertAndUpdateDeviceState to find and update device ListInputState properties.
-		/// CRITICAL: Processes any buffered WM_INPUT messages received before device list was ready.
-		/// </summary>
-		/// <param name="deviceList">List of RawInput devices to enable immediate conversion for</param>
-		public void SetDeviceList(System.Collections.Generic.List<RawInputDeviceInfo> deviceList)
-		{
-			_deviceInfoList = deviceList;
-			
-			// CRITICAL: Process any buffered WM_INPUT messages that arrived before device list was ready
-			lock (_pendingMessagesLock)
-			{
-				int processedCount = 0;
-				while (_pendingMessages.Count > 0)
-				{
-					var pendingMessage = _pendingMessages.Dequeue();
-					
-					// Process the buffered message now that device list is available
-					ConvertAndUpdateDeviceState(pendingMessage.DevicePath, pendingMessage.RawReport);
-					processedCount++;
-				}
-				
-				if (processedCount > 0)
-				{
-					Debug.WriteLine($"RawInputState: Processed {processedCount} buffered WM_INPUT messages after device list became available");
-				}
-			}
-			
-			// CRITICAL: Clear cached mouse reports when device list is updated
-			// This prevents stale cached deltas from previous enumeration cycles
-			var mouseDevicePaths = new System.Collections.Generic.List<string>();
-			foreach (var kvp in _cachedStates)
-			{
-				// Check if this cached state belongs to a mouse device
-				RawInputDeviceInfo mouseDevice = null;
-				if (deviceList != null)
-				{
-					foreach (var device in deviceList)
-					{
-						if (string.Equals(device.InterfacePath, kvp.Key, StringComparison.OrdinalIgnoreCase))
-						{
-							mouseDevice = device;
-							break;
-						}
-					}
-				}
-				
-				if (mouseDevice?.RawInputDeviceType == RawInputDeviceType.Mouse)
-				{
-					mouseDevicePaths.Add(kvp.Key);
-				}
-			}
-			
-			// Clear cached reports for mouse devices to prevent stale delta issues
-			foreach (var path in mouseDevicePaths)
-			{
-				_cachedStates.TryRemove(path, out _);
-				System.Diagnostics.Debug.WriteLine($"RawInputState: Cleared stale cached mouse report for device: {path}");
-			}
-			
-			Debug.WriteLine($"RawInputState: Device list set with {deviceList?.Count ?? 0} devices for immediate conversion");
-			
-			// Debug: Log if device list update happens during active input processing
-			if (_cachedStates.Count > 0)
-			{
-				Debug.WriteLine($"RawInputState: WARNING - Device list updated while {_cachedStates.Count} devices have active cached states");
-			}
-		}
+                // Gamepad (0x05) - Standard gamepads
+                devices[1].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+                devices[1].usUsage = USAGE_GAMEPAD;
+                devices[1].dwFlags = RIDEV_INPUTSINK;
+                devices[1].hwndTarget = _messageWindow.Handle;
 
-		/// <summary>
-		/// Immediately converts RawInput state to ListInputState and updates the device's ListInputState property.
-		/// This method is called directly from WM_INPUT message processing for event-driven conversion.
-		/// CRITICAL: Buffers messages when device list isn't ready to prevent lost input events.
-		/// </summary>
-		/// <param name="devicePath">Device interface path to identify the device</param>
-		/// <param name="rawReport">Raw HID/Mouse/Keyboard report from WM_INPUT message</param>
-		private void ConvertAndUpdateDeviceState(string devicePath, byte[] rawReport)
-		{
-			if (string.IsNullOrEmpty(devicePath) || rawReport == null)
-				return;
+                // Multi-axis Controller (0x08) - Complex controllers with many axes
+                devices[2].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+                devices[2].usUsage = USAGE_MULTI_AXIS;
+                devices[2].dwFlags = RIDEV_INPUTSINK;
+                devices[2].hwndTarget = _messageWindow.Handle;
 
-			// CRITICAL FIX: If device list isn't ready yet, buffer the message for later processing
-			if (_deviceInfoList == null)
-			{
-				lock (_pendingMessagesLock)
-				{
-					// Only buffer recent messages (within last 2 seconds) to prevent memory leaks
-					var cutoffTime = System.DateTime.Now.AddSeconds(-2);
-					while (_pendingMessages.Count > 0 && _pendingMessages.Peek().Timestamp < cutoffTime)
-					{
-						_pendingMessages.Dequeue();
-					}
-					
-					// Buffer this message for processing when device list becomes available
-					_pendingMessages.Enqueue(new PendingInputMessage
-					{
-						DevicePath = devicePath,
-						RawReport = (byte[])rawReport.Clone(),
-						Timestamp = System.DateTime.Now
-					});
-					
-					Debug.WriteLine($"RawInputState: Buffered WM_INPUT message (device list not ready) - Path: {devicePath}, Queue size: {_pendingMessages.Count}");
-				}
-				return;
-			}
+                // Keyboard (0x06) - All keyboard devices
+                devices[3].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+                devices[3].usUsage = 0x06;
+                devices[3].dwFlags = RIDEV_INPUTSINK;
+                devices[3].hwndTarget = _messageWindow.Handle;
 
-			// Find the device in our list by interface path
-			RawInputDeviceInfo device = null;
-			foreach (var d in _deviceInfoList)
-			{
-				if (string.Equals(d.InterfacePath, devicePath, StringComparison.OrdinalIgnoreCase))
-				{
-					device = d;
-					break;
-				}
-			}
-			
-			if (device == null)
-			{
-				// Debug: Only log occasionally to avoid spam for unknown devices
-				Debug.WriteLine($"RawInputState: Device not found in list for immediate conversion - Path: {devicePath}");
-				return;
-			}
+                // Mouse (0x02) - All mouse devices
+                // NOTE: RIDEV_NOLEGACY causes thread termination issues - use RIDEV_INPUTSINK only
+                devices[4].usUsagePage = USAGE_PAGE_GENERIC_DESKTOP;
+                devices[4].usUsage = 0x02;
+                devices[4].dwFlags = RIDEV_INPUTSINK;
+                devices[4].hwndTarget = _messageWindow.Handle;
 
-			// Convert RawInput state to ListInputState and update device immediately
-			var listInputState = RawInputStateToListInputState.ConvertRawInputStateToListInputStateAndUpdate(rawReport, device);
-			
-			// Debug: Log the immediate conversion result
-			if (listInputState != null)
-			{
-				Debug.WriteLine($"RawInputState: Immediate conversion and update successful - " +
-				              $"Handle: 0x{device.DeviceHandle.ToInt64():X8}, " +
-				              $"Type: {device.RawInputDeviceType}");
-			}
-			else
-			{
-				Debug.WriteLine($"RawInputState: Immediate conversion failed - " +
-				              $"Handle: 0x{device.DeviceHandle.ToInt64():X8}, " +
-				              $"Type: {device.RawInputDeviceType}");
-			}
-		}
+                bool success = RegisterRawInputDevices(devices, 5, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+                if (!success)
+                {
+                    uint errorCode = GetLastError();
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: CRITICAL - RegisterRawInputDevices failed with error code: {errorCode}");
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: This will cause mouse/keyboard/HID messages to stop arriving!");
+                    _isInitialized = false;
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: ✅ Successfully registered all input devices (HID, Keyboard, Mouse) for window handle: 0x{_messageWindow.Handle:X}");
+                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Mouse messages should now arrive continuously");
+                    _isInitialized = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Exception during registration: {ex.Message}");
+                _isInitialized = false;
+            }
+        }
 
-		public void Dispose()
-		{
-			if (_disposed)
-				return;
-	
-			_messageWindow?.Dispose();
-			_cachedStates.Clear();
-			_handleToPath.Clear();
-			_mouseButtonStates.Clear();
-			_keyboardKeyStates.Clear();
-			_disposed = true;
-		}
+        /// <summary>
+        /// Processes WM_INPUT messages and caches device states (non-blocking).
+        /// Handles HID devices (gamepads), mice, and keyboards.
+        /// </summary>
+        private void ProcessRawInputMessage(IntPtr lParam)
+        {
+            uint dwSize = 0;
 
-		public string GetDiagnosticInfo()
-		{
-			// Optimized: Use string interpolation with pre-calculated values
-			int cachedCount = _cachedStates.Count;
-			int trackedCount = _handleToPath.Count;
-			
-			return $"=== RawInput State Reader (Non-Blocking) ===\n" +
-				   $"Initialized: {_isInitialized}\n" +
-				   $"Cached States: {cachedCount}\n" +
-				   $"Tracked Devices: {trackedCount}\n\n" +
-				   "Implementation: WM_INPUT message-based (non-blocking)\n" +
-				   "✅ Safe for concurrent use with all input methods\n";
-		}
-	}
+            // Optimization: Optimistically try to read with existing buffer first.
+            // This saves a "Get Size" P/Invoke call for every message in the common case.
+            if (_buffer != IntPtr.Zero && _bufferSize > 0)
+            {
+                dwSize = (uint)_bufferSize;
+                uint bytesRead = GetRawInputData(lParam, RID_INPUT, _buffer, ref dwSize, (uint)s_rawinputHeaderSize);
+                if (bytesRead != uint.MaxValue)
+                {
+                    // Use bytesRead (actual size) instead of dwSize (buffer size)
+                    ProcessBuffer(_buffer, bytesRead);
+                    return;
+                }
+            }
+
+            // Fallback: Get required buffer size
+            if (GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, (uint)s_rawinputHeaderSize) == uint.MaxValue)
+                return;
+
+            // Resize buffer if necessary
+            if (dwSize > _bufferSize)
+            {
+                if (_buffer != IntPtr.Zero)
+                    Marshal.FreeHGlobal(_buffer);
+                _buffer = Marshal.AllocHGlobal((int)dwSize);
+                _bufferSize = (int)dwSize;
+            }
+
+            // Read actual data
+            uint finalBytesRead = GetRawInputData(lParam, RID_INPUT, _buffer, ref dwSize, (uint)s_rawinputHeaderSize);
+            if (finalBytesRead != uint.MaxValue)
+            {
+                ProcessBuffer(_buffer, finalBytesRead);
+            }
+        }
+
+        private void ProcessBuffer(IntPtr buffer, uint dwSize)
+        {
+            // Optimization: Only marshal the header first to determine type
+            // This avoids marshaling the wrong union member or extra data
+            var header = Marshal.PtrToStructure<RAWINPUTHEADER>(buffer);
+
+            // Process based on device type
+            if (header.dwType == RIM_TYPEHID)
+                ProcessHidInput(buffer, dwSize, header);
+            else if (header.dwType == RIM_TYPEMOUSE)
+                ProcessMouseInput(buffer, header);
+            else if (header.dwType == RIM_TYPEKEYBOARD)
+                ProcessKeyboardInput(buffer, header);
+        }
+
+        private RawInputDeviceInfo GetDeviceInfo(IntPtr hDevice, RawInputDeviceType rawInputDeviceType)
+        {
+            // Get device interface path
+            string devicePath = GetDeviceInterfacePath(hDevice);
+            if (string.IsNullOrEmpty(devicePath)) return null;
+
+            // Direct access to the authoritative static device list
+            var device = RawInputDevice.RawInputDeviceInfoList
+                .FirstOrDefault(d => d.InterfacePath == devicePath && d.RawInputDeviceType == rawInputDeviceType);
+
+            // If device not found in list (e.g., during list recreation), create a temporary device info
+            // This ensures WM_INPUT messages continue to be processed even when the device list is being updated
+            if (device == null)
+            {
+                // Create a minimal temporary device info to keep processing messages
+                device = new RawInputDeviceInfo
+                {
+                    DeviceHandle = hDevice,
+                    InterfacePath = devicePath,
+                    RawInputDeviceType = rawInputDeviceType,
+                    IsOnline = true,
+                    InputType = "RawInput"
+                };
+
+                // Set appropriate defaults based on device type
+                if (rawInputDeviceType == RawInputDeviceType.Mouse)
+                {
+                    device.ButtonCount = 5; // Standard 5-button mouse
+                    device.AxeCount = 4; // X, Y, Z (wheel), W (hwheel)
+                    device.ProductName = "Mouse (Temporary)";
+                    device.DeviceTypeName = "RawInput Mouse";
+                }
+                else if (rawInputDeviceType == RawInputDeviceType.Keyboard)
+                {
+                    device.ButtonCount = 256; // Standard keyboard key count
+                    device.ProductName = "Keyboard (Temporary)";
+                    device.DeviceTypeName = "RawInput Keyboard";
+                }
+                else if (rawInputDeviceType == RawInputDeviceType.HID)
+                {
+                    device.ProductName = "HID Device (Temporary)";
+                    device.DeviceTypeName = "RawInput HID";
+                }
+            }
+
+            return device;
+        }
+
+        /// <summary>
+        /// Processes HID device input (gamepads, joysticks).
+        /// Updates the device's ListInputState property directly from RawInput state messages.
+        /// </summary>
+        private void ProcessHidInput(IntPtr buffer, uint dwSize, RAWINPUTHEADER header)
+        {
+            //System.Diagnostics.Debug.WriteLine("RawInputState.ProcessHidInput: HID input received.");
+
+            var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.HID);
+            if (device == null) return;
+
+            // Ensure ListInputState is initialized
+            if (device.ListInputState == null)
+            {
+                device.ListInputState = new ListInputState();
+                // Initialize with device capabilities
+                for (int i = 0; i < device.AxeCount; i++) device.ListInputState.Axes.Add(32767);
+                for (int i = 0; i < device.SliderCount; i++) device.ListInputState.Sliders.Add(0);
+                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(0);
+                for (int i = 0; i < device.PovCount; i++) device.ListInputState.POVs.Add(-1);
+            }
+
+            var deviceState = device.ListInputState;
+
+            // Calculate HID report offset and size
+            // CRITICAL: offset points to the START of the HID report (including Report ID if present)
+            int offset = s_rawinputHeaderSize + s_rawhidSize;
+            int reportLength = (int)dwSize - offset;
+
+            if (reportLength <= 0)
+                return;
+
+            // Get pointer to HID report data (this is the START of the HID report)
+            IntPtr reportPtr = IntPtr.Add(buffer, offset);
+
+            // Parse axes using HID API if preparsed data is available
+            if (device.PreparsedData != IntPtr.Zero && device.AxeCount > 0)
+            {
+                // Standard axis usages: X(0x30), Y(0x31), Z(0x32), Rx(0x33), Ry(0x34), Rz(0x35)
+                // CRITICAL: Map each successfully read axis to the next available index
+                // because devices may not report all axes in sequential order
+                int axisIndex = 0; // Track actual axis position in deviceState.Axes
+                
+                foreach (var usage in _axisUsages)
+                {
+                    if (axisIndex >= device.AxeCount)
+                        break; // No more axes to read
+                    
+                    int value;
+                    int status = HidP_GetUsageValue(
+                        HIDP_REPORT_TYPE.HidP_Input,
+                        HID_USAGE_PAGE_GENERIC,
+                        0, // LinkCollection
+                        usage,
+                        out value,
+                        device.PreparsedData,
+                        reportPtr,
+                        (uint)reportLength);
+
+                    if (status == HIDP_STATUS_SUCCESS && axisIndex < deviceState.Axes.Count)
+                    {
+                        // Successfully read this axis - store it at the current index
+                        deviceState.Axes[axisIndex] = value;
+                        axisIndex++; // Move to next axis position
+                    }
+                }
+            }
+
+            // Parse sliders using HID API if preparsed data is available
+            if (device.PreparsedData != IntPtr.Zero && device.SliderCount > 0)
+            {
+                // Slider usages: Slider(0x36), Dial(0x37), Wheel(0x38)
+                for (int i = 0; i < Math.Min(device.SliderCount, _sliderUsages.Length); i++)
+                {
+                    int value;
+                    int status = HidP_GetUsageValue(
+                        HIDP_REPORT_TYPE.HidP_Input,
+                        HID_USAGE_PAGE_GENERIC,
+                        0, // LinkCollection
+                        _sliderUsages[i],
+                        out value,
+                        device.PreparsedData,
+                        reportPtr,
+                        (uint)reportLength);
+
+                    if (status == HIDP_STATUS_SUCCESS && i < deviceState.Sliders.Count)
+                    {
+                        deviceState.Sliders[i] = value;
+                    }
+                }
+            }
+
+            // Parse POVs using HID API if preparsed data is available
+            if (device.PreparsedData != IntPtr.Zero && device.PovCount > 0)
+            {
+                // POV Hat Switch usage: 0x39
+                for (int i = 0; i < device.PovCount; i++)
+                {
+                    int value;
+                    int status = HidP_GetUsageValue(
+                        HIDP_REPORT_TYPE.HidP_Input,
+                        HID_USAGE_PAGE_GENERIC,
+                        0, // LinkCollection
+                        0x39, // POV Hat Switch
+                        out value,
+                        device.PreparsedData,
+                        reportPtr,
+                        (uint)reportLength);
+
+                    if (status == HIDP_STATUS_SUCCESS && i < deviceState.POVs.Count)
+                    {
+                        // HID POV values are typically 0-7 for 8 directions, or 0-15 for 16 directions
+                        // Convert to centidegrees: -1 = neutral, 0 = North, 9000 = East, 18000 = South, 27000 = West
+                        if (value == 0x0F || value == 0xFF || value == -1)
+                        {
+                            // Neutral position
+                            deviceState.POVs[i] = -1;
+                        }
+                        else if (value >= 0 && value <= 15)
+                        {
+                            // 16-direction POV: convert to centidegrees (0-15 range)
+                            deviceState.POVs[i] = value * 2250; // 22.5° = 2250 centidegrees
+                        }
+                        else if (value >= 0 && value <= 7)
+                        {
+                            // 8-direction POV: convert to centidegrees (0-7 range, fallback if not 16-direction)
+                            deviceState.POVs[i] = value * 4500; // 45° = 4500 centidegrees
+                        }
+                        else
+                        {
+                            // Unknown value, treat as neutral
+                            deviceState.POVs[i] = -1;
+                        }
+                    }
+                }
+            }
+
+            // Parse buttons using HID API instead of raw byte reading
+            // This is the ONLY reliable way to read buttons because HID reports can have
+            // buttons, POVs, and axes interleaved in complex ways
+            if (device.PreparsedData != IntPtr.Zero && device.ButtonCount > 0)
+            {
+                // Optimization: Resize shared buffer if needed (rare)
+                if (_buttonUsagesBuffer.Length < device.ButtonCount)
+                    _buttonUsagesBuffer = new ushort[device.ButtonCount];
+
+                // Use HidP_GetUsages to get all pressed buttons
+                // This API correctly interprets the HID report descriptor
+                ushort usageLength = (ushort)device.ButtonCount;
+                
+                int status = HidP_GetUsages(
+                    HIDP_REPORT_TYPE.HidP_Input,
+                    HID_USAGE_PAGE_BUTTON,
+                    0, // LinkCollection
+                    _buttonUsagesBuffer,
+                    ref usageLength,
+                    device.PreparsedData,
+                    reportPtr,
+                    (uint)reportLength);
+                
+                if (status == HIDP_STATUS_SUCCESS)
+                {
+                    // Clear all buttons first
+                    for (int i = 0; i < deviceState.Buttons.Count; i++)
+                        deviceState.Buttons[i] = 0;
+                    
+                    // Set pressed buttons (usages are 1-based, button indices are 0-based)
+                    for (int i = 0; i < usageLength; i++)
+                    {
+                        int buttonIndex = _buttonUsagesBuffer[i] - 1; // Convert 1-based to 0-based
+                        if (buttonIndex >= 0 && buttonIndex < deviceState.Buttons.Count)
+                            deviceState.Buttons[buttonIndex] = 1;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Processes mouse input and creates a raw report with button states and RAW axis deltas.
+        /// Report format: [0]=buttons, [1-4]=X delta (int), [5-8]=Y delta (int), [9-12]=Z delta (int)
+        /// </summary>
+        private void ProcessMouseInput(IntPtr buffer, RAWINPUTHEADER header)
+        {
+            
+            // Get mouse interface path
+            var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.Mouse);
+            if (device == null) return;
+
+            //System.Diagnostics.Debug.WriteLine($"RawInputState.ProcessMouseInput: MOUSE input received {device.InterfacePath}.");
+
+            // Ensure ListInputState is initialized
+            if (device.ListInputState == null)
+            {
+                device.ListInputState = new ListInputState();
+                // Initialize with device.ButtonCount buttons and device.AxeCount axes (X, Y, Z-wheel, W-hwheel)
+                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(0);
+                for (int i = 0; i < device.AxeCount; i++) device.ListInputState.Axes.Add(i < 2 ? 32767 : 0);
+            }
+
+            var deviceState = device.ListInputState;
+
+            // Read RAWMOUSE structure
+            var mouse = Marshal.PtrToStructure<RAWMOUSE>(IntPtr.Add(buffer, s_rawinputHeaderSize));
+
+            // Update persistent button states based on DOWN/UP flags
+            // Note: WM_INPUT only sends transition events, so we track state ourselves
+            UpdateMouseButton(deviceState, 0, mouse.usButtonFlags, RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_LEFT_BUTTON_UP);
+            UpdateMouseButton(deviceState, 1, mouse.usButtonFlags, RI_MOUSE_RIGHT_BUTTON_DOWN, RI_MOUSE_RIGHT_BUTTON_UP);
+            UpdateMouseButton(deviceState, 2, mouse.usButtonFlags, RI_MOUSE_MIDDLE_BUTTON_DOWN, RI_MOUSE_MIDDLE_BUTTON_UP);
+            UpdateMouseButton(deviceState, 3, mouse.usButtonFlags, RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_4_UP);
+            UpdateMouseButton(deviceState, 4, mouse.usButtonFlags, RI_MOUSE_BUTTON_5_DOWN, RI_MOUSE_BUTTON_5_UP);
+
+            // Update axes from movement deltas (relative movement converted to joystick range)
+            // Accumulate deltas and clamp to 0-65535 to simulate joystick analog stick behavior
+            if (deviceState.Axes.Count > 0)
+                deviceState.Axes[0] = Math.Max(0, Math.Min(65535, deviceState.Axes[0] + mouse.lLastX * device.MouseAxisSensitivity[0]));
+            if (deviceState.Axes.Count > 1)
+                deviceState.Axes[1] = Math.Max(0, Math.Min(65535, deviceState.Axes[1] + mouse.lLastY * device.MouseAxisSensitivity[1]));
+
+            // Process vertical wheel delta (vertical wheel axis)
+            // Accumulate deltas and clamp to 0-65535 to simulate joystick analog stick behavior
+            if (deviceState.Axes.Count > 2 && (mouse.usButtonFlags & RI_MOUSE_WHEEL) != 0)
+            {
+                short wheelDelta = (short)mouse.usButtonData;               
+                deviceState.Axes[2] = Math.Max(0, Math.Min(65535, deviceState.Axes[2] + wheelDelta * device.MouseAxisSensitivity[2]));
+            }
+            
+            // Process horizontal wheel delta (horizontal wheel axis)
+            if (deviceState.Axes.Count > 3 && (mouse.usButtonFlags & RI_MOUSE_HWHEEL) != 0)
+            {
+                short hwheelDelta = (short)mouse.usButtonData;                
+                deviceState.Axes[3] = Math.Max(0, Math.Min(65535, deviceState.Axes[3] + hwheelDelta * device.MouseAxisSensitivity[3]));
+            }
+        }
+
+        /// <summary>
+        /// Helper method to update mouse button state based on DOWN/UP flags.
+        /// </summary>
+        private void UpdateMouseButton(ListInputState state, int buttonIndex, ushort flags, ushort downFlag, ushort upFlag)
+        {
+            if (state.Buttons.Count > buttonIndex)
+            {
+                if ((flags & downFlag) != 0)
+                    state.Buttons[buttonIndex] = 1;
+                else if ((flags & upFlag) != 0)
+                    state.Buttons[buttonIndex] = 0;
+            }
+        }
+
+        /// <summary>
+        /// Processes keyboard input and creates a synthetic report with key states.
+        /// </summary>
+        private void ProcessKeyboardInput(IntPtr buffer, RAWINPUTHEADER header)
+        {
+            //System.Diagnostics.Debug.WriteLine("RawInputState.ProcessKeyboardInput: KEYBOARD input received.");
+
+            // Get device from
+            var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.Keyboard);
+            if (device == null) return;
+
+            // Ensure ListInputState is initialized
+            if (device.ListInputState == null)
+            {
+                device.ListInputState = new ListInputState();
+                // Initialize with device.ButtonCount buttons.
+                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(0);
+            }
+
+            var deviceState = device.ListInputState;
+
+            // Read RAWKEYBOARD structure and update key state
+            var keyboard = Marshal.PtrToStructure<RAWKEYBOARD>(IntPtr.Add(buffer, s_rawinputHeaderSize));
+            deviceState.Buttons[keyboard.VKey] = (keyboard.Flags & 0x01) == 0 ? 1 : 0;
+        }
+
+        /// <summary>
+        /// Gets the device interface path from a device handle using GetRawInputDeviceInfo.
+        /// This is necessary because device handles can change between enumeration and runtime.
+        /// </summary>
+        private string GetDeviceInterfacePath(IntPtr hDevice)
+        {
+            uint size = 0;
+            if (GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, IntPtr.Zero, ref size) == uint.MaxValue || size == 0)
+                return null;
+
+            IntPtr buffer = Marshal.AllocHGlobal((int)size * 2);
+            try
+            {
+                return GetRawInputDeviceInfo(hDevice, RIDI_DEVICENAME, buffer, ref size) == uint.MaxValue
+                    ? null
+                    : Marshal.PtrToStringUni(buffer);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern uint GetRawInputDeviceInfo(IntPtr hDevice, uint uiCommand, IntPtr pData, ref uint pcbSize);
+
+        private const uint RIDI_DEVICENAME = 0x20000007;
+    
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _messageWindow?.Dispose();
+
+            if (_buffer != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(_buffer);
+                _buffer = IntPtr.Zero;
+            }
+
+            _disposed = true;
+        }
+    }
 }

@@ -31,7 +31,7 @@ namespace x360ce.App.Controls
 		/// This ensures we always read the most current state without reference management complexity.
 		/// </summary>
 		/// <param name="unifiedInputDeviceManager">The combined devices instance containing all device lists</param>
-		public void InputDevicesControlUIUpdateTimer(UnifiedInputDeviceManager unifiedInputDeviceManager)
+		public void DevicesTab_UIUpdate(UnifiedInputDeviceManager unifiedInputDeviceManager)
 		{
 			if (unifiedInputDeviceManager == null)
 				return;

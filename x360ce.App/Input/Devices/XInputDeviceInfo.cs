@@ -38,9 +38,9 @@ namespace x360ce.App.Input.Devices
 
         // Capabilities
         public int AxeCount { get; set; }
-  public int SliderCount { get; set; }
-  public int ButtonCount { get; set; }
-  public int PovCount { get; set; }
+		public int SliderCount { get; set; }
+		public int ButtonCount { get; set; }
+		public int PovCount { get; set; }
 		public bool HasForceFeedback { get; set; }
 		
 		// Version information

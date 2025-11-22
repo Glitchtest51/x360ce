@@ -19,7 +19,8 @@ namespace x360ce.App.Input.Devices
         private readonly GamingInputDevice gamingInputDevice = new GamingInputDevice();
 
         public List<PnPInputDeviceInfo> PnPInputDeviceInfoList = new List<PnPInputDeviceInfo>();
-        public List<RawInputDeviceInfo> RawInputDeviceInfoList = new List<RawInputDeviceInfo>();
+        // RawInputDeviceInfoList is now a direct reference to the static authoritative list
+        public List<RawInputDeviceInfo> RawInputDeviceInfoList => RawInputDevice.RawInputDeviceInfoList;
         public List<DirectInputDeviceInfo> DirectInputDeviceInfoList = new List<DirectInputDeviceInfo>();
         public List<XInputDeviceInfo> XInputDeviceInfoList = new List<XInputDeviceInfo>();
         public List<GamingInputDeviceInfo> GamingInputDeviceInfoList = new List<GamingInputDeviceInfo>();
@@ -53,7 +54,8 @@ namespace x360ce.App.Input.Devices
         {
             // Retrieve current device lists from all input sources
             var currentPnPList = pnPInputDevice.GetPnPInputDeviceInfoList();
-            var currentRawInputList = rawInputDevice.GetRawInputDeviceInfoList();
+            // Populate the static RawInputDeviceInfoList (no return value, updates static list directly)
+            rawInputDevice.GetRawInputDeviceInfoList();
             var currentDirectInputList = directInputDevice.GetDirectInputDeviceInfoList();
             var currentXInputList = xInputDevice.GetXInputDeviceInfoList();
             var currentGamingInputList = gamingInputDevice.GetGamingInputDeviceInfoList();
@@ -61,8 +63,8 @@ namespace x360ce.App.Input.Devices
             // Update PnPInputDeviceInfoList incrementally
             UpdateDeviceList(PnPInputDeviceInfoList, currentPnPList, d => d.InstanceGuid);
 
-            // Update RawInputDeviceInfoList incrementally
-            UpdateDeviceList(RawInputDeviceInfoList, currentRawInputList, d => d.InstanceGuid);
+            // RawInputDeviceInfoList is already updated by rawInputDevice.GetRawInputDeviceInfoList()
+            // No need to call UpdateDeviceList - it's the authoritative static list that's directly modified
 
             // Update DirectInputDeviceInfoList incrementally
             UpdateDeviceList(DirectInputDeviceInfoList, currentDirectInputList, d => d.InstanceGuid);
@@ -75,13 +77,13 @@ namespace x360ce.App.Input.Devices
 
             // Build DirectInput name cache for efficient lookups
             BuildDirectInputNameCache();
-
+    
             // Update the unified list incrementally instead of clearing
             UpdateUnifiedInputDeviceList();
-
-            // Set device list for event-driven RawInput state updates
-            RawInputState.Instance.SetDeviceList(RawInputDeviceInfoList);
-
+    
+            // RawInputState now directly accesses RawInputDevice.RawInputDeviceInfoList
+            // No SetDeviceList call needed - simplified architecture eliminates the method!
+    
             // Collect and save states for all devices after enumeration
             // CollectDeviceStates();
         }
@@ -240,12 +242,26 @@ namespace x360ce.App.Input.Devices
             var existingDict = existingList.ToDictionary(keySelector);
             var currentDict = currentList.ToDictionary(keySelector);
 
-            // Remove devices that are no longer present
+            // CRITICAL FIX: Store ListInputState from devices that will be removed
+            // This preserves state when devices are temporarily removed and re-added
+            var preservedStates = new Dictionary<Guid, object>();
             for (int i = existingList.Count - 1; i >= 0; i--)
             {
-                var key = keySelector(existingList[i]);
+                var device = existingList[i];
+                var key = keySelector(device);
                 if (!currentDict.ContainsKey(key))
                 {
+                    // Device is being removed - preserve its ListInputState if it has one
+                    var listInputStateProp = device.GetType().GetProperty("ListInputState");
+                    if (listInputStateProp != null)
+                    {
+                        var state = listInputStateProp.GetValue(device);
+                        if (state != null)
+                        {
+                            preservedStates[key] = state;
+                            System.Diagnostics.Debug.WriteLine($"UnifiedInputDeviceManager.UpdateDeviceList: Preserving ListInputState for device {key}");
+                        }
+                    }
                     existingList.RemoveAt(i);
                 }
             }
@@ -288,6 +304,17 @@ namespace x360ce.App.Input.Devices
                 {
                     // Add new device
                     existingList.Add(currentDevice);
+                    
+                    // CRITICAL FIX: Restore preserved ListInputState if this device was temporarily removed
+                    if (preservedStates.ContainsKey(key))
+                    {
+                        var listInputStateProp = currentDevice.GetType().GetProperty("ListInputState");
+                        if (listInputStateProp != null && listInputStateProp.CanWrite)
+                        {
+                            listInputStateProp.SetValue(currentDevice, preservedStates[key]);
+                            System.Diagnostics.Debug.WriteLine($"UnifiedInputDeviceManager.UpdateDeviceList: Restored ListInputState for device {key}");
+                        }
+                    }
                 }
             }
         }

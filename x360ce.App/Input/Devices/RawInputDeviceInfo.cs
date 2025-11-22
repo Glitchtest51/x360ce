@@ -63,17 +63,18 @@ namespace x360ce.App.Input.Devices
         public string CommonIdentifier { get; set; }
 
         /// <summary>
-        /// Mouse axis sensitivity values for X, Y, Z (vertical wheel), W (horizontal wheel).
-        /// Index 0=X, 1=Y, 2=Z, 3=W
+        /// Mouse axis sensitivity values for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
+        /// Defaults: {20, 20, 50, 50}.
+        /// Minimum is 1.
         /// </summary>
         public List<int> MouseAxisSensitivity { get; set; } = new List<int> { 20, 20, 50, 50 };
 
         /// <summary>
-        /// Mouse axis accumulated positions for X, Y, Z (vertical wheel), W (horizontal wheel).
-        /// Index 0=X, 1=Y, 2=Z, 3=W
-        /// Initial values: X=32767 (centered), Y=32767 (centered), Z=0 (wheel neutral), W=0 (wheel neutral)
+        /// Mouse axis delta accumulated positions for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
+        /// Defaults: {32767, 32767, 0, 0}.
+        /// Minimum is 0, maximum is 65535, center is 32767.
         /// </summary>
-        public List<int> MouseAxisAccumulated { get; set; } = new List<int> { 32767, 32767, 0, 0 };
+        public List<int> MouseAxisAccumulatedDelta { get; set; } = new List<int> { 32767, 32767, 0, 0 };
 
         // Additional identification properties
         public int VendorId { get; set; }
@@ -154,6 +155,14 @@ namespace x360ce.App.Input.Devices
     /// </summary>
     internal class RawInputDevice
     {
+        /// <summary>
+        /// Single, authoritative list of RawInput devices.
+        /// This is the master list that all components reference - no duplicates.
+        /// Updated by GetRawInputDeviceInfoList() during device enumeration.
+        /// </summary>
+        public static List<RawInputDeviceInfo> RawInputDeviceInfoList { get; private set; }
+            = new List<RawInputDeviceInfo>();
+
         #region Win32 API Structures and Constants
 
         /// <summary>
@@ -499,27 +508,35 @@ namespace x360ce.App.Input.Devices
         #endregion
 
         /// <summary>
-        /// Creates a public list of RawInput devices (gamepads, keyboards, mice) with device information and logs their properties.
+        /// Populates the static RawInputDeviceInfoList with all available RawInput devices (gamepads, keyboards, mice).
         /// This method enumerates all available RawInput devices and outputs detailed information for debugging.
         /// </summary>
-        /// <returns>List of RawInputDeviceInfo objects containing device information and handles</returns>
         /// <remarks>
         /// This method performs comprehensive RawInput device enumeration:
         /// • Discovers all RawInput-compatible devices (HID devices, keyboards, mice)
-        /// • Creates RawInputDeviceInfo objects with device information AND device handles
+        /// • Populates the static RawInputDeviceInfoList with device information AND device handles
         /// • Logs detailed device properties using Debug.WriteLine for diagnostics
         /// • Filters devices by type and availability
         /// • Provides device capability information where available
         /// • Keeps device handles for immediate input reading
         /// • Is self-contained with minimal external dependencies
         ///
-        /// IMPORTANT: The returned RawInputDeviceInfo objects contain device handles.
+        /// IMPORTANT: The RawInputDeviceInfo objects contain device handles.
         /// Call Dispose() on each RawInputDeviceInfo when no longer needed to free resources.
         /// </remarks>
-        public List<RawInputDeviceInfo> GetRawInputDeviceInfoList()
+        public void GetRawInputDeviceInfoList()
         {
             var stopwatch = Stopwatch.StartNew();
-            var deviceList = new List<RawInputDeviceInfo>();
+            
+            // CRITICAL FIX: Re-register Raw Input devices BEFORE clearing the list
+            // This ensures mouse messages continue to arrive during device list recreation
+            // Windows Raw Input registration is per-process and the last call wins
+            // By registering BEFORE clearing, we maintain continuous message flow
+            x360ce.App.Input.States.RawInputState.rawInputState.RegisterDevices();
+            
+            // Clear the static list before repopulating
+            RawInputDeviceInfoList.Clear();
+            
             var deviceListDebugLines = new List<string>();
             int deviceListIndex = 0;
 
@@ -536,7 +553,7 @@ namespace x360ce.App.Input.Devices
                 if (result == uint.MaxValue || deviceCount == 0)
                 {
                     LogEmptyResult(deviceListDebugLines, result == uint.MaxValue ? GetLastError() : 0);
-                    return deviceList;
+                    return;
                 }
 
                 Debug.WriteLine($"RawInputDevice: Found {deviceCount} RawInput devices");
@@ -548,7 +565,7 @@ namespace x360ce.App.Input.Devices
                 if (result == uint.MaxValue)
                 {
                     LogEmptyResult(deviceListDebugLines, GetLastError());
-                    return deviceList;
+                    return;
                 }
 
                 // Process each device with optimized early filtering
@@ -558,7 +575,7 @@ namespace x360ce.App.Input.Devices
                     {
                         if (ShouldProcessDevice(rawDevice, out bool isInputDevice) && isInputDevice)
                         {
-                            ProcessInputDevice(rawDevice, ref deviceListIndex, deviceList, deviceListDebugLines);
+                            ProcessInputDevice(rawDevice, ref deviceListIndex, RawInputDeviceInfoList, deviceListDebugLines);
                         }
                     }
                     catch (Exception deviceEx)
@@ -569,14 +586,15 @@ namespace x360ce.App.Input.Devices
 
                 // Filter out MI-only devices (USB composite parent nodes) when sibling COL devices exist
                 // This prevents double-counting the same physical device
-                var filteredDevices = FilterMiOnlyDevices(deviceList);
-                if (filteredDevices.Count != deviceList.Count)
+                var filteredDevices = FilterMiOnlyDevices(RawInputDeviceInfoList);
+                if (filteredDevices.Count != RawInputDeviceInfoList.Count)
                 {
-                    Debug.WriteLine($"RawInputDevice: Filtered out {deviceList.Count - filteredDevices.Count} MI-only transport nodes");
-                    deviceList = filteredDevices;
+                    Debug.WriteLine($"RawInputDevice: Filtered out {RawInputDeviceInfoList.Count - filteredDevices.Count} MI-only transport nodes");
+                    RawInputDeviceInfoList.Clear();
+                    RawInputDeviceInfoList.AddRange(filteredDevices);
                 }
 
-                LogSummary(deviceList, stopwatch, deviceListDebugLines);
+                LogSummary(RawInputDeviceInfoList, stopwatch, deviceListDebugLines);
             }
             catch (Exception ex)
             {
@@ -585,8 +603,6 @@ namespace x360ce.App.Input.Devices
             }
 
             foreach (var debugLine in deviceListDebugLines) { Debug.WriteLine(debugLine); }
-
-            return deviceList;
         }
 
         /// <summary>

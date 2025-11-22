@@ -13,7 +13,7 @@ namespace x360ce.App.Input.States
     /// • Buttons: List of button states (0=released, 1=pressed), empty list if no buttons.
     /// • POVs: List of POV/D-Pad values (-1=neutral, 0-27000 = direction in centidegrees, 0 = North, 9000 = East, 18000 = South, 27000 = West), empty list if no POVs.
     ///
-    /// Example: ((0,0,0,1,0,0,0,0,0,0),(),(32100,3566,0,0,31540),(-1,0))
+    /// Example: ((32100,3566,0,0,31540),(),(0,0,0,1,0,0,0,0,0,0),(-1,0))
     /// Note: Empty collections are represented as empty lists (), not null
     /// </remarks>
     public class ListInputState

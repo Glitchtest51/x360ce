@@ -91,20 +91,12 @@ namespace x360ce.App.Input.States
 						// For keyboards, return InputStateAsList directly from polling
 						// This bypasses DirectInput's unreliable GetCurrentState()
 						return GetCurrentKeyboardStateAsListPolled(diDeviceInfo.InterfacePath);
-						
+
 					case Mouse mouse:
-						// For mice, read raw MouseState from DirectInput
-						try
-						{
-							mouse.Acquire();
-						}
-						catch (SharpDXException)
-						{
-							// Device may already be acquired
-						}
-						mouse.Poll();
-						return mouse.GetCurrentState();
-						
+						// For mice, return InputStateAsList directly from polling
+						// This bypasses DirectInput's Acquire()/Poll() which kills RawInput messages
+						return GetCurrentMouseStateAsListPolled(diDeviceInfo.InterfacePath);
+
 					default:
 						return null;
 				}
@@ -122,6 +114,50 @@ namespace x360ce.App.Input.States
 			}
 		}
 		
+		/// <summary>
+		/// Polls the ACTUAL current mouse state using GetAsyncKeyState and returns InputStateAsList.
+		/// This ensures we don't block RawInput messages by Acquiring the device in DirectInput.
+		/// </summary>
+		private ListInputState GetCurrentMouseStateAsListPolled(string interfacePath)
+		{
+			// Reuse existing ListInputState object if it exists
+			ListInputState result;
+			if (_cachedStates.TryGetValue(interfacePath, out var cached))
+			{
+				result = cached.State;
+				// Clear existing button states
+				for (int i = 0; i < result.Buttons.Count; i++)
+					result.Buttons[i] = 0;
+			}
+			else
+			{
+				result = new ListInputState();
+				// Initialize standard mouse buttons (Left, Right, Middle, X1, X2)
+				for (int i = 0; i < 5; i++)
+					result.Buttons.Add(0);
+				// Initialize axes (X, Y, Wheel) - placeholder as we can't easily poll relative deltas without DI
+				for (int i = 0; i < 3; i++)
+					result.Axes.Add(i < 2 ? 32767 : 0);
+			}
+
+			// Poll standard mouse buttons
+			// VK_LBUTTON (0x01), VK_RBUTTON (0x02), VK_MBUTTON (0x04), VK_XBUTTON1 (0x05), VK_XBUTTON2 (0x06)
+			if ((GetAsyncKeyState(0x01) & 0x8000) != 0) result.Buttons[0] = 1; // Left
+			if ((GetAsyncKeyState(0x02) & 0x8000) != 0) result.Buttons[1] = 1; // Right
+			if ((GetAsyncKeyState(0x04) & 0x8000) != 0) result.Buttons[2] = 1; // Middle
+			if ((GetAsyncKeyState(0x05) & 0x8000) != 0) result.Buttons[3] = 1; // X1
+			if ((GetAsyncKeyState(0x06) & 0x8000) != 0) result.Buttons[4] = 1; // X2
+
+			// Cache the state
+			_cachedStates[interfacePath] = new CachedKeyboardMouseState
+			{
+				State = result,
+				LastUpdate = DateTime.Now
+			};
+
+			return result;
+		}
+
 		/// <summary>
 		/// Polls the ACTUAL current keyboard state using GetAsyncKeyState and returns InputStateAsList.
 		/// This ensures we detect key holds reliably, same approach as RawInput.

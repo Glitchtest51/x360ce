@@ -145,31 +145,31 @@ namespace x360ce.App.Input.States
 			}
 			
 			// Get per-axis sensitivity values with defaults and minimum enforcement
-			int sensitivityX = Math.Max(MinSensitivity, deviceInfo?.MouseXAxisSensitivity ?? DefaultMouseSensitivity);
-			int sensitivityY = Math.Max(MinSensitivity, deviceInfo?.MouseYAxisSensitivity ?? DefaultMouseSensitivity);
-			int sensitivityZ = Math.Max(MinSensitivity, deviceInfo?.MouseZAxisSensitivity ?? DefaultMouseWheelSensitivity);
+			int sensitivityX = Math.Max(MinSensitivity, deviceInfo?.MouseAxisSensitivity[0] ?? DefaultMouseSensitivity);
+			int sensitivityY = Math.Max(MinSensitivity, deviceInfo?.MouseAxisSensitivity[1] ?? DefaultMouseSensitivity);
+			int sensitivityZ = Math.Max(MinSensitivity, deviceInfo?.MouseAxisSensitivity[2] ?? DefaultMouseWheelSensitivity);
 			
 			// Apply relative movement with per-axis sensitivity multipliers to accumulated values in deviceInfo
 			// DirectInput mouse reports relative movement (delta values)
 			// Each axis has its own sensitivity: higher values = more responsive
 			if (deviceInfo != null)
 			{
-				deviceInfo.MouseXAxisAccumulated = ClampAxisValue(deviceInfo.MouseXAxisAccumulated + state.X * sensitivityX);
-				deviceInfo.MouseYAxisAccumulated = ClampAxisValue(deviceInfo.MouseYAxisAccumulated + state.Y * sensitivityY);
-				deviceInfo.MouseZAxisAccumulated = ClampAxisValue(deviceInfo.MouseZAxisAccumulated + state.Z * sensitivityZ);
+				deviceInfo.MouseAxisAccumulatedDelta[0] = ClampAxisValue(deviceInfo.MouseAxisAccumulatedDelta[0] + state.X * sensitivityX);
+				deviceInfo.MouseAxisAccumulatedDelta[1] = ClampAxisValue(deviceInfo.MouseAxisAccumulatedDelta[1] + state.Y * sensitivityY);
+				deviceInfo.MouseAxisAccumulatedDelta[2] = ClampAxisValue(deviceInfo.MouseAxisAccumulatedDelta[2] + state.Z * sensitivityZ);
 				
 				// Update or add accumulated axis values
 				if (result.Axes.Count >= 3)
 				{
-					result.Axes[0] = deviceInfo.MouseXAxisAccumulated;
-					result.Axes[1] = deviceInfo.MouseYAxisAccumulated;
-					result.Axes[2] = deviceInfo.MouseZAxisAccumulated;
+					result.Axes[0] = deviceInfo.MouseAxisAccumulatedDelta[0];
+					result.Axes[1] = deviceInfo.MouseAxisAccumulatedDelta[1];
+					result.Axes[2] = deviceInfo.MouseAxisAccumulatedDelta[2];
 				}
 				else
 				{
 					result.Axes.Clear();
 					result.Axes.Capacity = 3;
-					result.Axes.AddRange(new[] { deviceInfo.MouseXAxisAccumulated, deviceInfo.MouseYAxisAccumulated, deviceInfo.MouseZAxisAccumulated });
+					result.Axes.AddRange(new[] { deviceInfo.MouseAxisAccumulatedDelta[0], deviceInfo.MouseAxisAccumulatedDelta[1], deviceInfo.MouseAxisAccumulatedDelta[2] });
 				}
 			}
 			else
