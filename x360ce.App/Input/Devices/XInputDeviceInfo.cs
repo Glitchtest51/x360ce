@@ -53,9 +53,14 @@ namespace x360ce.App.Input.Devices
 		public int SlotIndex { get; set; }
 		public uint LastPacketNumber { get; set; }
 		public bool IsOnline { get; set; }
-		
-		// Unused properties (XInput doesn't provide these)
-		public Guid ClassGuid { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool AssignedToPad1 { get; set; }
+        public bool AssignedToPad2 { get; set; }
+        public bool AssignedToPad3 { get; set; }
+        public bool AssignedToPad4 { get; set; }
+
+        // Unused properties (XInput doesn't provide these)
+        public Guid ClassGuid { get; set; }
 		public string HardwareIds { get; set; }
 		public string DeviceId { get; set; }
 		public string ParentDeviceId { get; set; }
@@ -194,11 +199,17 @@ namespace x360ce.App.Input.Devices
 					SlotIndex = slotIndex,
 					XInputDevice = controller,
 					IsOnline = true,
-					LastPacketNumber = (uint)controllerState.PacketNumber,
+                    LastPacketNumber = (uint)controllerState.PacketNumber,
 					DeviceId = "",
 					InterfacePath = XInputProductGuid.ToString(),
-					HardwareIds = ""
-				};
+					HardwareIds = "",
+					// Initial application profile state
+                    IsEnabled = false,
+                    AssignedToPad1 = false,
+                    AssignedToPad2 = false,
+                    AssignedToPad3 = false,
+                    AssignedToPad4 = false
+                };
 			}
 			catch (Exception ex)
 			{

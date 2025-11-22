@@ -1204,12 +1204,22 @@
 		<Setter Property="HorizontalAlignment" Value="Left" />
 	</Style>
 
-	<Style
+    <Style
 		x:Key="CheckBoxCell_Default"
 		BasedOn="{StaticResource CheckBox_Default}"
-		TargetType="CheckBox" />
+		TargetType="CheckBox">
+        <Setter Property="Padding" Value="3,2,3,2" />
+    </Style>
 
-	<!--  Column Header  -->
+    <Style
+		x:Key="CheckBoxCell_Default2"
+		BasedOn="{StaticResource CheckBox_Default}"
+		TargetType="CheckBox">
+        <Setter Property="Padding" Value="0,2,0,2" />
+        <Setter Property="Margin" Value="0" />
+    </Style>
+
+    <!--  Column Header  -->
 	<Style x:Key="DataGridColumnHeader_Default" TargetType="DataGridColumnHeader">
 		<Setter Property="Padding" Value="3,0,16,0" />
 		<Setter Property="Margin" Value="0" />
@@ -1236,6 +1246,7 @@
 					<Grid Background="{DynamicResource GradientBrushStyle}">
 						<!--  Title  -->
 						<ContentPresenter
+                            x:Name="DataGridContentPresenter"
 							Margin="3,0,16,0"
 							VerticalAlignment="Center"
 							Content="{TemplateBinding Content}" />
@@ -1275,7 +1286,11 @@
 								</Setter.Value>
 							</Setter>
 						</Trigger>
-					</ControlTemplate.Triggers>
+                        <Trigger Property="CanUserSort" Value="False">
+                            <Setter TargetName="SortingIndicator" Property="Visibility" Value="Collapsed" />
+                            <Setter TargetName="DataGridContentPresenter" Property="Margin" Value="3,0,3,0"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
 				</ControlTemplate>
 			</Setter.Value>
 		</Setter>
@@ -1788,7 +1803,16 @@
 		</Setter>
 	</Style>
 
-	<!--  ComboBox Static - Text="Value" or Text=""  -->
+    <Style
+		x:Key="ComboBoxCell_Default"
+		BasedOn="{StaticResource ComboBox_Default}"
+		TargetType="ComboBox">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="3,2,3,2" />
+        <Setter Property="Foreground" Value="Black" />
+    </Style>
+
+    <!--  ComboBox Static - Text="Value" or Text=""  -->
 	<Style
 		x:Key="ComboBox_Static"
 		BasedOn="{StaticResource ComboBox_Style}"

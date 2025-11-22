@@ -32,6 +32,11 @@ namespace x360ce.App.Input.Devices
         public int HardwareRevision { get; set; }
         public int FirmwareRevision { get; set; }
         public bool IsOnline { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool AssignedToPad1 { get; set; }
+        public bool AssignedToPad2 { get; set; }
+        public bool AssignedToPad3 { get; set; }
+        public bool AssignedToPad4 { get; set; }
         public string DeviceTypeName { get; set; }
         public string InterfacePath { get; set; }
         
@@ -59,7 +64,7 @@ namespace x360ce.App.Input.Devices
         public uint DeviceStatus { get; set; }
         public uint ProblemCode { get; set; }
         public bool IsPresent { get; set; }
-        public bool IsEnabled { get; set; }
+        public bool IsStarted { get; set; }
         
         // Sorting and indentation properties
         public string SortingString { get; set; }
@@ -354,7 +359,7 @@ namespace x360ce.App.Input.Devices
                 var mouseCount = deviceList.Count(d => d.ClassGuid == GUID_DEVCLASS_MOUSE);
                 var gamepadCount = deviceList.Count(d => IsGamepadDevice(d.HardwareIds, d.DeviceDescription));
                 var presentCount = deviceList.Count(d => d.IsPresent);
-                var enabledCount = deviceList.Count(d => d.IsEnabled);
+                var enabledCount = deviceList.Count(d => d.IsStarted);
                 var problemCount = deviceList.Count(d => d.ProblemCode != 0);
 
                 stopwatch.Stop();
@@ -498,6 +503,13 @@ namespace x360ce.App.Input.Devices
                     InputType = "PnPInput"
                 };
 
+                // Initial application profile state
+                deviceInfo.IsEnabled = false;
+                deviceInfo.AssignedToPad1 = false;
+                deviceInfo.AssignedToPad2 = false;
+                deviceInfo.AssignedToPad3 = false;
+                deviceInfo.AssignedToPad4 = false;
+
                 // Get device instance ID
                 var instanceIdBuffer = new StringBuilder(256);
                 if (SetupDiGetDeviceInstanceId(deviceInfoSet, ref deviceInfoData, instanceIdBuffer, 256, out uint requiredSize))
@@ -545,12 +557,12 @@ namespace x360ce.App.Input.Devices
                     deviceInfo.DeviceStatus = status;
                     deviceInfo.ProblemCode = problemCode;
                     deviceInfo.IsPresent = (status & DN_HAS_PROBLEM) == 0 || problemCode == 0;
-                    deviceInfo.IsEnabled = (status & DN_STARTED) != 0;
+                    deviceInfo.IsStarted = (status & DN_STARTED) != 0;
                 }
                 else
                 {
                     deviceInfo.IsPresent = true; // Assume present if we can't get status
-                    deviceInfo.IsEnabled = true;
+                    deviceInfo.IsStarted = true;
                 }
 
                 // Set capability values to indicate unknown (PnP doesn't provide this information)
@@ -1576,7 +1588,7 @@ namespace x360ce.App.Input.Devices
 
             debugLines.Add($"{indentation}{deviceTypePrefix} Status: " +
                 $"IsPresent: {deviceInfo.IsPresent}, " +
-                $"IsEnabled: {deviceInfo.IsEnabled}, " +
+                $"IsStarted: {deviceInfo.IsStarted}, " +
                 $"StatusDescription: {deviceInfo.StatusDescription}, " +
                 $"DeviceTypeName: {deviceInfo.DeviceTypeName}");
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JocysCom.ClassLibrary.IO;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -32,7 +33,12 @@ namespace x360ce.App.Input.Devices
 		public int HardwareRevision { get; set; }
 		public int FirmwareRevision { get; set; }
 		public bool IsOnline { get; set; }
-		public string DeviceTypeName { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool AssignedToPad1 { get; set; }
+        public bool AssignedToPad2 { get; set; }
+        public bool AssignedToPad3 { get; set; }
+        public bool AssignedToPad4 { get; set; }
+        public string DeviceTypeName { get; set; }
 		public string InterfacePath { get; set; }
 		
 		// Common identifier for grouping devices from same physical hardware
@@ -363,9 +369,9 @@ namespace x360ce.App.Input.Devices
 				IsOnline = true,
 				LastTimestamp = (uint)reading.Timestamp,
 				GamingInputDevice = gamepad,
-				
-				// Device identification - GamingInput API does not provide native device paths
-				DeviceId = "",
+
+                // Device identification - GamingInput API does not provide native device paths
+                DeviceId = "",
 				InterfacePath = GenerateGamingInputProductGuid().ToString(),
 				HardwareIds = "",
 				ParentDeviceId = "",
@@ -373,8 +379,15 @@ namespace x360ce.App.Input.Devices
 				// Version info
 				DriverVersion = GAMING_INPUT_VERSION,
 				HardwareRevision = 1,
-				FirmwareRevision = 1
-			};
+				FirmwareRevision = 1,
+
+                // Initial application profile state
+                IsEnabled = false,
+                AssignedToPad1 = false,
+                AssignedToPad2 = false,
+                AssignedToPad3 = false,
+                AssignedToPad4 = false,
+            };
 		}
 
 		#endregion

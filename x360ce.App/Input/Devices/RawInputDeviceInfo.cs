@@ -56,6 +56,11 @@ namespace x360ce.App.Input.Devices
         public int HardwareRevision { get; set; }
         public int FirmwareRevision { get; set; }
         public bool IsOnline { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool AssignedToPad1 { get; set; }
+        public bool AssignedToPad2 { get; set; }
+        public bool AssignedToPad3 { get; set; }
+        public bool AssignedToPad4 { get; set; }
         public string DeviceTypeName { get; set; }
         public string InterfacePath { get; set; }
         
@@ -2099,7 +2104,13 @@ namespace x360ce.App.Input.Devices
                     DeviceType = (int)rawDevice.dwType,
                     RawInputFlags = rawDevice.dwType,
                     IsOnline = true,
-                    InputType = "RawInput"
+                    InputType = "RawInput",
+                    // Initial application profile state
+                    IsEnabled = false,
+                    AssignedToPad1 = false,
+                    AssignedToPad2 = false,
+                    AssignedToPad3 = false,
+                    AssignedToPad4 = false
                 };
 
                 // Get device name (interface path)

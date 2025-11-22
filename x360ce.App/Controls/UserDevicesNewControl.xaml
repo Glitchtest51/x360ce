@@ -4,12 +4,13 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:x360ce.App.Controls"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d"
              Loaded="InputDevicesControl_Loaded"
              Unloaded="UserControl_Unloaded"
-	d:DesignHeight="400"
-	d:DesignWidth="900"
-	Background="{StaticResource BackgroundLight}">
+ d:DesignHeight="400"
+ d:DesignWidth="900"
+ Background="{StaticResource BackgroundLight}">
 
     <Grid VerticalAlignment="Stretch">
         <Grid.RowDefinitions>
@@ -108,6 +109,7 @@
                                 <Style TargetType="DataGridCell">
                                     <Setter Property="IsTabStop" Value="False" />
                                     <Setter Property="BorderThickness" Value="0"/>
+                                    <Setter Property="VerticalContentAlignment" Value="Center"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
                                             <Setter Property="Background" Value="{DynamicResource {x:Static SystemColors.HighlightBrushKey}}" />
@@ -121,6 +123,7 @@
                                     <Setter Property="BorderThickness" Value="0"/>
                                     <Setter Property="Padding" Value="1"/>
                                     <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="VerticalContentAlignment" Value="Center"/>
                                     <Setter Property="IsTabStop" Value="False"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridCell}}" Value="True">
@@ -130,6 +133,46 @@
                                 </Style>
                             </DataGrid.Resources>
                             <DataGrid.Columns>
+
+                                <DataGridCheckBoxColumn
+						            x:Name="IsEnabledColumn"
+						            Binding="{Binding IsEnabled, IsAsync=True, Mode=TwoWay}"
+						            EditingElementStyle="{StaticResource CheckBoxCell_Default}"
+						            ElementStyle="{StaticResource CheckBoxCell_Default}"
+						            Header="On" />
+
+                                <DataGridCheckBoxColumn
+						            x:Name="AssignedToPad1"
+                                    CanUserSort="False"
+						            Binding="{Binding AssignedToPad1, IsAsync=True, Mode=TwoWay}"
+						            EditingElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            ElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            Header="P1" />
+
+                                <DataGridCheckBoxColumn
+						            x:Name="AssignedToPad2"
+                                    CanUserSort="False"
+						            Binding="{Binding AssignedToPad2, IsAsync=True, Mode=TwoWay}"
+						            EditingElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            ElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            Header="P2" />
+
+                                <DataGridCheckBoxColumn
+						            x:Name="AssignedToPad3" 
+                                    CanUserSort="False"
+						            Binding="{Binding AssignedToPad3, IsAsync=True, Mode=TwoWay}"
+						            EditingElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            ElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            Header="P3" />
+
+                                <DataGridCheckBoxColumn
+						            x:Name="AssignedToPad4"
+                                    CanUserSort="False"
+                            		Binding="{Binding AssignedToPad4, IsAsync=True, Mode=TwoWay}"
+						            EditingElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            ElementStyle="{StaticResource CheckBoxCell_Default2}"
+						            Header="P4" />
+
                                 <DataGridTemplateColumn Header="InputType" SortMemberPath="InputType" Width="Auto">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -137,6 +180,7 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+                                
                                 <DataGridTemplateColumn Header="CommonIdentifier" SortMemberPath="CommonIdentifier" Width="Auto">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
@@ -144,50 +188,59 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+                                
                                 <DataGridTextColumn x:Name="AxisColumn" Header="A" Binding="{Binding AxeCount}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Padding" Value="1"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                
                                 <DataGridTextColumn x:Name="SliderColumn" Header="S" Binding="{Binding SliderCount}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Padding" Value="1"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                
                                 <DataGridTextColumn x:Name="ButtonColumn" Header="B" Binding="{Binding ButtonCount}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Padding" Value="1"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
+                                
                                 <DataGridTextColumn x:Name="PovColumn" Header="P" Binding="{Binding PovCount}" Width="Auto">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="TextAlignment" Value="Center"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Padding" Value="1"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
-                                <DataGridTextColumn x:Name="ProductName" Header="ProductName" Binding="{Binding ProductName}" Width="Auto" SortMemberPath="ProductName" >
-                                    <DataGridTextColumn.CellStyle>
-                                        <Style TargetType="DataGridCell">
-                                            <Setter Property="BorderThickness" Value="0"/>
+                                <DataGridTextColumn x:Name="ProductName" Header="ProductName" Binding="{Binding ProductName}" Width="Auto">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="1"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding ButtonPressed}" Value="True">
                                                     <Setter Property="Background" Value="#88ff0000"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </DataGridTextColumn.CellStyle>
+                                    </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
                                 <DataGridTemplateColumn Header="InterfacePath" SortMemberPath="InterfacePath" Width="*">

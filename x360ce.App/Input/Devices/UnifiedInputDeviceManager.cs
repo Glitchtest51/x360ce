@@ -195,9 +195,14 @@ namespace x360ce.App.Input.Devices
                 	existingDevice.PovCount = device.PovCount;
                 	existingDevice.ProductName = getProductName(item, commonId);
                 	existingDevice.InterfacePath = getInterfacePath(item);
-                	
-                	// Note: ListInputState is no longer stored in UnifiedInputDeviceInfo
-                	// It's retrieved directly from source device lists when needed using InterfacePath lookup
+                    existingDevice.IsEnabled = device.IsEnabled;
+                    existingDevice.AssignedToPad1 = device.AssignedToPad1;
+                    existingDevice.AssignedToPad2 = device.AssignedToPad2;
+                    existingDevice.AssignedToPad3 = device.AssignedToPad3;
+                    existingDevice.AssignedToPad4 = device.AssignedToPad4;
+
+                    // Note: ListInputState is no longer stored in UnifiedInputDeviceInfo
+                    // It's retrieved directly from source device lists when needed using InterfacePath lookup
                 }
                 else
                 {
@@ -216,11 +221,16 @@ namespace x360ce.App.Input.Devices
                 		ButtonPressed = false,
                 		PovPressed = false,
                 		ProductName = getProductName(item, commonId),
-                		InterfacePath = getInterfacePath(item)
-                		
-                		// Note: ListInputState is no longer stored here
-                		// It's retrieved directly from source device lists when needed using InterfacePath lookup
-                	};
+                		InterfacePath = getInterfacePath(item),
+                        IsEnabled = device.IsEnabled,
+                        AssignedToPad1 = device.AssignedToPad1,
+                        AssignedToPad2 = device.AssignedToPad2,
+                        AssignedToPad3 = device.AssignedToPad3,
+                        AssignedToPad4 = device.AssignedToPad4
+
+                        // Note: ListInputState is no longer stored here
+                        // It's retrieved directly from source device lists when needed using InterfacePath lookup
+                    };
                 	UnifiedInputDeviceInfoList.Add(newDevice);
                 }
             }

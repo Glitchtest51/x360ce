@@ -21,6 +21,11 @@ namespace x360ce.App.Input.Devices
 		public int PovCount { get; set; }
 		public string ProductName { get; set; }
 		public string InterfacePath { get; set; }
+		public bool IsEnabled { get; set; }
+        public bool AssignedToPad1 { get; set; }
+        public bool AssignedToPad2 { get; set; }
+        public bool AssignedToPad3 { get; set; }
+        public bool AssignedToPad4 { get; set; }
 
         private bool _axePressed;
 		private bool _sliderPressed;
