@@ -8,9 +8,9 @@ namespace x360ce.App.Input.Devices
 {
     /// <summary>
     /// Combined device management class that orchestrates different input device types.
-    /// Provides unified access to DirectInput, XInput, and other input methods.
+    /// Provides custom access to DirectInput, XInput, and other input methods.
     /// </summary>
-    internal class UnifiedInputDeviceManager
+    internal class CustomInputDeviceManager
     {
         private readonly PnPInputDevice pnPInputDevice = new PnPInputDevice();
         private readonly RawInputDevice rawInputDevice = new RawInputDevice();
@@ -24,13 +24,13 @@ namespace x360ce.App.Input.Devices
         public List<DirectInputDeviceInfo> DirectInputDeviceInfoList = new List<DirectInputDeviceInfo>();
         public List<XInputDeviceInfo> XInputDeviceInfoList = new List<XInputDeviceInfo>();
         public List<GamingInputDeviceInfo> GamingInputDeviceInfoList = new List<GamingInputDeviceInfo>();
-        public ObservableCollection<UnifiedInputDeviceInfo> UnifiedInputDeviceInfoList = new ObservableCollection<UnifiedInputDeviceInfo>();
+        public ObservableCollection<CustomInputDeviceInfo> CustomInputDeviceInfoList = new ObservableCollection<CustomInputDeviceInfo>();
 
         // Cache for DirectInput product names to avoid repeated lookups
         private Dictionary<string, string> _directInputNameCache;
 
         // State collection manager for all device types
-        private readonly InputStateManager _stateCollector = InputStateManager.Instance;
+        private readonly CustomInputStateTimer _stateCollector = CustomInputStateTimer.Instance;
 
         // Dispatcher for UI thread synchronization
         private System.Windows.Threading.Dispatcher _dispatcher;
@@ -50,7 +50,7 @@ namespace x360ce.App.Input.Devices
         /// C. On Input device connection change.
         /// Updates lists incrementally: existing devices are updated in place, new devices are added, removed devices are deleted.
         /// </summary>
-        public void GetUnifiedInputDeviceList()
+        public void GetCustomInputDeviceList()
         {
             // Retrieve current device lists from all input sources
             var currentPnPList = pnPInputDevice.GetPnPInputDeviceInfoList();
@@ -78,8 +78,8 @@ namespace x360ce.App.Input.Devices
             // Build DirectInput name cache for efficient lookups
             BuildDirectInputNameCache();
     
-            // Update the unified list incrementally instead of clearing
-            UpdateUnifiedInputDeviceList();
+            // Update the custom list incrementally instead of clearing
+            UpdateCustomInputDeviceList();
     
             // RawInputState now directly accesses RawInputDevice.RawInputDeviceInfoList
             // No SetDeviceList call needed - simplified architecture eliminates the method!
@@ -89,11 +89,11 @@ namespace x360ce.App.Input.Devices
         }
 
         /// <summary>
-        /// Updates the unified device list incrementally by comparing with source lists.
+        /// Updates the custom device list incrementally by comparing with source lists.
         /// Removes devices no longer present, updates existing devices, and adds new devices.
         /// Ensures all ObservableCollection modifications happen on the UI thread.
         /// </summary>
-        private void UpdateUnifiedInputDeviceList()
+        private void UpdateCustomInputDeviceList()
         {
             // Build a set of all current device identifiers from source lists
             var currentDeviceKeys = new HashSet<string>();
@@ -109,13 +109,13 @@ namespace x360ce.App.Input.Devices
             var action = new Action(() =>
             {
                 // Remove devices that are no longer present
-                for (int i = UnifiedInputDeviceInfoList.Count - 1; i >= 0; i--)
+                for (int i = CustomInputDeviceInfoList.Count - 1; i >= 0; i--)
                 {
-                    var device = UnifiedInputDeviceInfoList[i];
+                    var device = CustomInputDeviceInfoList[i];
                     var key = GetDeviceKey(device.InputType, device.CommonIdentifier);
                     if (!currentDeviceKeys.Contains(key))
                     {
-                        UnifiedInputDeviceInfoList.RemoveAt(i);
+                        CustomInputDeviceInfoList.RemoveAt(i);
                     }
                 }
 
@@ -164,7 +164,7 @@ namespace x360ce.App.Input.Devices
         }
 
         /// <summary>
-        /// Updates existing devices or adds new devices from a source list to the unified list.
+        /// Updates existing devices or adds new devices from a source list to the custom list.
         /// </summary>
         private void UpdateOrAddDevicesFromList<T>(
          List<T> sourceList,
@@ -181,8 +181,8 @@ namespace x360ce.App.Input.Devices
                 string inputType = device.InputType;
                 var key = GetDeviceKey(inputType, commonId);
 
-                // Find existing device in unified list
-                var existingDevice = UnifiedInputDeviceInfoList.FirstOrDefault(d =>
+                // Find existing device in custom list
+                var existingDevice = CustomInputDeviceInfoList.FirstOrDefault(d =>
                  GetDeviceKey(d.InputType, d.CommonIdentifier) == key);
 
                 if (existingDevice != null)
@@ -201,13 +201,13 @@ namespace x360ce.App.Input.Devices
                     existingDevice.AssignedToPad3 = device.AssignedToPad3;
                     existingDevice.AssignedToPad4 = device.AssignedToPad4;
 
-                    // Note: ListInputState is no longer stored in UnifiedInputDeviceInfo
+                    // Note: ListInputState is no longer stored in CustomInputDeviceInfo
                     // It's retrieved directly from source device lists when needed using InterfacePath lookup
                 }
                 else
                 {
                 	// Add new device
-                	var newDevice = new UnifiedInputDeviceInfo
+                	var newDevice = new CustomInputDeviceInfo
                 	{
                 		InputType = inputType,
                 		CommonIdentifier = commonId,
@@ -231,7 +231,7 @@ namespace x360ce.App.Input.Devices
                         // Note: ListInputState is no longer stored here
                         // It's retrieved directly from source device lists when needed using InterfacePath lookup
                     };
-                	UnifiedInputDeviceInfoList.Add(newDevice);
+                	CustomInputDeviceInfoList.Add(newDevice);
                 }
             }
         }
@@ -269,7 +269,7 @@ namespace x360ce.App.Input.Devices
                         if (state != null)
                         {
                             preservedStates[key] = state;
-                            System.Diagnostics.Debug.WriteLine($"UnifiedInputDeviceManager.UpdateDeviceList: Preserving ListInputState for device {key}");
+                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Preserving ListInputState for device {key}");
                         }
                     }
                     existingList.RemoveAt(i);
@@ -322,7 +322,7 @@ namespace x360ce.App.Input.Devices
                         if (listInputStateProp != null && listInputStateProp.CanWrite)
                         {
                             listInputStateProp.SetValue(currentDevice, preservedStates[key]);
-                            System.Diagnostics.Debug.WriteLine($"UnifiedInputDeviceManager.UpdateDeviceList: Restored ListInputState for device {key}");
+                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Restored ListInputState for device {key}");
                         }
                     }
                 }

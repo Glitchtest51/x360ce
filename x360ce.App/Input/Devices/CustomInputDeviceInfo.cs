@@ -5,12 +5,12 @@ using System.Runtime.CompilerServices;
 namespace x360ce.App.Input.Devices
 {
 	/// <summary>
-	/// Unified device information structure containing properties common to all input types.
+	/// Custom device information structure containing properties common to all input types.
 	/// Implements INotifyPropertyChanged to enable DataGrid reactive updates.
 	/// Note: ListInputState is obtained directly from source device lists when needed,
 	/// rather than being stored as a property to avoid reference management complexity.
 	/// </summary>
-	public class UnifiedInputDeviceInfo : INotifyPropertyChanged
+	public class CustomInputDeviceInfo : INotifyPropertyChanged
 	{
 		public string InputType { get; set; }
 		public string CommonIdentifier { get; set; }

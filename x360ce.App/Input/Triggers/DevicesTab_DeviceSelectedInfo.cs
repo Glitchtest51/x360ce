@@ -15,15 +15,15 @@ namespace x360ce.App.Input.Triggers
 	/// </summary>
 	internal class DevicesTab_DeviceSelectedInfo
 	{
-		private readonly UnifiedInputDeviceManager _unifiedInputDeviceInfoInternal;
+		private readonly CustomInputDeviceManager _customInputDeviceInfoInternal;
 
 		/// <summary>
-		/// Initializes a new instance with reference to the unified device collection.
+		/// Initializes a new instance with reference to the custom device collection.
 		/// </summary>
-		/// <param name="unifiedInputDevice">The unified device collection containing all device lists</param>
-		public DevicesTab_DeviceSelectedInfo(UnifiedInputDeviceManager unifiedInputDevice)
+		/// <param name="customInputDevice">The custom device collection containing all device lists</param>
+		public DevicesTab_DeviceSelectedInfo(CustomInputDeviceManager customInputDevice)
 		{
-			_unifiedInputDeviceInfoInternal = unifiedInputDevice ?? throw new ArgumentNullException(nameof(unifiedInputDevice));
+			_customInputDeviceInfoInternal = customInputDevice ?? throw new ArgumentNullException(nameof(customInputDevice));
 		}
 
 		/// <summary>
@@ -60,27 +60,27 @@ namespace x360ce.App.Input.Triggers
 			switch (inputType)
 			{
 				case "PnPInput":
-					deviceObject = _unifiedInputDeviceInfoInternal.PnPInputDeviceInfoList?
+					deviceObject = _customInputDeviceInfoInternal.PnPInputDeviceInfoList?
 						.FirstOrDefault(d => d.InstanceGuid == instanceGuid);
 					break;
 
 				case "RawInput":
-					deviceObject = _unifiedInputDeviceInfoInternal.RawInputDeviceInfoList?
+					deviceObject = _customInputDeviceInfoInternal.RawInputDeviceInfoList?
 						.FirstOrDefault(d => d.InstanceGuid == instanceGuid);
 					break;
 
 				case "DirectInput":
-					deviceObject = _unifiedInputDeviceInfoInternal.DirectInputDeviceInfoList?
+					deviceObject = _customInputDeviceInfoInternal.DirectInputDeviceInfoList?
 						.FirstOrDefault(d => d.InstanceGuid == instanceGuid);
 					break;
 
 				case "XInput":
-					deviceObject = _unifiedInputDeviceInfoInternal.XInputDeviceInfoList?
+					deviceObject = _customInputDeviceInfoInternal.XInputDeviceInfoList?
 						.FirstOrDefault(d => d.InstanceGuid == instanceGuid);
 					break;
 
 				case "GamingInput":
-					deviceObject = _unifiedInputDeviceInfoInternal.GamingInputDeviceInfoList?
+					deviceObject = _customInputDeviceInfoInternal.GamingInputDeviceInfoList?
 						.FirstOrDefault(d => d.InstanceGuid == instanceGuid);
 					break;
 			}

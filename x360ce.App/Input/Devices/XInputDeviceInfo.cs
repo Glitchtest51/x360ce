@@ -34,7 +34,7 @@ namespace x360ce.App.Input.Devices
 		public int ProductId { get; set; }
 		public string CommonIdentifier { get; set; }
 		public string InputType { get; set; }
-        public ListInputState ListInputState { get; set; }
+        public CustomInputState ListInputState { get; set; }
 
         // Capabilities
         public int AxeCount { get; set; }
@@ -170,7 +170,7 @@ namespace x360ce.App.Input.Devices
 				}
 
 				            // Convert initial state to ListInputState for capability checks
-				            var listInputState = ListInputState.ConvertXInputStateToListInputState(controllerState);
+				            var listInputState = CustomInputState.ConvertXInputStateToListInputState(controllerState);
 
 				var slotGuidBytes = (byte[])XInputSlotGuidBase.Clone();
 				slotGuidBytes[15] = (byte)slotIndex;

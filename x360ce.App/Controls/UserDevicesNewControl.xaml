@@ -76,7 +76,7 @@
                         </Border>
                     </DockPanel>
 
-                    <!-- DataGird of Unified Input Devices -->
+                    <!-- DataGird of Custom Input Devices -->
                     <Border
                        Grid.Row="1"
                        Background="{StaticResource BackgroundWhite}"
@@ -84,7 +84,7 @@
                         <DataGrid
                             AutoGenerateColumns="False"
                             IsReadOnly="True"
-                            x:Name="UnifiedInputDeviceInfoDataGrid">
+                            x:Name="CustomInputDeviceInfoDataGrid">
                             <DataGrid.Resources>
                                 <Style BasedOn="{StaticResource DataGridHeader_Sorting}" TargetType="DataGridColumnHeader" />
                                 <Style TargetType="DataGridRow">

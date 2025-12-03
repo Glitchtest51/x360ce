@@ -11,7 +11,7 @@ namespace x360ce.App.Input.States
 {
 	/// <summary>
 	/// Standardized state representation for all input methods (RawInput, DirectInput, XInput, GamingInput).
-	/// Provides a unified format: ((axes), (sliders), (buttons), (povs)).
+	/// Provides a custom format: ((axes), (sliders), (buttons), (povs)).
 	/// </summary>
 	/// <remarks>
 	/// Format Specification:
@@ -23,7 +23,7 @@ namespace x360ce.App.Input.States
 	/// Example: ((32100,3566,0,0,31540),(),(0,0,0,1,0,0,0,0,0,0),(-1,0))
 	/// Note: Empty collections are represented as empty lists (), not null
 	/// </remarks>
-	public class ListInputState
+	public class CustomInputState
 	{
 		/// <summary>
 		/// Axis values in 0-65535 range.
@@ -54,7 +54,7 @@ namespace x360ce.App.Input.States
 		/// <summary>
 		/// Initializes a new ListTypeState with empty collections.
 		/// </summary>
-		public ListInputState()
+		public CustomInputState()
 		{
 			Axes = new List<int>();
 			Sliders = new List<int>();
@@ -396,13 +396,13 @@ namespace x360ce.App.Input.States
 		private const int MinSensitivity = 1;
 		private const int KeyboardButtonCount = 256;
 
-        public static ListInputState ConvertDirectInputStateToListInputState(object diState, DirectInputDeviceInfo deviceInfo = null)
+        public static CustomInputState ConvertDirectInputStateToListInputState(object diState, DirectInputDeviceInfo deviceInfo = null)
 		{
 			if (diState == null)
 				return null;
 
 			// If already InputStateAsList (keyboard polled state), return directly
-			if (diState is ListInputState listState)
+			if (diState is CustomInputState listState)
 				return listState;
 
 			// Detect state type and convert accordingly
@@ -416,16 +416,16 @@ namespace x360ce.App.Input.States
 			return null;
 		}
 
-  private static ListInputState ConvertJoystickState(JoystickState state, DirectInputDeviceInfo deviceInfo)
+  private static CustomInputState ConvertJoystickState(JoystickState state, DirectInputDeviceInfo deviceInfo)
   {
   	// CRITICAL FIX: Reuse existing ListInputState object if it exists
-  	// This maintains the reference in UnifiedInputDeviceInfo.ListInputState
-  	ListInputState result = deviceInfo?.ListInputState;
+  	// This maintains the reference in CustomInputDeviceInfo.ListInputState
+  	CustomInputState result = deviceInfo?.ListInputState;
 
   	if (result == null)
   	{
   		// First time - create new ListInputState
-  		result = new ListInputState();
+  		result = new CustomInputState();
   	}
 
     // Use available axes info if possible to populate the list efficiently
@@ -604,16 +604,16 @@ namespace x360ce.App.Input.States
   	return result;
   }
 
-        private static ListInputState ConvertMouseState(MouseState state, DirectInputDeviceInfo deviceInfo)
+        private static CustomInputState ConvertMouseState(MouseState state, DirectInputDeviceInfo deviceInfo)
 		{
 			// CRITICAL FIX: Reuse existing ListInputState object if it exists
-			// This maintains the reference in UnifiedInputDeviceInfo.ListInputState
-			ListInputState result = deviceInfo?.ListInputState;
+			// This maintains the reference in CustomInputDeviceInfo.ListInputState
+			CustomInputState result = deviceInfo?.ListInputState;
 			
 			if (result == null)
 			{
 				// First time - create new ListInputState
-				result = new ListInputState();
+				result = new CustomInputState();
 			}
 			
 			// Get per-axis sensitivity values with defaults and minimum enforcement
@@ -687,9 +687,9 @@ namespace x360ce.App.Input.States
 			return result;
 		}
 
-        private static ListInputState ConvertKeyboardState(KeyboardState state)
+        private static CustomInputState ConvertKeyboardState(KeyboardState state)
 		{
-			var result = new ListInputState();
+			var result = new CustomInputState();
 
 			// Initialize all 256 buttons as released (0) - pre-allocate and initialize in one step
 			result.Buttons.Capacity = KeyboardButtonCount;
@@ -758,9 +758,9 @@ namespace x360ce.App.Input.States
   }
         
         // Imported from XInputStateToListInputState
-        public static ListInputState ConvertXInputStateToListInputState(State state)
+        public static CustomInputState ConvertXInputStateToListInputState(State state)
 		{
-			var result = new ListInputState();
+			var result = new CustomInputState();
 			var gamepad = state.Gamepad;
 
 			// Convert axes (6 axes in XInput)
@@ -835,11 +835,11 @@ namespace x360ce.App.Input.States
 		}
 
 			     // Imported from GamingInputStateToListInputState
-        public static ListInputState ConvertGamingInputStateToListInputState(GamepadReading? gamepadReading)
+        public static CustomInputState ConvertGamingInputStateToListInputState(GamepadReading? gamepadReading)
 		{
 			
 			GamepadReading reading = gamepadReading.Value;
-            var result = new ListInputState();
+            var result = new CustomInputState();
 
 			// Convert axes (6 axes in Gaming Input)
 			// Thumbsticks: Convert from -1.0..1.0 to 0..65535

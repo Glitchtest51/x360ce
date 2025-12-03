@@ -22,7 +22,7 @@ namespace x360ce.App.Input.Devices
 		public int Usage { get; set; }
 		public int UsagePage { get; set; }
 		public string InputType { get; set; }
-		      public ListInputState ListInputState { get; set; }
+		      public CustomInputState ListInputState { get; set; }
 		public List<JoystickOffset> AvailableAxes { get; set; }
 		public List<JoystickOffset> AvailableSliders { get; set; }
 		      public int AxeCount { get; set; }

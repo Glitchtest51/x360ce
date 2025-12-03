@@ -15,15 +15,15 @@ namespace x360ce.App.Input.Triggers
     /// </summary>
     internal class DevicesTab_DeviceSelectedInput
     {
-        private readonly UnifiedInputDeviceManager _unifiedInputDeviceInfoInternal;
+        private readonly CustomInputDeviceManager _customInputDeviceInfoInternal;
 
         /// <summary>
-        /// Initializes a new instance with reference to the unified device collection.
+        /// Initializes a new instance with reference to the custom device collection.
         /// </summary>
-        /// <param name="unifiedDeviceInfo">The unified device collection containing all device lists</param>
-        public DevicesTab_DeviceSelectedInput(UnifiedInputDeviceManager unifiedInputDevice)
+        /// <param name="customDeviceInfo">The custom device collection containing all device lists</param>
+        public DevicesTab_DeviceSelectedInput(CustomInputDeviceManager customInputDevice)
         {
-            _unifiedInputDeviceInfoInternal = unifiedInputDevice ?? throw new ArgumentNullException(nameof(unifiedInputDevice));
+            _customInputDeviceInfoInternal = customInputDevice ?? throw new ArgumentNullException(nameof(customInputDevice));
         }
 
         /// <summary>
@@ -33,7 +33,7 @@ namespace x360ce.App.Input.Triggers
         /// <param name="deviceInfo">Device information containing capability counts</param>
         /// <param name="inputStateAsList">Optional live state values (may be null if device offline)</param>
         /// <returns>UIElement containing the formatted layout</returns>
-        public UIElement CreateInputLayout(UnifiedInputDeviceInfo deviceInfo, ListInputState inputStateAsList)
+        public UIElement CreateInputLayout(CustomInputDeviceInfo deviceInfo, CustomInputState inputStateAsList)
         {
             // Check if device has any inputs
             if (deviceInfo.AxeCount == 0 && deviceInfo.SliderCount == 0 && deviceInfo.ButtonCount == 0 && deviceInfo.PovCount == 0)
@@ -75,11 +75,11 @@ namespace x360ce.App.Input.Triggers
         /// <summary>
         /// Updates the value labels for the selected device with current state values.
         /// Only updates if the device matches the currently selected device.
-        /// IMPORTANT: This method is called at high frequency (10Hz) from UnifiedButtonPressed.
+        /// IMPORTANT: This method is called at high frequency (10Hz) from CustomButtonPressed.
         /// </summary>
         /// <param name="deviceInstanceGuid">The instance GUID of the device being updated</param>
         /// <param name="listState">The current state values for the device</param>
-        public void UpdateValueLabels(Guid deviceInstanceGuid, ListInputState listState)
+        public void UpdateValueLabels(Guid deviceInstanceGuid, CustomInputState listState)
         {
             // Only update if this is the currently selected device
             if (_currentSelectedDeviceInstanceGuid == Guid.Empty ||

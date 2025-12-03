@@ -7,7 +7,7 @@ using x360ce.App.Input.Triggers;
 namespace x360ce.App.Controls
 {
 	/// <summary>
-	/// Unified button press detection for all input methods (DirectInput, XInput, GamingInput, RawInput).
+	/// Custom button press detection for all input methods (DirectInput, XInput, GamingInput, RawInput).
 	/// Gets ListInputState directly from source device lists by InstanceGuid lookup.
 	/// This approach is simpler and more reliable than maintaining object references.
 	/// </summary>
@@ -30,37 +30,37 @@ namespace x360ce.App.Controls
 		/// Gets current ListInputState directly from source device lists using InstanceGuid lookup.
 		/// This ensures we always read the most current state without reference management complexity.
 		/// </summary>
-		/// <param name="unifiedInputDeviceManager">The combined devices instance containing all device lists</param>
-		public void DevicesTab_UIUpdate(UnifiedInputDeviceManager unifiedInputDeviceManager)
+		/// <param name="customInputDeviceManager">The combined devices instance containing all device lists</param>
+		public void DevicesTab_UIUpdate(CustomInputDeviceManager customInputDeviceManager)
 		{
-			if (unifiedInputDeviceManager == null)
+			if (customInputDeviceManager == null)
 				return;
 
-			// Single loop through unified list - get current state directly from source lists
-			foreach (var device in unifiedInputDeviceManager.UnifiedInputDeviceInfoList)
+			// Single loop through custom list - get current state directly from source lists
+			foreach (var device in customInputDeviceManager.CustomInputDeviceInfoList)
 			{
 				// Get current ListInputState directly from the appropriate source list
-				ListInputState liState = null;
+				CustomInputState liState = null;
 
 				switch (device.InputType)
                 {
                     case "RawInput":
-                        liState = unifiedInputDeviceManager.RawInputDeviceInfoList?
+                        liState = customInputDeviceManager.RawInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == device.InstanceGuid)
                             ?.ListInputState;
                         break;
                     case "DirectInput":
-                        liState = unifiedInputDeviceManager.DirectInputDeviceInfoList?
+                        liState = customInputDeviceManager.DirectInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == device.InstanceGuid)
                             ?.ListInputState;
                         break;
                     case "XInput":
-                        liState = unifiedInputDeviceManager.XInputDeviceInfoList?
+                        liState = customInputDeviceManager.XInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == device.InstanceGuid)
                             ?.ListInputState;
                         break;
                     case "GamingInput":
-                        liState = unifiedInputDeviceManager.GamingInputDeviceInfoList?
+                        liState = customInputDeviceManager.GamingInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == device.InstanceGuid)
                             ?.ListInputState;
                         break;
@@ -84,7 +84,7 @@ namespace x360ce.App.Controls
 		/// </summary>
 		/// <param name="listState">The device state to check</param>
 		/// <returns>True if any button is pressed (value 1) or any POV is pressed (value > -1)</returns>
-		private static bool IsAnyButtonOrPovPressed(ListInputState listState)
+		private static bool IsAnyButtonOrPovPressed(CustomInputState listState)
 		{
 			// Check buttons.
 			if (listState?.Buttons != null)

@@ -6,16 +6,16 @@ using x360ce.App.Input.Devices;
 namespace x360ce.App.Input.Triggers
 {
     /// <summary>
-    /// Monitors device list changes and maintains a unified input device list.
-    /// Triggers UnifiedInputDeviceInfoList updates when any source list changes.
+    /// Monitors device list changes and maintains a custom input device list.
+    /// Triggers CustomInputDeviceInfoList updates when any source list changes.
     /// Updates are incremental - only affected items are modified (existing devices updated in place, new devices added, removed devices deleted).
     /// </summary>
-    internal class UnifiedInputDeviceConnection
+    internal class CustomInputDeviceConnection
     {
         /// <summary>
-        /// Event triggered when the unified device list needs to be updated.
+        /// Event triggered when the custom device list needs to be updated.
         /// </summary>
-        public event EventHandler<UnifiedDeviceListUpdateEventArgs> UnifiedListUpdateRequired;
+        public event EventHandler<CustomDeviceListUpdateEventArgs> CustomListUpdateRequired;
 
         private List<PnPInputDeviceInfo> _lastPnPList = new List<PnPInputDeviceInfo>();
         private List<RawInputDeviceInfo> _lastRawInputList = new List<RawInputDeviceInfo>();
@@ -24,7 +24,7 @@ namespace x360ce.App.Input.Triggers
         private List<GamingInputDeviceInfo> _lastGamingInputList = new List<GamingInputDeviceInfo>();
 
         /// <summary>
-        /// Monitors PnPInputDeviceInfoList for changes and triggers unified list update for PnPInput items only.
+        /// Monitors PnPInputDeviceInfoList for changes and triggers custom list update for PnPInput items only.
         /// </summary>
         /// <param name="currentList">Current PnP device list</param>
         public void MonitorPnPInputDeviceList(List<PnPInputDeviceInfo> currentList)
@@ -37,7 +37,7 @@ namespace x360ce.App.Input.Triggers
             if (changes.HasChanges)
             {
                 _lastPnPList = new List<PnPInputDeviceInfo>(currentList);
-                OnUnifiedListUpdateRequired(new UnifiedDeviceListUpdateEventArgs
+                OnCustomListUpdateRequired(new CustomDeviceListUpdateEventArgs
                 {
                     InputType = "PnPInput",
                     AddedDevices = changes.Added.Cast<object>().ToList(),
@@ -48,7 +48,7 @@ namespace x360ce.App.Input.Triggers
         }
 
         /// <summary>
-        /// Monitors RawInputDeviceInfoList for changes and triggers unified list update for RawInput items only.
+        /// Monitors RawInputDeviceInfoList for changes and triggers custom list update for RawInput items only.
         /// </summary>
         /// <param name="currentList">Current RawInput device list</param>
         public void MonitorRawInputDeviceList(List<RawInputDeviceInfo> currentList)
@@ -61,7 +61,7 @@ namespace x360ce.App.Input.Triggers
             if (changes.HasChanges)
             {
                 _lastRawInputList = new List<RawInputDeviceInfo>(currentList);
-                OnUnifiedListUpdateRequired(new UnifiedDeviceListUpdateEventArgs
+                OnCustomListUpdateRequired(new CustomDeviceListUpdateEventArgs
                 {
                     InputType = "RawInput",
                     AddedDevices = changes.Added.Cast<object>().ToList(),
@@ -72,7 +72,7 @@ namespace x360ce.App.Input.Triggers
         }
 
         /// <summary>
-        /// Monitors DirectInputDeviceInfoList for changes and triggers unified list update for DirectInput items only.
+        /// Monitors DirectInputDeviceInfoList for changes and triggers custom list update for DirectInput items only.
         /// </summary>
         /// <param name="currentList">Current DirectInput device list</param>
         public void MonitorDirectInputDeviceList(List<DirectInputDeviceInfo> currentList)
@@ -85,7 +85,7 @@ namespace x360ce.App.Input.Triggers
             if (changes.HasChanges)
             {
                 _lastDirectInputList = new List<DirectInputDeviceInfo>(currentList);
-                OnUnifiedListUpdateRequired(new UnifiedDeviceListUpdateEventArgs
+                OnCustomListUpdateRequired(new CustomDeviceListUpdateEventArgs
                 {
                     InputType = "DirectInput",
                     AddedDevices = changes.Added.Cast<object>().ToList(),
@@ -96,7 +96,7 @@ namespace x360ce.App.Input.Triggers
         }
 
         /// <summary>
-        /// Monitors XInputDeviceInfoList for changes and triggers unified list update for XInput items only.
+        /// Monitors XInputDeviceInfoList for changes and triggers custom list update for XInput items only.
         /// </summary>
         /// <param name="currentList">Current XInput device list</param>
         public void MonitorXInputDeviceList(List<XInputDeviceInfo> currentList)
@@ -109,7 +109,7 @@ namespace x360ce.App.Input.Triggers
             if (changes.HasChanges)
             {
                 _lastXInputList = new List<XInputDeviceInfo>(currentList);
-                OnUnifiedListUpdateRequired(new UnifiedDeviceListUpdateEventArgs
+                OnCustomListUpdateRequired(new CustomDeviceListUpdateEventArgs
                 {
                     InputType = "XInput",
                     AddedDevices = changes.Added.Cast<object>().ToList(),
@@ -120,7 +120,7 @@ namespace x360ce.App.Input.Triggers
         }
 
         /// <summary>
-        /// Monitors GamingInputDeviceInfoList for changes and triggers unified list update for GamingInput items only.
+        /// Monitors GamingInputDeviceInfoList for changes and triggers custom list update for GamingInput items only.
         /// </summary>
         /// <param name="currentList">Current GamingInput device list</param>
         public void MonitorGamingInputDeviceList(List<GamingInputDeviceInfo> currentList)
@@ -133,7 +133,7 @@ namespace x360ce.App.Input.Triggers
             if (changes.HasChanges)
             {
                 _lastGamingInputList = new List<GamingInputDeviceInfo>(currentList);
-                OnUnifiedListUpdateRequired(new UnifiedDeviceListUpdateEventArgs
+                OnCustomListUpdateRequired(new CustomDeviceListUpdateEventArgs
                 {
                     InputType = "GamingInput",
                     AddedDevices = changes.Added.Cast<object>().ToList(),
@@ -170,12 +170,12 @@ namespace x360ce.App.Input.Triggers
         }
 
         /// <summary>
-        /// Raises the UnifiedListUpdateRequired event.
+        /// Raises the CustomListUpdateRequired event.
         /// </summary>
         /// <param name="e">Event arguments</param>
-        protected virtual void OnUnifiedListUpdateRequired(UnifiedDeviceListUpdateEventArgs e)
+        protected virtual void OnCustomListUpdateRequired(CustomDeviceListUpdateEventArgs e)
         {
-            UnifiedListUpdateRequired?.Invoke(this, e);
+            CustomListUpdateRequired?.Invoke(this, e);
         }
 
         /// <summary>
@@ -192,9 +192,9 @@ namespace x360ce.App.Input.Triggers
     }
 
     /// <summary>
-    /// Event arguments for unified device list update events.
+    /// Event arguments for custom device list update events.
     /// </summary>
-    internal class UnifiedDeviceListUpdateEventArgs : EventArgs
+    internal class CustomDeviceListUpdateEventArgs : EventArgs
     {
         /// <summary>
         /// Input type that triggered the update (PnPInput, RawInput, DirectInput, XInput, GamingInput).

@@ -29,17 +29,17 @@ namespace x360ce.App.Input.States
     /// • XInputDeviceInfoList - x360ce.App/Input/Devices/XInputDeviceInfo.cs
     /// • GamingInputDeviceInfoList - x360ce.App/Input/Devices/GamingInputDeviceInfo.cs
     /// </remarks>
-    internal class InputStateManager
+    internal class CustomInputStateTimer
     {
         #region Singleton Pattern
 
         private static readonly object _lock = new object();
-        private static InputStateManager _instance;
+        private static CustomInputStateTimer _instance;
 
         /// <summary>
         /// Gets the singleton instance of GetAndSaveStates.
         /// </summary>
-        public static InputStateManager Instance
+        public static CustomInputStateTimer Instance
         {
             get
             {
@@ -49,7 +49,7 @@ namespace x360ce.App.Input.States
                     {
                         if (_instance == null)
                         {
-                            _instance = new InputStateManager();
+                            _instance = new CustomInputStateTimer();
                         }
                     }
                 }
@@ -63,14 +63,14 @@ namespace x360ce.App.Input.States
 
         private DispatcherTimer _statePollingTimer;
         private const int StateCollectionIntervalMs = 50; // 20 Hz (50ms interval) for polling-based devices
-        private UnifiedInputDeviceManager _deviceManager;
+        private CustomInputDeviceManager _deviceManager;
 
         /// <summary>
         /// Starts the continuous state collection timer at 20Hz.
         /// Must be called from UI thread with valid device manager reference.
         /// </summary>
         /// <param name="deviceManager">Device manager containing device lists to monitor</param>
-        public void StartStateCollection(UnifiedInputDeviceManager deviceManager)
+        public void StartStateCollection(CustomInputDeviceManager deviceManager)
         {
             if (deviceManager == null)
                 throw new ArgumentNullException(nameof(deviceManager));
@@ -118,8 +118,8 @@ namespace x360ce.App.Input.States
                 GetAndSaveXInputStates(_deviceManager.XInputDeviceInfoList);
                 GetAndSaveGamingInputStates(_deviceManager.GamingInputDeviceInfoList);
 
-                // REMOVED: RawInput polling - it's purely event-driven via WM_INPUT messages
-                // GetAndSaveRawInputStates(_deviceManager.RawInputDeviceInfoList);
+                // RawInput state polling - it's purely event-driven via WM_INPUT messages
+
             }
             catch (Exception ex)
             {
@@ -141,7 +141,7 @@ namespace x360ce.App.Input.States
         /// <summary>
         /// Initializes the state reader with singleton state readers for each input method.
         /// </summary>
-        private InputStateManager()
+        private CustomInputStateTimer()
         {
             _rawInputState = RawInputState.rawInputState;
             _directInputState = new DirectInputState();
@@ -170,7 +170,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Convert DirectInput state to ListInputState.
-                var liState = ListInputState.ConvertDirectInputStateToListInputState(diState, diDeviceInfo);
+                var liState = CustomInputState.ConvertDirectInputStateToListInputState(diState, diDeviceInfo);
 
                 if (liState == null)
                     return false;
@@ -209,7 +209,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Convert XInput state to ListInputState.
-                var liState = ListInputState.ConvertXInputStateToListInputState(xiState.Value);
+                var liState = CustomInputState.ConvertXInputStateToListInputState(xiState.Value);
 
                 if (liState == null)
                     return false;
@@ -248,7 +248,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Convert Gaming Input reading to InputStateAsList format
-                var liState = ListInputState.ConvertGamingInputStateToListInputState(giState);
+                var liState = CustomInputState.ConvertGamingInputStateToListInputState(giState);
 
                 if (liState == null)
                     return false;

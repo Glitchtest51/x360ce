@@ -39,7 +39,7 @@ namespace x360ce.App.Input.States
 		/// </summary>
 		private class CachedKeyboardMouseState
 		{
-			public ListInputState State { get; set; }
+			public CustomInputState State { get; set; }
 			public DateTime LastUpdate { get; set; }
 		}
 		
@@ -143,35 +143,35 @@ namespace x360ce.App.Input.States
 		/// Polls the ACTUAL current mouse state using GetAsyncKeyState and returns InputStateAsList.
 		/// This ensures we don't block RawInput messages by Acquiring the device in DirectInput.
 		/// </summary>
-		private ListInputState GetCurrentMouseStateAsListPolled(string interfacePath)
+		private CustomInputState GetCurrentMouseStateAsListPolled(string interfacePath)
 		{
 			// Reuse existing ListInputState object if it exists
-			ListInputState result;
+			CustomInputState result;
 			if (_cachedStates.TryGetValue(interfacePath, out var cached))
 			{
 				result = cached.State;
 				// Clear existing button states
 				for (int i = 0; i < result.Buttons.Count; i++)
-				    result.Buttons[i] = ListInputState.ConvertToButtonRange(0);
+				    result.Buttons[i] = CustomInputState.ConvertToButtonRange(0);
 }
 else
 {
-				result = new ListInputState();
+				result = new CustomInputState();
 				// Initialize standard mouse buttons (Left, Right, Middle, X1, X2)
 				for (int i = 0; i < 5; i++)
-				    result.Buttons.Add(ListInputState.ConvertToButtonRange(0));
+				    result.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
 				// Initialize axes (X, Y, Wheel) - placeholder as we can't easily poll relative deltas without DI
 				for (int i = 0; i < 3; i++)
-				    result.Axes.Add(ListInputState.ConvertToAxisRange(32767));
+				    result.Axes.Add(CustomInputState.ConvertToAxisRange(32767));
 }
 
 // Poll standard mouse buttons
 // VK_LBUTTON (0x01), VK_RBUTTON (0x02), VK_MBUTTON (0x04), VK_XBUTTON1 (0x05), VK_XBUTTON2 (0x06)
-result.Buttons[0] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x01) & 0x8000) != 0); // Left
-result.Buttons[1] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x02) & 0x8000) != 0); // Right
-result.Buttons[2] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x04) & 0x8000) != 0); // Middle
-result.Buttons[3] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x05) & 0x8000) != 0); // X1
-result.Buttons[4] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x06) & 0x8000) != 0); // X2
+result.Buttons[0] = CustomInputState.ConvertToButtonRange((GetAsyncKeyState(0x01) & 0x8000) != 0); // Left
+result.Buttons[1] = CustomInputState.ConvertToButtonRange((GetAsyncKeyState(0x02) & 0x8000) != 0); // Right
+result.Buttons[2] = CustomInputState.ConvertToButtonRange((GetAsyncKeyState(0x04) & 0x8000) != 0); // Middle
+result.Buttons[3] = CustomInputState.ConvertToButtonRange((GetAsyncKeyState(0x05) & 0x8000) != 0); // X1
+result.Buttons[4] = CustomInputState.ConvertToButtonRange((GetAsyncKeyState(0x06) & 0x8000) != 0); // X2
 
 			// Cache the state
 			_cachedStates[interfacePath] = new CachedKeyboardMouseState
@@ -188,28 +188,28 @@ result.Buttons[4] = ListInputState.ConvertToButtonRange((GetAsyncKeyState(0x06) 
 		/// This ensures we detect key holds reliably, same approach as RawInput.
 		/// CRITICAL: Reuses existing ListInputState object to maintain reference consistency.
 		/// </summary>
-		private ListInputState GetCurrentKeyboardStateAsListPolled(string interfacePath)
+		private CustomInputState GetCurrentKeyboardStateAsListPolled(string interfacePath)
 		{
 			// CRITICAL FIX: Reuse existing ListInputState object if it exists
-			// This maintains the reference in UnifiedInputDeviceInfo.ListInputState
-			ListInputState result;
+			// This maintains the reference in CustomInputDeviceInfo.ListInputState
+			CustomInputState result;
 			if (_cachedStates.TryGetValue(interfacePath, out var cached))
 			{
 				result = cached.State;
 				// Clear existing button states
 				for (int i = 0; i < result.Buttons.Count; i++)
 				{
-					result.Buttons[i] = ListInputState.ConvertToButtonRange(0);
+					result.Buttons[i] = CustomInputState.ConvertToButtonRange(0);
 	}
 }
 else
 {
 	// First time - create new ListInputState
-	result = new ListInputState();
+	result = new CustomInputState();
 	// Initialize all 256 buttons as released (0)
 	for (int i = 0; i < 256; i++)
 	{
-					result.Buttons.Add(ListInputState.ConvertToButtonRange(0));
+					result.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
 	}
 }
 
@@ -227,7 +227,7 @@ for (int vKey = 0x08; vKey <= 0xFE; vKey++)
 					// Set button state to 1 (pressed)
 					if (vKey < 256)
 					{
-					    result.Buttons[vKey] = ListInputState.ConvertToButtonRange(1);
+					    result.Buttons[vKey] = CustomInputState.ConvertToButtonRange(1);
 					}
 	}
 }
