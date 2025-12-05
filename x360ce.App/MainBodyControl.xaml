@@ -66,7 +66,7 @@
 			<local:UserDevicesControl x:Name="DevicesPanel" />
 		</TabItem>
         <TabItem Name="DevicesDebugTabPage" Header="DevicesDebug">
-            <local:UserDevicesDebugControl x:Name="DevicesDebugPanel" />
+            <local:CustomInputDevicesControl x:Name="DevicesDebugPanel" />
         </TabItem>
         <TabItem Name="SettingsTabPage" Header="Settings">
 			<local:UserSettingListControl x:Name="SettingsPanel" />

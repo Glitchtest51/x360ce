@@ -3,55 +3,23 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using x360ce.App.Input.States;
-
 namespace x360ce.App.Input.Devices
 {
 	/// <summary>
 	/// DirectInput device container with both device information and the actual device object.
 	/// Contains comprehensive device metadata plus the live DirectInput device for input reading.
 	/// </summary>
-	public class DirectInputDeviceInfo : IDisposable
+	public class DirectInputDeviceInfo : InputDeviceInfo, IDisposable
 	{
-		public Guid InstanceGuid { get; set; }
-		public string InstanceName { get; set; }
-		public Guid ProductGuid { get; set; }
-		public string ProductName { get; set; }
-		public DeviceType DeviceType { get; set; }
-		public int DeviceSubtype { get; set; }
-		public int Usage { get; set; }
-		public int UsagePage { get; set; }
-		public string InputType { get; set; }
-		      public CustomInputState ListInputState { get; set; }
-		public List<JoystickOffset> AvailableAxes { get; set; }
+        public List<JoystickOffset> AvailableAxes { get; set; }
 		public List<JoystickOffset> AvailableSliders { get; set; }
-		      public int AxeCount { get; set; }
-		   public int SliderCount { get; set; }
-	    public int ButtonCount { get; set; }
-	    public int PovCount { get; set; }
-		public bool HasForceFeedback { get; set; }
-		public int DriverVersion { get; set; }
-		public int HardwareRevision { get; set; }
-		public int FirmwareRevision { get; set; }
-		public bool IsOnline { get; set; }
-        public bool IsEnabled { get; set; }
-        public bool AssignedToPad1 { get; set; }
-        public bool AssignedToPad2 { get; set; }
-        public bool AssignedToPad3 { get; set; }
-        public bool AssignedToPad4 { get; set; }
-        public string DeviceTypeName { get; set; }
-		public string InterfacePath { get; set; }
-		
-		// Common identifier for grouping devices from same physical hardware
-		public string CommonIdentifier { get; set; }
-	
         /// <summary>
         /// Mouse axis sensitivity values for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
         /// Defaults: {20, 20, 50, 50}.
         /// Minimum is 1.
         /// </summary>
 
-		      public List<int> MouseAxisSensitivity { get; set; } = new List<int> { 20, 20, 50, 50 };
+		public List<int> MouseAxisSensitivity { get; set; } = new List<int> { 20, 20, 50, 50 };
 
         /// <summary>
         /// Mouse axis delta accumulated positions for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
@@ -68,34 +36,21 @@ namespace x360ce.App.Input.Devices
         /// </summary>
         public bool MouseAxisStateEnabled { get; set; }
 
-        // Additional identification properties
-        public int VendorId { get; set; }
-		public int ProductId { get; set; }
-		public Guid ClassGuid { get; set; }
-		public string HardwareIds { get; set; }
-		public string DeviceId { get; set; }
-		public string ParentDeviceId { get; set; }
-
-		/// <summary>
-		/// The actual DirectInput device object for reading input.
-		/// Can be Mouse, Keyboard, or Joystick depending on device type.
-		/// </summary>
-		public Device DirectInputDevice { get; set; }
-
 		/// <summary>
 		/// Display name combining instance ID and name for easy identification.
 		/// </summary>
 		public string DisplayName => $"{InstanceGuid.ToString().Substring(0, 8)} - {InstanceName}";
 
-		/// <summary>
-		/// VID/PID string in standard format for hardware identification.
-		/// </summary>
-		public string VidPidString => $"VID_{VendorId:X4}&PID_{ProductId:X4}";
+        /// <summary>
+        /// The actual DirectInput device object for reading input.
+        /// Can be Mouse, Keyboard, or Joystick depending on device type.
+        /// </summary>
+        public Device DirectInputDevice { get; set; }
 
-		/// <summary>
-		/// Dispose the DirectInput device when no longer needed.
-		/// </summary>
-		public void Dispose()
+        /// <summary>
+        /// Dispose the DirectInput device when no longer needed.
+        /// </summary>
+        public void Dispose()
 		{
 			DirectInputDevice?.Dispose();
 			DirectInputDevice = null;
@@ -196,7 +151,7 @@ namespace x360ce.App.Input.Devices
 					foreach (var deviceInstance in inputDevices)
 					{
 						var deviceInfo = ProcessDevice(directInput, deviceInstance, ref deviceIndex, debugLines);
-						if (deviceInfo != null && !IsVirtualConvertedDevice(deviceInfo))
+						if (deviceInfo != null && !deviceInfo.IsVirtualConvertedDevice())
 							deviceList.Add(deviceInfo);
 					}
 				}
@@ -240,7 +195,7 @@ namespace x360ce.App.Input.Devices
 					InstanceName = deviceInstance.InstanceName,
 					ProductGuid = deviceInstance.ProductGuid,
 					ProductName = deviceInstance.ProductName,
-					DeviceType = deviceInstance.Type,
+					DeviceType = (int)deviceInstance.Type,
 					DeviceSubtype = deviceInstance.Subtype,
 					Usage = (int)deviceInstance.Usage,
 					UsagePage = (int)deviceInstance.UsagePage,
@@ -672,9 +627,9 @@ namespace x360ce.App.Input.Devices
 		/// </summary>
 		private void LogSummary(List<DirectInputDeviceInfo> deviceList, Stopwatch stopwatch, List<string> debugLines)
 		{
-			var gamepadCount = deviceList.Count(d => IsGamepadType(d.DeviceType));
-			var keyboardCount = deviceList.Count(d => d.DeviceType == DeviceType.Keyboard);
-			var mouseCount = deviceList.Count(d => d.DeviceType == DeviceType.Mouse);
+			var gamepadCount = deviceList.Count(d => IsGamepadType((DeviceType)d.DeviceType));
+			var keyboardCount = deviceList.Count(d => d.DeviceType == (int)DeviceType.Keyboard);
+			var mouseCount = deviceList.Count(d => d.DeviceType == (int)DeviceType.Mouse);
 			var offlineCount = deviceList.Count(d => !d.IsOnline);
 
 			debugLines.Add($"\nDeviceDirectInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
@@ -802,34 +757,6 @@ namespace x360ce.App.Input.Devices
 					return false;
 			}
 		}
-
-		/// <summary>
-		/// Determines if a device is a virtual/converted device that should be excluded.
-		/// Checks for "ConvertedDevice" text in InterfacePath or DeviceId.
-		/// </summary>
-		/// <param name="deviceInfo">Device info to check</param>
-		/// <returns>True if device is a virtual/converted device</returns>
-		private bool IsVirtualConvertedDevice(DirectInputDeviceInfo deviceInfo)
-		{
-			if (deviceInfo == null)
-				return false;
-
-			// Check InterfacePath for "ConvertedDevice" marker
-			if (!string.IsNullOrEmpty(deviceInfo.InterfacePath) &&
-				deviceInfo.InterfacePath.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				return true;
-			}
-
-			// Check DeviceId for "ConvertedDevice" marker
-			if (!string.IsNullOrEmpty(deviceInfo.DeviceId) &&
-				deviceInfo.DeviceId.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				return true;
-			}
-
-			return false;
-		}
 	
 		/// <summary>
 		/// Filters out non-Keyboard/Mouse MI-only devices (USB composite parent nodes) that don't have COL values.
@@ -855,7 +782,7 @@ namespace x360ce.App.Input.Devices
 		        
 		        // Only filter non-Keyboard/Mouse devices with MI but no COL
 		        // Keyboard and Mouse type devices are always kept, even with MI but no COL
-		        bool isKeyboardOrMouse = device.DeviceType == DeviceType.Keyboard || device.DeviceType == DeviceType.Mouse;
+		        bool isKeyboardOrMouse = device.DeviceType == (int)DeviceType.Keyboard || device.DeviceType == (int)DeviceType.Mouse;
 		        
 		        if (hasMi && !hasCol && !isKeyboardOrMouse)
 		        {

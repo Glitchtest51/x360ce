@@ -7,8 +7,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
-using x360ce.App.Input.States;
-
 namespace x360ce.App.Input.Devices
 {
     /// <summary>
@@ -24,30 +22,16 @@ namespace x360ce.App.Input.Devices
     ///
     /// Note: HID Report Descriptor parsing provides device-reported capabilities, which are accurate for most devices.
     /// </remarks>
-    public class RawInputDeviceInfo : IDisposable
+    public class RawInputDeviceInfo : InputDeviceInfo, IDisposable
     {
-        public Guid InstanceGuid { get; set; }
-        public string InstanceName { get; set; }
-        public Guid ProductGuid { get; set; }
-        public string ProductName { get; set; }
-        public int DeviceType { get; set; }
-        public int DeviceSubtype { get; set; }
-        public int Usage { get; set; }
-        public int UsagePage { get; set; }
-        public string InputType { get; set; }
-        public CustomInputState ListInputState { get; set; }
-        public int AxeCount { get; set; }
-        public int SliderCount { get; set; }
-        public int ButtonCount { get; set; }
-        public int PovCount { get; set; }
         /// <summary>
         /// Logical Maximum values for each POV, used to determine format (4-way, 8-way, etc.).
         /// </summary>
+        public List<int> PovLogicalMins { get; set; } = new List<int>();
+
         /// <summary>
         /// Logical Minimum values for each POV, used to determine if values are 0-based or 1-based.
         /// </summary>
-        public List<int> PovLogicalMins { get; set; } = new List<int>();
-
         public List<int> PovLogicalMaxes { get; set; } = new List<int>();
 
         /// <summary>
@@ -64,27 +48,6 @@ namespace x360ce.App.Input.Devices
         public int ClutchCount { get; set; }
         
         /// <summary>
-        /// Force feedback availability. Always false for RawInput devices.
-        /// RawInput API does not provide force feedback capability information.
-        /// Use DirectInput or XInput APIs to determine actual force feedback support.
-        /// </summary>
-        public bool HasForceFeedback { get; set; }
-        public int DriverVersion { get; set; }
-        public int HardwareRevision { get; set; }
-        public int FirmwareRevision { get; set; }
-        public bool IsOnline { get; set; }
-        public bool IsEnabled { get; set; }
-        public bool AssignedToPad1 { get; set; }
-        public bool AssignedToPad2 { get; set; }
-        public bool AssignedToPad3 { get; set; }
-        public bool AssignedToPad4 { get; set; }
-        public string DeviceTypeName { get; set; }
-        public string InterfacePath { get; set; }
-        
-        // Common identifier for grouping devices from same physical hardware
-        public string CommonIdentifier { get; set; }
-
-        /// <summary>
         /// Mouse axis sensitivity values for: X axis, Y axis, Vertical wheel axis, Horizontal wheel axis.
         /// Defaults: {20, 20, 50, 50}.
         /// Minimum is 1.
@@ -98,14 +61,6 @@ namespace x360ce.App.Input.Devices
         /// </summary>
         public List<int> MouseAxisAccumulatedDelta { get; set; } = new List<int> { 32767, 32767, 0, 0 };
 
-        // Additional identification properties
-        public int VendorId { get; set; }
-        public int ProductId { get; set; }
-        public Guid ClassGuid { get; set; }
-        public string HardwareIds { get; set; }
-        public string DeviceId { get; set; }
-        public string ParentDeviceId { get; set; }
-        
         // RawInput-specific properties
         public IntPtr DeviceHandle { get; set; }
         public RawInputDeviceType RawInputDeviceType { get; set; }
@@ -143,11 +98,6 @@ namespace x360ce.App.Input.Devices
         /// Display name combining device type and name for easy identification.
         /// </summary>
         public string DisplayName => $"{DeviceTypeName} - {InstanceName}";
-        
-        /// <summary>
-        /// VID/PID string in standard format for hardware identification.
-        /// </summary>
-        public string VidPidString => $"VID_{VendorId:X4}&PID_{ProductId:X4}";
         
         /// <summary>
         /// Dispose the RawInput device when no longer needed.
@@ -1766,13 +1716,13 @@ namespace x360ce.App.Input.Devices
                 var upperPath = interfacePath.ToUpperInvariant();
 
                 // 1. Standard VID_XXXX and PID_XXXX
-                var vid = ExtractHexValue(upperPath, "VID_", 4) ??
-                          ExtractHexValue(upperPath, "VID&", 4) ?? // Alternate VID&...
-                          ExtractHexValue(upperPath, "VEN_", 4);   // Fallback VEN_
+                var vid = InputDeviceInfo.ExtractHexValue(upperPath, "VID_", 4) ??
+                          InputDeviceInfo.ExtractHexValue(upperPath, "VID&", 4) ?? // Alternate VID&...
+                          InputDeviceInfo.ExtractHexValue(upperPath, "VEN_", 4);   // Fallback VEN_
 
-                var pid = ExtractHexValue(upperPath, "PID_", 4) ??
-                          ExtractHexValue(upperPath, "PID&", 4) ?? // Alternate PID&...
-                          ExtractHexValue(upperPath, "DEV_", 4);   // Fallback DEV_
+                var pid = InputDeviceInfo.ExtractHexValue(upperPath, "PID_", 4) ??
+                          InputDeviceInfo.ExtractHexValue(upperPath, "PID&", 4) ?? // Alternate PID&...
+                          InputDeviceInfo.ExtractHexValue(upperPath, "DEV_", 4);   // Fallback DEV_
 
                 if (vid.HasValue && pid.HasValue)
                     return (vid.Value, pid.Value);
@@ -1806,66 +1756,6 @@ namespace x360ce.App.Input.Devices
             return (0, 0);
         }
         
-        /// <summary>
-        /// Extracts a hexadecimal value following a specific pattern in a string.
-        /// Handles both numeric hex values (e.g., "046A") and alphanumeric vendor codes (e.g., "INT").
-        /// Uses the same conversion logic as DevicesPnPInput for consistency.
-        /// </summary>
-        /// <param name="text">Text to search in</param>
-        /// <param name="pattern">Pattern to search for (e.g., "VID_", "VEN_")</param>
-        /// <param name="length">Expected length of hex value</param>
-        /// <returns>Parsed integer value or null if not found</returns>
-        private static int? ExtractHexValue(string text, string pattern, int length)
-        {
-            var index = text.IndexOf(pattern, StringComparison.Ordinal);
-            if (index < 0)
-                return null;
-
-            var start = index + pattern.Length;
-            if (start >= text.Length)
-                return null;
-
-            // Extract characters that could be hex digits or alphanumeric vendor codes
-            var end = start;
-            var maxEnd = Math.Min(start + length, text.Length);
-            
-            while (end < maxEnd)
-            {
-                var ch = text[end];
-                // Accept hex digits (0-9, A-F) and letters (for vendor codes like "INT")
-                if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'))
-                    end++;
-                else
-                    break;
-            }
-
-            if (end <= start)
-                return null;
-
-            var hexStr = text.Substring(start, end - start);
-            
-            // Try to parse as hexadecimal number
-            if (int.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out int value))
-                return value;
-            
-            // If parsing fails but we have a valid string (like "INT"),
-            // treat each character as a hex digit to create a unique identifier
-            // This ensures vendor codes like "INT" get converted to a numeric value
-            if (hexStr.Length > 0 && hexStr.All(c => (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')))
-            {
-                // For vendor codes, use ASCII-based conversion to create unique numeric ID
-                // This ensures "INT" becomes a valid numeric identifier
-                int vendorCode = 0;
-                for (int i = 0; i < Math.Min(hexStr.Length, 4); i++)
-                {
-                    vendorCode = (vendorCode << 8) | (byte)hexStr[i];
-                }
-                return vendorCode;
-            }
-            
-            return null;
-        }
-
         /// <summary>
         /// Extracts device ID from interface path.
         /// </summary>
@@ -2134,7 +2024,7 @@ namespace x360ce.App.Input.Devices
                 deviceInfo.InterfacePath = deviceName;
                 
                 // Filter out virtual/converted devices
-                if (IsVirtualConvertedDevice(deviceInfo))
+                if (deviceInfo.IsVirtualConvertedDevice())
                 {
                     Debug.WriteLine($"RawInputDevice: Skipping virtual/converted device: {deviceName}");
                     return;
@@ -2382,34 +2272,6 @@ namespace x360ce.App.Input.Devices
             return false;
         }
 
-
-        /// <summary>
-        /// Determines if a device is a virtual/converted device that should be excluded.
-        /// Checks for "ConvertedDevice" text in InterfacePath or DeviceId.
-        /// </summary>
-        /// <param name="deviceInfo">Device info to check</param>
-        /// <returns>True if device is a virtual/converted device</returns>
-        private bool IsVirtualConvertedDevice(RawInputDeviceInfo deviceInfo)
-        {
-            if (deviceInfo == null)
-                return false;
-
-            // Check InterfacePath for "ConvertedDevice" marker
-            if (!string.IsNullOrEmpty(deviceInfo.InterfacePath) &&
-                deviceInfo.InterfacePath.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-
-            // Check DeviceId for "ConvertedDevice" marker
-            if (!string.IsNullOrEmpty(deviceInfo.DeviceId) &&
-                deviceInfo.DeviceId.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-
-            return false;
-        }
 
         /// <summary>
         /// Filters out HID-type MI-only devices (USB composite parent nodes) IF a sibling device with COL exists.

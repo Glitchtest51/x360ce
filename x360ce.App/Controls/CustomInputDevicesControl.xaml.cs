@@ -18,7 +18,7 @@ namespace x360ce.App.Controls
     /// Debug control for displaying and filtering input device information across multiple input methods.
     /// Supports text highlighting and real-time filtering of device properties.
     /// </summary>
-    public partial class UserDevicesDebugControl : UserControl
+    public partial class CustomInputDevicesControl : UserControl
     {
         private CollectionViewSource _viewSource;
         private string _highlightedText = string.Empty;
@@ -41,10 +41,30 @@ namespace x360ce.App.Controls
         // UI update timer for checking button states
         private readonly UserInterfaceUpdatingTimer _uiUpdateTimer = new UserInterfaceUpdatingTimer();
 
-        public UserDevicesDebugControl()
+        public CustomInputDevicesControl()
         {
             InitializeComponent();
             InitializeSearchDebounce();
+        }
+
+        /// <summary>
+        /// Handles click events for input type filter checkboxes.
+        /// Updates settings and refreshes the view.
+        /// </summary>
+        private void FilterCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox)
+            {
+                // Update settings
+                if (checkBox == PnPInputDevicesCheckBox) SettingsManager.Options.ShowPnPDevices = checkBox.IsChecked ?? true;
+                else if (checkBox == RawInputDevicesCheckBox) SettingsManager.Options.ShowRawInputDevices = checkBox.IsChecked ?? true;
+                else if (checkBox == DirectInputDevicesCheckBox) SettingsManager.Options.ShowDirectInputDevices = checkBox.IsChecked ?? true;
+                else if (checkBox == XInputDevicesCheckBox) SettingsManager.Options.ShowXInputDevices = checkBox.IsChecked ?? true;
+                else if (checkBox == GamingInputDevicesCheckBox) SettingsManager.Options.ShowGamingInputDevices = checkBox.IsChecked ?? true;
+
+                SettingsManager.Save();
+                _viewSource.View.Refresh();
+            }
         }
 
         /// <summary>
@@ -66,7 +86,6 @@ namespace x360ce.App.Controls
         // Input device management and state checking components
         private readonly CustomInputDeviceManager _customInputDeviceManager = new CustomInputDeviceManager();
         private readonly CustomInputDeviceConnection _customInputDeviceConnection = new CustomInputDeviceConnection();
-        private readonly UserDevicesNewControl_UIUpdates _userDevicesNewControl_UIUpdates = new UserDevicesNewControl_UIUpdates();
 
         // Device selection handlers
         private DevicesTab_DeviceSelectedInfo _devicesTab_DeviceSelectedInfo;
@@ -99,6 +118,13 @@ namespace x360ce.App.Controls
             // Create input devices lists: PnPInput, RawInput, DirectInput, XInput, GamingInput
             _customInputDeviceManager.GetCustomInputDeviceList();
 
+            // Initialize checkbox states from settings
+            PnPInputDevicesCheckBox.IsChecked = SettingsManager.Options.ShowPnPDevices;
+            RawInputDevicesCheckBox.IsChecked = SettingsManager.Options.ShowRawInputDevices;
+            DirectInputDevicesCheckBox.IsChecked = SettingsManager.Options.ShowDirectInputDevices;
+            XInputDevicesCheckBox.IsChecked = SettingsManager.Options.ShowXInputDevices;
+            GamingInputDevicesCheckBox.IsChecked = SettingsManager.Options.ShowGamingInputDevices;
+
             // Start populating ListInputStates:
             // Polling for DirectInput, XInput, GamingInput devices at 20Hz.
             // Event-Driven for RawInput devices.
@@ -113,9 +139,6 @@ namespace x360ce.App.Controls
             // Initialize device selection handlers
             _devicesTab_DeviceSelectedInfo = new DevicesTab_DeviceSelectedInfo(_customInputDeviceManager);
             _devicesTab_DeviceSelectedInput = new DevicesTab_DeviceSelectedInput(_customInputDeviceManager);
-
-            // Set the device input handler reference in custom button pressed checker
-            _userDevicesNewControl_UIUpdates.SetDeviceSelectedInput(_devicesTab_DeviceSelectedInput);
 
             // Attach SelectionChanged event handler
             CustomInputDeviceInfoDataGrid.SelectionChanged += CustomInputDeviceInfoDataGrid_SelectionChanged;
@@ -236,7 +259,7 @@ namespace x360ce.App.Controls
                 // if "Devices" Tab is open, update Tab UI.
                 if (DevicesTab.IsVisible)
                 {
-                    _userDevicesNewControl_UIUpdates.DevicesTab_UIUpdate(_customInputDeviceManager);
+                    DevicesTab_UIUpdate(_customInputDeviceManager);
                 }
             });
         }
@@ -530,6 +553,16 @@ namespace x360ce.App.Controls
         /// </summary>
         private void ViewSource_Filter(object sender, FilterEventArgs e)
         {
+            // First check if the item type is visible based on checkbox settings
+            if (e.Item is CustomInputDeviceInfo info)
+            {
+                if (info.InputType == "PnPInput" && !SettingsManager.Options.ShowPnPDevices) { e.Accepted = false; return; }
+                if (info.InputType == "RawInput" && !SettingsManager.Options.ShowRawInputDevices) { e.Accepted = false; return; }
+                if (info.InputType == "DirectInput" && !SettingsManager.Options.ShowDirectInputDevices) { e.Accepted = false; return; }
+                if (info.InputType == "XInput" && !SettingsManager.Options.ShowXInputDevices) { e.Accepted = false; return; }
+                if (info.InputType == "GamingInput" && !SettingsManager.Options.ShowGamingInputDevices) { e.Accepted = false; return; }
+            }
+
             var searchText = InputDeviceSearch.Text?.Trim();
 
             if (string.IsNullOrEmpty(searchText))
@@ -623,22 +656,22 @@ namespace x360ce.App.Controls
                     case "RawInput":
                         liState = customInputDeviceManager.RawInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.ListInputState;
+                            ?.CustomInputState;
                         break;
                     case "DirectInput":
                         liState = customInputDeviceManager.DirectInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.ListInputState;
+                            ?.CustomInputState;
                         break;
                     case "XInput":
                         liState = customInputDeviceManager.XInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.ListInputState;
+                            ?.CustomInputState;
                         break;
                     case "GamingInput":
                         liState = customInputDeviceManager.GamingInputDeviceInfoList?
                             .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.ListInputState;
+                            ?.CustomInputState;
                         break;
                 }
 
@@ -652,6 +685,68 @@ namespace x360ce.App.Controls
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
             InputDeviceSearch.Text = string.Empty;
+        }
+        /// <summary>
+        /// Checks all input methods for button presses and updates ButtonPressed properties.
+        /// Gets current ListInputState directly from source device lists using InstanceGuid lookup.
+        /// This ensures we always read the most current state without reference management complexity.
+        /// </summary>
+        /// <param name="customInputDeviceManager">The combined devices instance containing all device lists</param>
+        private void DevicesTab_UIUpdate(CustomInputDeviceManager customInputDeviceManager)
+        {
+            if (customInputDeviceManager == null)
+                return;
+
+            // Loop through custom list and get current state
+            foreach (var device in customInputDeviceManager.CustomInputDeviceInfoList)
+            {
+                var liState = device.CustomInputState;
+
+                // Skip if no state available
+                if (liState == null ||
+                    liState.Buttons == null && liState.POVs == null && liState.Axes == null && liState.Sliders == null ||
+                    liState.Buttons.Count == 0 && liState.POVs.Count == 0 && liState.Axes.Count == 0 && liState.Sliders.Count == 0)
+                    continue;
+
+                // Check if any button or POV is pressed and Update ButtonPressed property
+                device.ButtonPressed = IsAnyButtonOrPovPressed(liState);
+
+                // Update value labels if handler is set
+                _devicesTab_DeviceSelectedInput?.UpdateValueLabels(device.InstanceGuid, liState);
+            }
+        }
+
+        /// <summary>
+        /// Checks if any button or POV is pressed in the given state.
+        /// Optimized for high-frequency execution.
+        /// </summary>
+        /// <param name="listState">The device state to check</param>
+        /// <returns>True if any button is pressed (value 1) or any POV is pressed (value > -1)</returns>
+        private static bool IsAnyButtonOrPovPressed(CustomInputState listState)
+        {
+            // Check buttons.
+            if (listState?.Buttons != null)
+            {
+                var buttons = listState.Buttons;
+                for (int i = 0; i < buttons.Count; i++)
+                {
+                    if (buttons[i] == 1)
+                        return true;
+                }
+            }
+
+            // Check POVs.
+            if (listState?.POVs != null)
+            {
+                var povs = listState.POVs;
+                for (int i = 0; i < povs.Count; i++)
+                {
+                    if (povs[i] > -1)
+                        return true;
+                }
+            }
+
+            return false;
         }
     }
 }

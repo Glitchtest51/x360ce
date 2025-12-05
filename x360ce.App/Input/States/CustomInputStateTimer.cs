@@ -176,7 +176,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Save ListInputState to DirectInputDeviceInfo ListInputState property.
-                diDeviceInfo.ListInputState = liState;
+                diDeviceInfo.CustomInputState = liState;
                 return true;
             }
             catch (Exception ex)
@@ -215,7 +215,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Save XInputState to XInputDeviceInfo ListInputState property.
-                xiDeviceInfo.ListInputState = liState;
+                xiDeviceInfo.CustomInputState = liState;
                 return true;
             }
             catch (Exception ex)
@@ -254,7 +254,7 @@ namespace x360ce.App.Input.States
                     return false;
 
                 // Save to device info ListInputState property
-                giDeviceInfo.ListInputState = liState;
+                giDeviceInfo.CustomInputState = liState;
                 return true;
             }
             catch (Exception ex)

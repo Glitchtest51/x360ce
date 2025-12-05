@@ -12,168 +12,8 @@ namespace x360ce.App.Input.Devices
     /// Physical input device container with comprehensive device information from Windows Plug and Play Manager.
     /// Contains detailed device metadata from the Windows Device Manager and Setup API.
     /// </summary>
-    public class PnPInputDeviceInfo
+    public class PnPInputDeviceInfo : InputDeviceInfo
     {
-        /// <summary>
-        /// Gets or sets the unique instance identifier of the device.
-        /// </summary>
-        public Guid InstanceGuid { get; set; }
-
-        /// <summary>
-        /// Gets or sets the instance name. Use FriendlyName if available, otherwise leave empty.
-        /// </summary>
-        public string InstanceName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the product identifier.
-        /// </summary>
-        public Guid ProductGuid { get; set; }
-
-        /// <summary>
-        /// Gets or sets the product name. Use DeviceDescription if available, otherwise leave empty.
-        /// </summary>
-        public string ProductName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the device type.
-        /// </summary>
-        public int DeviceType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the device subtype.
-        /// </summary>
-        public int DeviceSubtype { get; set; }
-
-        /// <summary>
-        /// Gets or sets the usage.
-        /// </summary>
-        public int Usage { get; set; }
-
-        /// <summary>
-        /// Gets or sets the usage page.
-        /// </summary>
-        public int UsagePage { get; set; }
-
-        /// <summary>
-        /// Gets or sets the input type.
-        /// </summary>
-        public string InputType { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of axes.
-        /// </summary>
-        public int AxeCount { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of sliders.
-        /// </summary>
-        public int SliderCount { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of buttons.
-        /// </summary>
-        public int ButtonCount { get; set; }
-
-        /// <summary>
-        /// Gets or sets the number of Point-of-View controllers.
-        /// </summary>
-        public int PovCount { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device has force feedback.
-        /// </summary>
-        public bool HasForceFeedback { get; set; }
-
-        /// <summary>
-        /// Gets or sets the driver version.
-        /// </summary>
-        public int DriverVersion { get; set; }
-
-        /// <summary>
-        /// Gets or sets the hardware revision.
-        /// </summary>
-        public int HardwareRevision { get; set; }
-
-        /// <summary>
-        /// Gets or sets the firmware revision.
-        /// </summary>
-        public int FirmwareRevision { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is online.
-        /// </summary>
-        public bool IsOnline { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is enabled.
-        /// </summary>
-        public bool IsEnabled { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is assigned to Pad 1.
-        /// </summary>
-        public bool AssignedToPad1 { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is assigned to Pad 2.
-        /// </summary>
-        public bool AssignedToPad2 { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is assigned to Pad 3.
-        /// </summary>
-        public bool AssignedToPad3 { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the device is assigned to Pad 4.
-        /// </summary>
-        public bool AssignedToPad4 { get; set; }
-
-        /// <summary>
-        /// Gets or sets the device type name.
-        /// </summary>
-        public string DeviceTypeName { get; set; }
-
-        /// <summary>
-        /// Gets or sets the interface path.
-        /// </summary>
-        public string InterfacePath { get; set; }
-
-        /// <summary>
-        /// Common identifier for grouping devices from same physical hardware.
-        /// </summary>
-        public string CommonIdentifier { get; set; }
-
-        /// <summary>
-        /// Gets or sets the vendor identifier.
-        /// </summary>
-        public int VendorId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the product identifier.
-        /// </summary>
-        public int ProductId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the class GUID.
-        /// </summary>
-        public Guid ClassGuid { get; set; }
-
-        /// <summary>
-        /// Gets or sets the hardware IDs.
-        /// </summary>
-        public string HardwareIds { get; set; }
-
-        /// <summary>
-        /// Gets or sets the device ID.
-        /// </summary>
-        public string DeviceId { get; set; }
-
-        /// <summary>
-        /// Gets or sets the parent device ID.
-        /// </summary>
-        public string ParentDeviceId { get; set; }
-
         /// <summary>
         /// Gets or sets the device instance ID.
         /// </summary>
@@ -258,11 +98,6 @@ namespace x360ce.App.Input.Devices
         /// Display name combining friendly name and device ID for easy identification.
         /// </summary>
         public string DisplayName => !string.IsNullOrEmpty(FriendlyName) ? FriendlyName : InstanceName;
-
-        /// <summary>
-        /// VID/PID string in standard format for hardware identification.
-        /// </summary>
-        public string VidPidString => $"VID_{VendorId:X4}&PID_{ProductId:X4}";
 
         /// <summary>
         /// Device status description for troubleshooting.
@@ -594,7 +429,7 @@ namespace x360ce.App.Input.Devices
                     try
                     {
                         var deviceInfo = CreateDeviceInfo(deviceInfoSet, deviceInfoData);
-                        if (deviceInfo != null && IsInputDevice(deviceInfo) && !IsVirtualConvertedDevice(deviceInfo))
+                        if (deviceInfo != null && IsInputDevice(deviceInfo) && !deviceInfo.IsVirtualConvertedDevice())
                         {
                             deviceListIndex++;
                             deviceList.Add(deviceInfo);
@@ -996,34 +831,6 @@ namespace x360ce.App.Input.Devices
         #endregion
 
         /// <summary>
-        /// Determines if a device is a virtual/converted device that should be excluded.
-        /// Checks for "ConvertedDevice" text in DeviceInstanceId or InterfacePath.
-        /// </summary>
-        /// <param name="deviceInfo">Device information</param>
-        /// <returns>True if device is a virtual/converted device</returns>
-        private bool IsVirtualConvertedDevice(PnPInputDeviceInfo deviceInfo)
-        {
-            if (deviceInfo == null)
-                return false;
-
-            // Check DeviceInstanceId for "ConvertedDevice" marker
-            if (!string.IsNullOrEmpty(deviceInfo.DeviceInstanceId) &&
-                deviceInfo.DeviceInstanceId.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-
-            // Check InterfacePath for "ConvertedDevice" marker
-            if (!string.IsNullOrEmpty(deviceInfo.InterfacePath) &&
-                deviceInfo.InterfacePath.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        /// <summary>
         /// Determines if a device is a gamepad based on hardware IDs and description.
         /// </summary>
         /// <param name="hardwareIds">Hardware IDs string</param>
@@ -1117,8 +924,8 @@ namespace x360ce.App.Input.Devices
                 var upperValue = propertyValue.ToUpperInvariant();
                 
                 // Try standard format first: VID_XXXX and PID_XXXX (most common)
-                int vid = ExtractHexValue(upperValue, "VID_", 4) ?? 0;
-                int pid = ExtractHexValue(upperValue, "PID_", 4) ?? 0;
+                int vid = InputDeviceInfo.ExtractHexValue(upperValue, "VID_", 4) ?? 0;
+                int pid = InputDeviceInfo.ExtractHexValue(upperValue, "PID_", 4) ?? 0;
                 
                 // Try alternate format: VID&XXXXXXXX
                 if (vid == 0)
@@ -1132,14 +939,14 @@ namespace x360ce.App.Input.Devices
                 // This handles cases like HID\VEN_INT&DEV_33D2 where VID is not available
                 if (vid == 0)
                 {
-                    vid = ExtractHexValue(upperValue, "VEN_", 4) ?? 0;
+                    vid = InputDeviceInfo.ExtractHexValue(upperValue, "VEN_", 4) ?? 0;
                 }
                 
                 // Fallback: If PID is still 0 or not found, try DEV_ format
                 // This handles cases like HID\VEN_INT&DEV_33D2 where PID is not available
                 if (pid == 0)
                 {
-                    pid = ExtractHexValue(upperValue, "DEV_", 4) ?? 0;
+                    pid = InputDeviceInfo.ExtractHexValue(upperValue, "DEV_", 4) ?? 0;
                 }
                 
                 return (vid, pid);
@@ -1149,65 +956,6 @@ namespace x360ce.App.Input.Devices
                 Debug.WriteLine($"PnPInputDevice: Error extracting VID/PID: {ex.Message}");
                 return (0, 0);
             }
-        }
-
-        /// <summary>
-        /// Extracts a hexadecimal value following a specific pattern in a string.
-        /// Handles both numeric hex values (e.g., "046A") and alphanumeric vendor codes (e.g., "INT").
-        /// </summary>
-        /// <param name="text">Text to search in</param>
-        /// <param name="pattern">Pattern to search for (e.g., "VID_", "VEN_")</param>
-        /// <param name="length">Expected length of hex value</param>
-        /// <returns>Parsed integer value or null if not found</returns>
-        private static int? ExtractHexValue(string text, string pattern, int length)
-        {
-            var index = text.IndexOf(pattern, StringComparison.Ordinal);
-            if (index < 0)
-                return null;
-
-            var start = index + pattern.Length;
-            if (start >= text.Length)
-                return null;
-
-            // Extract characters that could be hex digits or alphanumeric vendor codes
-            var end = start;
-            var maxEnd = Math.Min(start + length, text.Length);
-            
-            while (end < maxEnd)
-            {
-                var ch = text[end];
-                // Accept hex digits (0-9, A-F) and letters (for vendor codes like "INT")
-                if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'))
-                    end++;
-                else
-                    break;
-            }
-
-            if (end <= start)
-                return null;
-
-            var hexStr = text.Substring(start, end - start);
-            
-            // Try to parse as hexadecimal number
-            if (int.TryParse(hexStr, System.Globalization.NumberStyles.HexNumber, null, out int value))
-                return value;
-            
-            // If parsing fails but we have a valid string (like "INT"),
-            // treat each character as a hex digit to create a unique identifier
-            // This ensures vendor codes like "INT" get converted to a numeric value
-            if (hexStr.Length > 0 && hexStr.All(c => (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')))
-            {
-                // For vendor codes, use ASCII-based conversion to create unique numeric ID
-                // This ensures "INT" becomes a valid numeric identifier
-                int vendorCode = 0;
-                for (int i = 0; i < Math.Min(hexStr.Length, 4); i++)
-                {
-                    vendorCode = (vendorCode << 8) | (byte)hexStr[i];
-                }
-                return vendorCode;
-            }
-            
-            return null;
         }
 
         /// <summary>

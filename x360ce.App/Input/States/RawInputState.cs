@@ -570,28 +570,28 @@ namespace x360ce.App.Input.States
             if (device == null) return;
 
             // Ensure ListInputState is initialized
-            if (device.ListInputState == null)
+            if (device.CustomInputState == null)
             {
-                device.ListInputState = new CustomInputState();
+                device.CustomInputState = new CustomInputState();
                 // Initialize with device capabilities
                 // Axes: Standard Axes + Steering
                 // Initialize at midpoint (32767) for axes to be neutral
-                for (int i = 0; i < device.AxeCount; i++) device.ListInputState.Axes.Add(CustomInputState.ConvertToAxisRange(32767, 0, 65535, CustomInputState.InputSourceType.RawInput));
-                for (int i = 0; i < device.SteeringCount; i++) device.ListInputState.Axes.Add(CustomInputState.ConvertToAxisRange(32767, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.AxeCount; i++) device.CustomInputState.Axes.Add(CustomInputState.ConvertToAxisRange(32767, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.SteeringCount; i++) device.CustomInputState.Axes.Add(CustomInputState.ConvertToAxisRange(32767, 0, 65535, CustomInputState.InputSourceType.RawInput));
 
                 // Sliders: Standard Sliders + Throttle + Brake + Accelerator + Clutch
                 // Initialize at 0 for sliders
-                for (int i = 0; i < device.SliderCount; i++) device.ListInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
-                for (int i = 0; i < device.ThrottleCount; i++) device.ListInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
-                for (int i = 0; i < device.BrakeCount; i++) device.ListInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
-                for (int i = 0; i < device.AcceleratorCount; i++) device.ListInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
-                for (int i = 0; i < device.ClutchCount; i++) device.ListInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.SliderCount; i++) device.CustomInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.ThrottleCount; i++) device.CustomInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.BrakeCount; i++) device.CustomInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.AcceleratorCount; i++) device.CustomInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
+                for (int i = 0; i < device.ClutchCount; i++) device.CustomInputState.Sliders.Add(CustomInputState.ConvertToAxisRange(0, 0, 65535, CustomInputState.InputSourceType.RawInput));
 
-                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
-                for (int i = 0; i < device.PovCount; i++) device.ListInputState.POVs.Add(CustomInputState.ConvertToPOVRange(-1));
+                for (int i = 0; i < device.ButtonCount; i++) device.CustomInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
+                for (int i = 0; i < device.PovCount; i++) device.CustomInputState.POVs.Add(CustomInputState.ConvertToPOVRange(-1));
             }
 
-            var deviceState = device.ListInputState;
+            var deviceState = device.CustomInputState;
 
             // Calculate HID report offset and size
             // CRITICAL: offset points to the START of the HID report (including Report ID if present)
@@ -953,22 +953,22 @@ namespace x360ce.App.Input.States
             //System.Diagnostics.Debug.WriteLine($"RawInputState.ProcessMouseInput: MOUSE input received {device.InterfacePath}.");
 
             // Ensure ListInputState is initialized
-            if (device.ListInputState == null)
+            if (device.CustomInputState == null)
             {
-                device.ListInputState = new CustomInputState();
+                device.CustomInputState = new CustomInputState();
                 // Initialize with device.ButtonCount buttons and device.AxeCount axes (X, Y, Z-wheel, W-hwheel)
-                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
+                for (int i = 0; i < device.ButtonCount; i++) device.CustomInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
                 
                 // Initialize Mouse Axes:
                 // Indexes 0 (X) and 1 (Y) start at center (32767) to simulate joystick stick behavior.
                 // Indexes 2 (Wheel) and 3 (H-Wheel) start at 0 to simulate slider behavior.
                 for (int i = 0; i < device.AxeCount; i++)
                 {
-                    device.ListInputState.Axes.Add(CustomInputState.ConvertToAxisRange(i < 2 ? 32767 : 0));
+                    device.CustomInputState.Axes.Add(CustomInputState.ConvertToAxisRange(i < 2 ? 32767 : 0));
                 }
             }
 
-            var deviceState = device.ListInputState;
+            var deviceState = device.CustomInputState;
 
             // Read RAWMOUSE structure
             var mouse = Marshal.PtrToStructure<RAWMOUSE>(IntPtr.Add(buffer, s_rawinputHeaderSize));
@@ -1065,14 +1065,14 @@ namespace x360ce.App.Input.States
             if (device == null) return;
 
             // Ensure ListInputState is initialized
-            if (device.ListInputState == null)
+            if (device.CustomInputState == null)
             {
-                device.ListInputState = new CustomInputState();
+                device.CustomInputState = new CustomInputState();
                 // Initialize with device.ButtonCount buttons.
-                for (int i = 0; i < device.ButtonCount; i++) device.ListInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
+                for (int i = 0; i < device.ButtonCount; i++) device.CustomInputState.Buttons.Add(CustomInputState.ConvertToButtonRange(0));
             }
 
-            var deviceState = device.ListInputState;
+            var deviceState = device.CustomInputState;
 
             // Read RAWKEYBOARD structure and update key state
             var keyboard = Marshal.PtrToStructure<RAWKEYBOARD>(IntPtr.Add(buffer, s_rawinputHeaderSize));

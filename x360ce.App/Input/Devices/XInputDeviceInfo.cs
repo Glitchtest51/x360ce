@@ -2,9 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using x360ce.App.Input.States;
-
+using System.Linq;
 namespace x360ce.App.Input.Devices
 {
 	/// <summary>
@@ -12,76 +11,24 @@ namespace x360ce.App.Input.Devices
 	/// Note: XInput API abstracts hardware details and reports generic Microsoft VID/PID (045E:028E)
 	/// regardless of actual manufacturer. Use DirectInput or RawInput for real hardware identification.
 	/// </summary>
-	public class XInputDeviceInfo : IDisposable
+	public class XInputDeviceInfo : InputDeviceInfo, IDisposable
 	{
-		// Identity
-		public Guid InstanceGuid { get; set; }
-		public string InstanceName { get; set; }
-		public Guid ProductGuid { get; set; }
-		public string ProductName { get; set; }
-		
-		// Device classification
-		public int DeviceType { get; set; }
-		public int DeviceSubtype { get; set; }
-		public string DeviceTypeName { get; set; }
-		
-		// HID information
-		public int Usage { get; set; }
-		public int UsagePage { get; set; }
-		
-		// Hardware identification (XInput uses generic Microsoft values)
-		public int VendorId { get; set; }
-		public int ProductId { get; set; }
-		public string CommonIdentifier { get; set; }
-		public string InputType { get; set; }
-        public CustomInputState ListInputState { get; set; }
-
-        // Capabilities
-        public int AxeCount { get; set; }
-		public int SliderCount { get; set; }
-		public int ButtonCount { get; set; }
-		public int PovCount { get; set; }
-		public bool HasForceFeedback { get; set; }
-		
-		// Version information
-		public int DriverVersion { get; set; }
-		public int HardwareRevision { get; set; }
-		public int FirmwareRevision { get; set; }
-		
 		// XInput-specific
 		public UserIndex XInputSlot { get; set; }
 		public int SlotIndex { get; set; }
 		public uint LastPacketNumber { get; set; }
-		public bool IsOnline { get; set; }
-        public bool IsEnabled { get; set; }
-        public bool AssignedToPad1 { get; set; }
-        public bool AssignedToPad2 { get; set; }
-        public bool AssignedToPad3 { get; set; }
-        public bool AssignedToPad4 { get; set; }
 
-        // Unused properties (XInput doesn't provide these)
-        public Guid ClassGuid { get; set; }
-		public string HardwareIds { get; set; }
-		public string DeviceId { get; set; }
-		public string ParentDeviceId { get; set; }
-		public string InterfacePath { get; set; }
-		
-		/// <summary>
-		/// The actual XInput controller object for reading input.
-		/// </summary>
-		public Controller XInputDevice { get; set; }
-		
 		/// <summary>
 		/// Display name combining slot and name for easy identification.
 		/// </summary>
 		public string DisplayName => $"XInput Slot {SlotIndex + 1} - {InstanceName}";
-		
-		/// <summary>
-		/// VID/PID string in standard format for hardware identification.
-		/// </summary>
-		public string VidPidString => $"VID_{VendorId:X4}&PID_{ProductId:X4}";
-		
-		public void Dispose()
+
+        /// <summary>
+        /// The actual XInput controller object for reading input.
+        /// </summary>
+        public Controller XInputDevice { get; set; }
+
+        public void Dispose()
 		{
 			XInputDevice = null;
 		}
@@ -212,7 +159,7 @@ namespace x360ce.App.Input.Devices
                     AssignedToPad2 = false,
                     AssignedToPad3 = false,
                     AssignedToPad4 = false,
-                    ListInputState = listInputState
+                    CustomInputState = listInputState
                 };
    }
    catch (Exception ex)

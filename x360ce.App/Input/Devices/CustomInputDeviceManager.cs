@@ -188,48 +188,28 @@ namespace x360ce.App.Input.Devices
                 if (existingDevice != null)
                 {
                 	// Update existing device properties
-                	existingDevice.InstanceGuid = device.InstanceGuid;
-                	existingDevice.AxeCount = device.AxeCount;
-                	existingDevice.SliderCount = device.SliderCount;
-                	existingDevice.ButtonCount = device.ButtonCount;
-                	existingDevice.PovCount = device.PovCount;
+                	   // Since CustomInputDeviceInfo wraps the source device by reference,
+                	   // most properties are already up to date if the source object is the same.
+                	   // However, computed properties like ProductName (with prefix) need explicit update.
+                	   
+                	   // CRITICAL: Update the underlying device reference.
+                	   // Required for RawInput which creates new device instances on enumeration.
+                	   existingDevice.SetDevice(item as InputDeviceInfo);
+
                 	existingDevice.ProductName = getProductName(item, commonId);
                 	existingDevice.InterfacePath = getInterfacePath(item);
-                    existingDevice.IsEnabled = device.IsEnabled;
-                    existingDevice.AssignedToPad1 = device.AssignedToPad1;
-                    existingDevice.AssignedToPad2 = device.AssignedToPad2;
-                    existingDevice.AssignedToPad3 = device.AssignedToPad3;
-                    existingDevice.AssignedToPad4 = device.AssignedToPad4;
-
-                    // Note: ListInputState is no longer stored in CustomInputDeviceInfo
-                    // It's retrieved directly from source device lists when needed using InterfacePath lookup
                 }
                 else
                 {
                 	// Add new device
-                	var newDevice = new CustomInputDeviceInfo
+                	var newDevice = new CustomInputDeviceInfo(item as InputDeviceInfo)
                 	{
-                		InputType = inputType,
-                		CommonIdentifier = commonId,
-                		InstanceGuid = device.InstanceGuid,
-                		AxeCount = device.AxeCount,
-                		SliderCount = device.SliderCount,
-                		ButtonCount = device.ButtonCount,
-                		PovCount = device.PovCount,
                 		AxePressed = false,
                 		SliderPressed = false,
                 		ButtonPressed = false,
                 		PovPressed = false,
                 		ProductName = getProductName(item, commonId),
                 		InterfacePath = getInterfacePath(item),
-                        IsEnabled = device.IsEnabled,
-                        AssignedToPad1 = device.AssignedToPad1,
-                        AssignedToPad2 = device.AssignedToPad2,
-                        AssignedToPad3 = device.AssignedToPad3,
-                        AssignedToPad4 = device.AssignedToPad4
-
-                        // Note: ListInputState is no longer stored here
-                        // It's retrieved directly from source device lists when needed using InterfacePath lookup
                     };
                 	CustomInputDeviceInfoList.Add(newDevice);
                 }
@@ -262,14 +242,14 @@ namespace x360ce.App.Input.Devices
                 if (!currentDict.ContainsKey(key))
                 {
                     // Device is being removed - preserve its ListInputState if it has one
-                    var listInputStateProp = device.GetType().GetProperty("ListInputState");
+                    var listInputStateProp = device.GetType().GetProperty("CustomInputState");
                     if (listInputStateProp != null)
                     {
                         var state = listInputStateProp.GetValue(device);
                         if (state != null)
                         {
                             preservedStates[key] = state;
-                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Preserving ListInputState for device {key}");
+                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Preserving CustomInputState for device {key}");
                         }
                     }
                     existingList.RemoveAt(i);
@@ -292,7 +272,7 @@ namespace x360ce.App.Input.Devices
                     foreach (var prop in properties)
                     {
                         // Skip ListInputState property - it's updated by event-driven processing
-                        if (prop.Name == "ListInputState")
+                        if (prop.Name == "CustomInputState")
                             continue;
 
                         // Only copy writable properties
@@ -318,11 +298,11 @@ namespace x360ce.App.Input.Devices
                     // CRITICAL FIX: Restore preserved ListInputState if this device was temporarily removed
                     if (preservedStates.ContainsKey(key))
                     {
-                        var listInputStateProp = currentDevice.GetType().GetProperty("ListInputState");
+                        var listInputStateProp = currentDevice.GetType().GetProperty("CustomInputState");
                         if (listInputStateProp != null && listInputStateProp.CanWrite)
                         {
                             listInputStateProp.SetValue(currentDevice, preservedStates[key]);
-                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Restored ListInputState for device {key}");
+                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Restored CustomInputState for device {key}");
                         }
                     }
                 }

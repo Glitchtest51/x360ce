@@ -420,7 +420,7 @@ namespace x360ce.App.Input.States
   {
   	// CRITICAL FIX: Reuse existing ListInputState object if it exists
   	// This maintains the reference in CustomInputDeviceInfo.ListInputState
-  	CustomInputState result = deviceInfo?.ListInputState;
+  	CustomInputState result = deviceInfo?.CustomInputState;
 
   	if (result == null)
   	{
@@ -608,7 +608,7 @@ namespace x360ce.App.Input.States
 		{
 			// CRITICAL FIX: Reuse existing ListInputState object if it exists
 			// This maintains the reference in CustomInputDeviceInfo.ListInputState
-			CustomInputState result = deviceInfo?.ListInputState;
+			CustomInputState result = deviceInfo?.CustomInputState;
 			
 			if (result == null)
 			{

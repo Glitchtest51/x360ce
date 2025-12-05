@@ -20,6 +20,11 @@ namespace x360ce.App
 			InternetAutoSave = true;
 			ShowDevicesTab = true;
 			EnableShowFormInfo = false;
+			ShowPnPDevices = false;
+			ShowRawInputDevices = true;
+			ShowDirectInputDevices = true;
+			ShowXInputDevices = true;
+			ShowGamingInputDevices = true;
 		}
 		/// <summary>
 		/// Avoid de-serialization duplicates by using separate method.
@@ -104,6 +109,26 @@ namespace x360ce.App
 		[DefaultValue(true), Description("Auto save settings to Internet Database.")]
 		public bool InternetAutoSave { get { return _InternetAutoSave; } set { _InternetAutoSave = value; OnPropertyChanged(); } }
 		bool _InternetAutoSave;
+
+		[DefaultValue(false), Description("Show PnP Input Devices.")]
+		public bool ShowPnPDevices { get { return _ShowPnPDevices; } set { _ShowPnPDevices = value; OnPropertyChanged(); } }
+		bool _ShowPnPDevices;
+
+		[DefaultValue(true), Description("Show Raw Input Devices.")]
+		public bool ShowRawInputDevices { get { return _ShowRawInputDevices; } set { _ShowRawInputDevices = value; OnPropertyChanged(); } }
+		bool _ShowRawInputDevices;
+
+		[DefaultValue(true), Description("Show Direct Input Devices.")]
+		public bool ShowDirectInputDevices { get { return _ShowDirectInputDevices; } set { _ShowDirectInputDevices = value; OnPropertyChanged(); } }
+		bool _ShowDirectInputDevices;
+
+		[DefaultValue(true), Description("Show XInput Devices.")]
+		public bool ShowXInputDevices { get { return _ShowXInputDevices; } set { _ShowXInputDevices = value; OnPropertyChanged(); } }
+		bool _ShowXInputDevices;
+
+		[DefaultValue(true), Description("Show Gaming Input Devices.")]
+		public bool ShowGamingInputDevices { get { return _ShowGamingInputDevices; } set { _ShowGamingInputDevices = value; OnPropertyChanged(); } }
+		bool _ShowGamingInputDevices;
 
 		public const string DefaultInternetDatabaseUrl = "http://www.x360ce.com/webservices/x360ce.asmx";
 

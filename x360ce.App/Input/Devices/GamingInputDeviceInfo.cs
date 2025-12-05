@@ -1,10 +1,8 @@
-﻿using JocysCom.ClassLibrary.IO;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Windows.Gaming.Input;
-using x360ce.App.Input.States;
 
 namespace x360ce.App.Input.Devices
 {
@@ -12,71 +10,28 @@ namespace x360ce.App.Input.Devices
 	/// Gaming Input device container with both device information and the actual Gaming Input gamepad object.
 	/// Contains comprehensive device metadata plus the live Gaming Input gamepad for input reading.
 	/// </summary>
-	public class GamingInputDeviceInfo : IDisposable
+	public class GamingInputDeviceInfo : InputDeviceInfo, IDisposable
 	{
-		public Guid InstanceGuid { get; set; }
-		public string InstanceName { get; set; }
-		public Guid ProductGuid { get; set; }
-		public string ProductName { get; set; }
-		public int DeviceType { get; set; }
-		public int DeviceSubtype { get; set; }
-		public int Usage { get; set; }
-		public int UsagePage { get; set; }
-		public string InputType { get; set; }
-        public CustomInputState ListInputState { get; set; }
-        public int AxeCount { get; set; }
-		public int SliderCount { get; set; }
-		public int ButtonCount { get; set; }
-		public int PovCount { get; set; }
-		public bool HasForceFeedback { get; set; }
-		public int DriverVersion { get; set; }
-		public int HardwareRevision { get; set; }
-		public int FirmwareRevision { get; set; }
-		public bool IsOnline { get; set; }
-        public bool IsEnabled { get; set; }
-        public bool AssignedToPad1 { get; set; }
-        public bool AssignedToPad2 { get; set; }
-        public bool AssignedToPad3 { get; set; }
-        public bool AssignedToPad4 { get; set; }
-        public string DeviceTypeName { get; set; }
-		public string InterfacePath { get; set; }
-		
-		// Common identifier for grouping devices from same physical hardware
-		public string CommonIdentifier { get; set; }
-		
-		// Additional identification properties
-		public int VendorId { get; set; }
-		public int ProductId { get; set; }
-		public Guid ClassGuid { get; set; }
-		public string HardwareIds { get; set; }
-		public string DeviceId { get; set; }
-		public string ParentDeviceId { get; set; }
-		
-		// Gaming Input-specific properties
-		public int GamepadIndex { get; set; }
+        // Gaming Input-specific properties
+        public int GamepadIndex { get; set; }
 		public uint LastTimestamp { get; set; }
 		public bool SupportsVibration { get; set; }
 		public bool SupportsTriggerRumble { get; set; }
-		
-		/// <summary>
-		/// The actual Gaming Input gamepad object for reading input.
-		/// </summary>
-		public Gamepad GamingInputDevice { get; set; }
-		
+	
 		/// <summary>
 		/// Display name combining index and name for easy identification.
 		/// </summary>
 		public string DisplayName => $"Gaming Input {GamepadIndex + 1} - {InstanceName}";
-		
-		/// <summary>
-		/// VID/PID string in standard format for hardware identification.
-		/// </summary>
-		public string VidPidString => $"VID_{VendorId:X4}&PID_{ProductId:X4}";
-		
-		/// <summary>
-		/// Dispose the Gaming Input gamepad when no longer needed.
-		/// </summary>
-		public void Dispose()
+
+        /// <summary>
+        /// The actual Gaming Input gamepad object for reading input.
+        /// </summary>
+        public Gamepad GamingInputDevice { get; set; }
+
+        /// <summary>
+        /// Dispose the Gaming Input gamepad when no longer needed.
+        /// </summary>
+        public void Dispose()
 		{
 			GamingInputDevice = null;
 		}
@@ -766,19 +721,9 @@ namespace x360ce.App.Input.Devices
 			if (deviceInfo == null)
 				return false;
 
-			// Check InterfacePath for "ConvertedDevice" marker
-			if (!string.IsNullOrEmpty(deviceInfo.InterfacePath) &&
-				deviceInfo.InterfacePath.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
+			// Use base class check for standard "ConvertedDevice" markers
+			if (deviceInfo.IsVirtualConvertedDevice())
 				return true;
-			}
-
-			// Check DeviceId for "ConvertedDevice" marker
-			if (!string.IsNullOrEmpty(deviceInfo.DeviceId) &&
-				deviceInfo.DeviceId.IndexOf("ConvertedDevice", StringComparison.OrdinalIgnoreCase) >= 0)
-			{
-				return true;
-			}
 
 			// Check for Input Configuration Devices and Portable Device Control
 			var instanceName = (deviceInfo.InstanceName ?? "").ToLowerInvariant();
