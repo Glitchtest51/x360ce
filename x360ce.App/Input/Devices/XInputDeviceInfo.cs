@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using x360ce.App.Input.States;
-using System.Linq;
 namespace x360ce.App.Input.Devices
 {
 	/// <summary>
@@ -61,22 +60,15 @@ namespace x360ce.App.Input.Devices
 		/// </summary>
 		public List<XInputDeviceInfo> GetXInputDeviceInfoList()
 		{
-			var stopwatch = Stopwatch.StartNew();
 			var deviceList = new List<XInputDeviceInfo>();
 
 			try
 			{
-				Debug.WriteLine("\n" + new string('-', 109) + "\n");
-				Debug.WriteLine("XInputDevice: Starting XInput device enumeration...");
-				
 				if (!EnsureXInputLibraryLoaded())
 				{
 					Debug.WriteLine("XInputDevice: XInput library not available");
-					LogSummary(deviceList, stopwatch);
 					return deviceList;
 				}
-				
-				Debug.WriteLine("XInputDevice: XInput library loaded");
 				
 				for (int slotIndex = 0; slotIndex < MaxXInputControllers; slotIndex++)
 				{
@@ -84,11 +76,8 @@ namespace x360ce.App.Input.Devices
 					if (deviceInfo != null)
 					{
 						deviceList.Add(deviceInfo);
-						LogDeviceInfo(deviceInfo, deviceList.Count);
 					}
 				}
-				
-				LogSummary(deviceList, stopwatch);
 			}
 			catch (Exception ex)
 			{
@@ -112,7 +101,6 @@ namespace x360ce.App.Input.Devices
 				// Early exit if controller not connected
 				if (!controller.GetState(out State controllerState))
 				{
-					Debug.WriteLine($"\n{slotIndex + 1}. XInputDevice: No controller in slot {slotIndex}");
 					return null;
 				}
 
@@ -170,59 +158,11 @@ namespace x360ce.App.Input.Devices
 		}
 		
 		/// <summary>
-		/// Logs device information for debugging.
-		/// </summary>
-		private void LogDeviceInfo(XInputDeviceInfo deviceInfo, int deviceIndex)
-		{
-			Debug.WriteLine($"\n{deviceIndex}. DevicesXInputInfo: " +
-				$"CommonIdentifier (generated): {deviceInfo.CommonIdentifier}, " +
-				$"SlotIndex: {deviceInfo.SlotIndex}, " +
-				$"XInputSlot: {deviceInfo.XInputSlot}, " +
-				$"InstanceGuid (generated): {deviceInfo.InstanceGuid}, " +
-				$"ProductGuid (generated): {deviceInfo.ProductGuid}, " +
-				$"InstanceName (generated): {deviceInfo.InstanceName}, " +
-				$"ProductName (generated): {deviceInfo.ProductName}, " +
-				$"DeviceType (generated): {deviceInfo.DeviceType}, " +
-				$"DeviceTypeName (generated): {deviceInfo.DeviceTypeName}, " +
-				$"PacketNumber: {deviceInfo.LastPacketNumber}, " +
-				$"VidPidString (generated): {deviceInfo.VidPidString}, " +
-				$"VendorId (generated): {deviceInfo.VendorId} (0x{deviceInfo.VendorId:X4}), " +
-				$"ProductId (generated): {deviceInfo.ProductId} (0x{deviceInfo.ProductId:X4})");
-
-			Debug.WriteLine($"DevicesXInputInfo Capabilities (generated): " +
-				$"AxeCount: {deviceInfo.AxeCount}, " +
-				$"SliderCount: {deviceInfo.SliderCount}, " +
-				$"ButtonCount: {deviceInfo.ButtonCount}, " +
-				$"PovCount: {deviceInfo.PovCount}, " +
-				$"HasForceFeedback: {deviceInfo.HasForceFeedback}");
-			
-			Debug.WriteLine($"DevicesXInputInfo Note: " +
-				$"XInput API uses generic Microsoft VID/PID (045E:028E) for all controllers - use DirectInput or RawInput for actual hardware identification");
-		}
-		
-		/// <summary>
-		/// Logs enumeration summary.
-		/// </summary>
-		private void LogSummary(List<XInputDeviceInfo> deviceList, Stopwatch stopwatch)
-		{
-			stopwatch.Stop();
-			var connectedCount = deviceList.Count;
-			var offlineCount = deviceList.Count(d => !d.IsOnline);
-			
-			Debug.WriteLine($"\nDevicesXInput: ({stopwatch.ElapsedMilliseconds} ms) " +
-				$"Found: {connectedCount}/{MaxXInputControllers}, " +
-				$"Online: {connectedCount - offlineCount}, " +
-				$"Offline: {offlineCount}\n");
-		}
-		
-		/// <summary>
 		/// Disposes all XInput devices in the list.
 		/// </summary>
 		public static void DisposeDeviceList(List<XInputDeviceInfo> deviceList)
 		{
 			if (deviceList == null) return;
-			
-			Debug.WriteLine($"XInputDevice: Disposing {deviceList.Count} devices");
 			
 			foreach (var deviceInfo in deviceList)
 			{
@@ -247,8 +187,6 @@ namespace x360ce.App.Input.Devices
 				if (SharpDX.XInput.Controller.IsLoaded)
 					return true;
 				
-				Debug.WriteLine("XInputDevice: Loading XInput library...");
-				
 				var libraries = new[] { "xinput1_4.dll", "xinput1_3.dll", "xinput9_1_0.dll" };
 				
 				foreach (var library in libraries)
@@ -257,11 +195,8 @@ namespace x360ce.App.Input.Devices
 					
 					if (SharpDX.XInput.Controller.IsLoaded)
 					{
-						Debug.WriteLine($"XInputDevice: Loaded {library}");
 						return true;
 					}
-					
-					Debug.WriteLine($"XInputDevice: Failed {library}: {loadError?.Message}");
 				}
 				
 				return false;

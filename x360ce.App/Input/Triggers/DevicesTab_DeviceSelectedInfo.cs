@@ -53,7 +53,7 @@ namespace x360ce.App.Input.Triggers
 		/// <param name="inputType">The input type identifier</param>
 		/// <param name="instanceGuid">The device instance GUID</param>
 		/// <returns>List of property name-value pairs</returns>
-		private List<(string Name, string Value)> GetDeviceInformation(string inputType, Guid instanceGuid)
+		internal List<(string Name, string Value)> GetDeviceInformation(string inputType, Guid instanceGuid)
 		{
 			object deviceObject = null;
 
@@ -97,7 +97,7 @@ namespace x360ce.App.Input.Triggers
 		/// </summary>
 		/// <param name="deviceObject">The device object to extract properties from</param>
 		/// <returns>List of property name-value pairs</returns>
-		private List<(string Name, string Value)> ExtractDeviceProperties(object deviceObject)
+		internal static List<(string Name, string Value)> ExtractDeviceProperties(object deviceObject)
 		{
 			var properties = new List<(string Name, string Value)>();
 
@@ -142,7 +142,7 @@ namespace x360ce.App.Input.Triggers
 		/// </summary>
 		/// <param name="type">The property type to check</param>
 		/// <returns>True if the type should be displayed</returns>
-		private bool IsDisplayableType(Type type)
+		internal static bool IsDisplayableType(Type type)
 		{
 			// Handle nullable types
 			var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
@@ -169,7 +169,7 @@ namespace x360ce.App.Input.Triggers
 		/// <param name="value">The value to format</param>
 		/// <param name="type">The type of the value</param>
 		/// <returns>Formatted string representation</returns>
-		private string FormatPropertyValue(object value, Type type)
+		internal static string FormatPropertyValue(object value, Type type)
 		{
 			if (value == null)
 				return string.Empty;

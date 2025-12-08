@@ -249,7 +249,6 @@ namespace x360ce.App.Input.Devices
                         if (state != null)
                         {
                             preservedStates[key] = state;
-                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Preserving CustomInputState for device {key}");
                         }
                     }
                     existingList.RemoveAt(i);
@@ -302,7 +301,6 @@ namespace x360ce.App.Input.Devices
                         if (listInputStateProp != null && listInputStateProp.CanWrite)
                         {
                             listInputStateProp.SetValue(currentDevice, preservedStates[key]);
-                            System.Diagnostics.Debug.WriteLine($"CustomInputDeviceManager.UpdateDeviceList: Restored CustomInputState for device {key}");
                         }
                     }
                 }

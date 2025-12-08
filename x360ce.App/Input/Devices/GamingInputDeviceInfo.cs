@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Windows.Gaming.Input;
 
 namespace x360ce.App.Input.Devices
@@ -85,39 +84,23 @@ namespace x360ce.App.Input.Devices
 		/// </remarks>
 		public List<GamingInputDeviceInfo> GetGamingInputDeviceInfoList()
 		{
-			var stopwatch = Stopwatch.StartNew();
 			var deviceList = new List<GamingInputDeviceInfo>();
 
 			try
 			{
-				Debug.WriteLine("\n-----------------------------------------------------------------------------------------------------------------\n\n" +
-					"GamingInputDevice: Starting Gaming Input device enumeration...");
-				
 				// Early exit if Gaming Input is not available
 				if (!IsGamingInputAvailable())
 				{
-					LogNoGamingInputAvailable();
 					return deviceList;
 				}
 				
-				Debug.WriteLine("GamingInputDevice: Gaming Input API is available");
-				
 				// Detect gamepads with privilege-aware retry strategy
 				bool isAdmin = IsRunningAsAdministrator();
-				Debug.WriteLine($"GamingInputDevice: Running as {(isAdmin ? "Administrator" : "normal user")}");
 				
 				var gamepads = DetectGamepadsWithRetry(isAdmin);
-				Debug.WriteLine($"GamingInputDevice: Found {gamepads.Count} gamepad(s)");
 				
 				// Process functional gamepads only
 				ProcessFunctionalGamepads(gamepads, deviceList);
-				
-				// Log guidance if no devices found
-				if (deviceList.Count == 0)
-					LogDetectionGuidance(isAdmin);
-				
-				// Log summary
-				LogDeviceListSummary(deviceList, stopwatch);
 			}
 			catch (Exception ex)
 			{
@@ -137,15 +120,12 @@ namespace x360ce.App.Input.Devices
 		{
 			if (deviceList == null) return;
 			
-			Debug.WriteLine($"GamingInputDevice: Disposing {deviceList.Count} Gaming Input devices...");
-			
 			foreach (var deviceInfo in deviceList)
 			{
 				try
 				{
 					if (deviceInfo != null)
 					{
-						Debug.WriteLine($"GamingInputDevice: Disposing device - {deviceInfo.InstanceName}");
 						deviceInfo.Dispose();
 					}
 				}
@@ -154,8 +134,6 @@ namespace x360ce.App.Input.Devices
 					Debug.WriteLine($"GamingInputDevice: Error disposing device {deviceInfo?.InstanceName}: {ex.Message}");
 				}
 			}
-			
-			Debug.WriteLine("GamingInputDevice: All Gaming Input devices disposed.");
 		}
 		
 		/// <summary>
@@ -208,7 +186,6 @@ namespace x360ce.App.Input.Devices
 			
 			if (gamepads.Count > 0)
 			{
-				Debug.WriteLine($"GamingInputDevice: Immediate detection found {gamepads.Count} gamepad(s)");
 				return gamepads;
 			}
 			
@@ -217,31 +194,25 @@ namespace x360ce.App.Input.Devices
 				? new[] { ADMIN_INITIAL_DELAY, ADMIN_RETRY_DELAY, ADMIN_RETRY_DELAY }
 				: new[] { USER_INITIAL_DELAY, USER_RETRY_DELAY };
 			
-			return RetryDetectionWithDelays(delays, isAdmin ? "Admin" : "User");
+			return RetryDetectionWithDelays(delays);
 		}
 
 		/// <summary>
 		/// Retries gamepad detection with specified delays.
 		/// </summary>
-		private IReadOnlyList<Gamepad> RetryDetectionWithDelays(int[] delays, string mode)
+		private IReadOnlyList<Gamepad> RetryDetectionWithDelays(int[] delays)
 		{
-			int totalDelay = 0;
-			
 			foreach (var delay in delays)
 			{
-				Debug.WriteLine($"GamingInputDevice: [{mode}] Retrying with {delay}ms delay...");
 				System.Threading.Thread.Sleep(delay);
-				totalDelay += delay;
 				
 				var gamepads = Gamepad.Gamepads;
 				if (gamepads.Count > 0)
 				{
-					Debug.WriteLine($"GamingInputDevice: [{mode}] Found {gamepads.Count} gamepad(s) after {totalDelay}ms");
 					return gamepads;
 				}
 			}
 			
-			Debug.WriteLine($"GamingInputDevice: [{mode}] No gamepads found after {totalDelay}ms total delay");
 			return Gamepad.Gamepads;
 		}
 
@@ -258,7 +229,6 @@ namespace x360ce.App.Input.Devices
 					// Early filtering: Test gamepad functionality before creating device info
 					if (!TryGetGamepadReading(gamepads[i], out var reading))
 					{
-						Debug.WriteLine($"GamingInputDevice: Gamepad {i} is not responding - skipping");
 						continue;
 					}
 					
@@ -268,11 +238,6 @@ namespace x360ce.App.Input.Devices
 					if (!IsVirtualConvertedDevice(deviceInfo))
 					{
 						deviceList.Add(deviceInfo);
-						LogDeviceInfo(deviceInfo, deviceList.Count);
-					}
-					else
-					{
-						Debug.WriteLine($"GamingInputDevice: Skipping virtual/converted device at index {i}");
 					}
 				}
 				catch (Exception ex)
@@ -356,81 +321,42 @@ namespace x360ce.App.Input.Devices
 		{
 			try
 			{
-				Debug.WriteLine($"GamingInputDevice: Detected OS version: {Environment.OSVersion.Version}");
-				Debug.WriteLine($"GamingInputDevice: Platform: {Environment.OSVersion.Platform}");
-				Debug.WriteLine($"GamingInputDevice: Is64BitOperatingSystem: {Environment.Is64BitOperatingSystem}");
-				Debug.WriteLine($"GamingInputDevice: Is64BitProcess: {Environment.Is64BitProcess}");
-				Debug.WriteLine($"GamingInputDevice: CLR Version: {Environment.Version}");
-				Debug.WriteLine($"GamingInputDevice: Running as Administrator: {IsRunningAsAdministrator()}");
-				Debug.WriteLine("GamingInputDevice: Testing Gaming Input API accessibility (this is the definitive test)...");
-				
 				// Test 1: Check if Windows.Gaming.Input namespace is available
 				var gamingInputType = typeof(Windows.Gaming.Input.Gamepad);
-				Debug.WriteLine($"GamingInputDevice: Gaming Input type loaded: {gamingInputType.FullName}");
 				
 				// Test 2: Try to access the Gamepads collection
 				var gamepads = Windows.Gaming.Input.Gamepad.Gamepads;
-				Debug.WriteLine($"GamingInputDevice: Gaming Input API is accessible! Found {gamepads.Count} gamepads");
-				
-				// Provide guidance if no gamepads found
-				if (gamepads.Count == 0)
-				{
-					Debug.WriteLine("GamingInputDevice: No gamepads found in initial check.");
-					if (!IsRunningAsAdministrator())
-					{
-						Debug.WriteLine("GamingInputDevice: WARNING - Running without Administrator privileges.");
-						Debug.WriteLine("GamingInputDevice: GamingInput may require elevated privileges for device access.");
-						Debug.WriteLine("GamingInputDevice: Consider running as Administrator if devices are not detected.");
-					}
-				}
 				
 				// Test 3: Try to register for gamepad events
 				try
 				{
 					Windows.Gaming.Input.Gamepad.GamepadAdded += OnGamepadAdded;
 					Windows.Gaming.Input.Gamepad.GamepadRemoved += OnGamepadRemoved;
-					Debug.WriteLine("GamingInputDevice: Successfully registered for gamepad events");
 					
 					// Immediately unregister to avoid memory leaks
 					Windows.Gaming.Input.Gamepad.GamepadAdded -= OnGamepadAdded;
 					Windows.Gaming.Input.Gamepad.GamepadRemoved -= OnGamepadRemoved;
 				}
-				catch (Exception eventEx)
+				catch
 				{
-					Debug.WriteLine($"GamingInputDevice: Could not register for events (may indicate limited access): {eventEx.Message}");
 				}
 				
 				return true;
 			}
-			catch (System.TypeLoadException ex)
+			catch (System.TypeLoadException)
 			{
-				Debug.WriteLine($"GamingInputDevice: Gaming Input types not available: {ex.Message}");
-				Debug.WriteLine("GamingInputDevice: This indicates Windows.Gaming.Input is not accessible");
 				return false;
 			}
-			catch (System.IO.FileNotFoundException ex)
+			catch (System.IO.FileNotFoundException)
 			{
-				Debug.WriteLine($"GamingInputDevice: Gaming Input assemblies not found: {ex.Message}");
-				Debug.WriteLine("GamingInputDevice: Required Windows Runtime components are missing");
 				return false;
 			}
-			catch (System.PlatformNotSupportedException ex)
+			catch (System.PlatformNotSupportedException)
 			{
-				Debug.WriteLine($"GamingInputDevice: Platform not supported: {ex.Message}");
-				Debug.WriteLine("GamingInputDevice: Gaming Input requires Windows 10 1607+ or Windows 11");
 				return false;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"GamingInputDevice: Gaming Input API is not accessible: {ex.Message}");
-				Debug.WriteLine($"GamingInputDevice: Exception type: {ex.GetType().Name}");
-				Debug.WriteLine("GamingInputDevice: This could mean:");
-				Debug.WriteLine("  • Gaming Input is not available on this system");
-				Debug.WriteLine("  • Windows version is too old (requires Windows 10 1607+)");
-				Debug.WriteLine("  • UWP runtime components are missing");
-				Debug.WriteLine("  • Application manifest doesn't declare Windows 10+ compatibility");
-				Debug.WriteLine("  • Application is running in compatibility mode");
-				Debug.WriteLine("  • Windows Gaming Input service is disabled");
 				return false;
 			}
 		}
@@ -447,19 +373,16 @@ namespace x360ce.App.Input.Devices
 				reading = gamepad.GetCurrentReading();
 				return true;
 			}
-			catch (System.ComponentModel.Win32Exception ex)
+			catch (System.ComponentModel.Win32Exception)
 			{
-				Debug.WriteLine($"GamingInputDevice: Win32Exception getting gamepad reading: {ex.Message}");
 				return false;
 			}
-			catch (System.UnauthorizedAccessException ex)
+			catch (System.UnauthorizedAccessException)
 			{
-				Debug.WriteLine($"GamingInputDevice: UnauthorizedAccessException getting gamepad reading (UWP restriction): {ex.Message}");
 				return false;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"GamingInputDevice: Unexpected error getting gamepad reading: {ex.Message}");
 				return false;
 			}
 		}
@@ -475,9 +398,8 @@ namespace x360ce.App.Input.Devices
 				var principal = new System.Security.Principal.WindowsPrincipal(identity);
 				return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"GamingInputDevice: Could not determine Administrator status: {ex.Message}");
 				return false;
 			}
 		}
@@ -520,87 +442,6 @@ namespace x360ce.App.Input.Devices
 
 		#region Private Helper Methods - Logging
 
-		/// <summary>
-		/// Logs when Gaming Input is not available.
-		/// </summary>
-		private void LogNoGamingInputAvailable()
-		{
-			Debug.WriteLine("GamingInputDevice: Gaming Input is not available on this system");
-			Debug.WriteLine("GamingInputDevice: Gaming Input requires Windows 10+ and is not available on this system");
-			Debug.WriteLine("\nDevicesGamingInput: Gaming Input gamepads found: 0, Online: 0, Offline/Failed: 0\n");
-		}
-
-		/// <summary>
-		/// Logs detection guidance based on privilege level.
-		/// </summary>
-		private void LogDetectionGuidance(bool isAdmin)
-		{
-			if (!isAdmin)
-			{
-				Debug.WriteLine("GamingInputDevice: No devices found in normal user mode.");
-				Debug.WriteLine("GamingInputDevice: RECOMMENDATION: Run as Administrator for full GamingInput access.");
-			}
-			else
-			{
-				Debug.WriteLine("GamingInputDevice: No devices found with Administrator privileges.");
-				Debug.WriteLine("GamingInputDevice: Controllers may only support DirectInput/XInput.");
-			}
-		}
-
-		/// <summary>
-		/// Logs detailed information about a detected device.
-		/// </summary>
-		private void LogDeviceInfo(GamingInputDeviceInfo deviceInfo, int deviceNumber)
-		{
-			// Note: GamingInput API does not provide DeviceId, InterfacePath, or HardwareIds - these are always empty
-			Debug.WriteLine($"\n{deviceNumber}. DevicesGamingInputInfo: " +
-				$"CommonIdentifier (generated): {deviceInfo.CommonIdentifier}, " +
-				$"GamepadIndex: {deviceInfo.GamepadIndex}, " +
-				$"InstanceGuid (generated): {deviceInfo.InstanceGuid}, " +
-				$"ProductGuid (generated): {deviceInfo.ProductGuid}, " +
-				$"InstanceName (generated): {deviceInfo.InstanceName}, " +
-				$"ProductName (generated): {deviceInfo.ProductName}, " +
-				$"DeviceType (generated): {deviceInfo.DeviceType}, " +
-				$"DeviceTypeName (generated): {deviceInfo.DeviceTypeName}, " +
-				$"Timestamp: {deviceInfo.LastTimestamp}");
-
-			Debug.WriteLine($"DevicesGamingInputInfo Identification (generated): " +
-				$"VidPidString: {deviceInfo.VidPidString}, " +
-				$"VendorId: {deviceInfo.VendorId} (0x{deviceInfo.VendorId:X4}), " +
-				$"ProductId: {deviceInfo.ProductId} (0x{deviceInfo.ProductId:X4})");
-
-			Debug.WriteLine($"DevicesGamingInputInfo Capabilities (generated): " +
-				$"AxeCount: {deviceInfo.AxeCount}, " +
-				$"SliderCount: {deviceInfo.SliderCount}, " +
-				$"ButtonCount: {deviceInfo.ButtonCount}, " +
-				$"PovCount: {deviceInfo.PovCount}, " +
-				$"HasForceFeedback: {deviceInfo.HasForceFeedback}, " +
-				$"SupportsVibration: {deviceInfo.SupportsVibration}, " +
-				$"SupportsTriggerRumble: {deviceInfo.SupportsTriggerRumble}");
-			
-			Debug.WriteLine($"DevicesGamingInputInfo Note: " +
-				$"GamingInput API uses generic Microsoft VID/PID (045E:02FF) for all controllers - use DirectInput or RawInput for actual hardware identification");
-		}
-
-		/// <summary>
-		/// Logs summary statistics for device enumeration results.
-		/// </summary>
-		private void LogDeviceListSummary(List<GamingInputDeviceInfo> deviceList, Stopwatch stopwatch)
-		{
-			var connectedCount = deviceList.Count;
-			var offlineCount = deviceList.Count(d => !d.IsOnline);
-			var vibrationCount = deviceList.Count(d => d.SupportsVibration);
-			var triggerRumbleCount = deviceList.Count(d => d.SupportsTriggerRumble);
-
-			stopwatch.Stop();
-
-			Debug.WriteLine($"\nDevicesGamingInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
-				$"Gaming Input gamepads found: {connectedCount}, " +
-				$"Online: {connectedCount - offlineCount}, " +
-				$"Offline/Failed: {offlineCount}, " +
-				$"With Vibration: {vibrationCount}, " +
-				$"With Trigger Rumble: {triggerRumbleCount}\n");
-		}
 
 		/// <summary>
 		/// Appends gamepad diagnostics to the info string builder.

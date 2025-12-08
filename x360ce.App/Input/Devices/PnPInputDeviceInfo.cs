@@ -1,7 +1,6 @@
 ﻿
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -167,9 +166,6 @@ namespace x360ce.App.Input.Devices
         private const uint DN_STARTED = 0x00000008;
         private const uint DN_HAS_PROBLEM = 0x00000400;
 
-        // Error codes
-        private const uint ERROR_NO_MORE_ITEMS = 259;
-
         // Known input device class GUIDs
         private static readonly Guid GUID_DEVCLASS_HIDCLASS = new Guid("745a17a0-74d3-11d0-b6fe-00a0c90f57da");
         private static readonly Guid GUID_DEVCLASS_KEYBOARD = new Guid("4d36e96b-e325-11ce-bfc1-08002be10318");
@@ -272,12 +268,6 @@ namespace x360ce.App.Input.Devices
             uint DevInst,
             uint Flags);
 
-        /// <summary>
-        /// Gets the last Win32 error code.
-        /// </summary>
-        [DllImport("kernel32.dll")]
-        private static extern uint GetLastError();
-
         #endregion
 
         /// <summary>
@@ -297,16 +287,11 @@ namespace x360ce.App.Input.Devices
         /// </remarks>
         public List<PnPInputDeviceInfo> GetPnPInputDeviceInfoList()
         {
-            var stopwatch = Stopwatch.StartNew();
             var deviceList = new List<PnPInputDeviceInfo>();
-            var deviceListDebugLines = new List<string>();
             int deviceListIndex = 0;
 
             try
             {
-                Debug.WriteLine("\n-----------------------------------------------------------------------------------------------------------------\n\n" +
-                    "PnPInputDevice: Starting PnP input device enumeration...");
-
                 // Only enumerate specific input device classes - be very restrictive
                 var inputClassGuids = new[]
                 {
@@ -317,8 +302,7 @@ namespace x360ce.App.Input.Devices
 
                 foreach (var classGuid in inputClassGuids)
                 {
-                    Debug.WriteLine($"PnPInputDevice: Enumerating devices for class {classGuid}");
-                    EnumerateDeviceClass(classGuid, ref deviceListIndex, deviceList, deviceListDebugLines);
+                    EnumerateDeviceClass(classGuid, ref deviceListIndex, deviceList);
                 }
 
                 // Do NOT enumerate all present devices - too many false positives
@@ -332,7 +316,6 @@ namespace x360ce.App.Input.Devices
 
                 if (uniqueDevices.Count != deviceList.Count)
                 {
-                    Debug.WriteLine($"PnPInputDevice: Removed {deviceList.Count - uniqueDevices.Count} duplicate devices");
                     deviceList = uniqueDevices;
                 }
 
@@ -341,7 +324,6 @@ namespace x360ce.App.Input.Devices
                 var filteredDevices = FilterMiOnlyDevices(deviceList);
                 if (filteredDevices.Count != deviceList.Count)
                 {
-                    Debug.WriteLine($"PnPInputDevice: Filtered out {deviceList.Count - filteredDevices.Count} MI-only transport nodes");
                     deviceList = filteredDevices;
                 }
 
@@ -357,37 +339,10 @@ namespace x360ce.App.Input.Devices
                     .ThenBy(d => d.FriendlyName ?? d.DeviceDescription ?? "") // Then by name for consistent ordering
                     .ToList();
 
-                // Log devices with hierarchical display
-                LogHierarchicalDeviceList(deviceList, deviceListDebugLines);
-
-                // Generate summary statistics for device enumeration results
-                var hidCount = deviceList.Count(d => d.ClassGuid == GUID_DEVCLASS_HIDCLASS);
-                var keyboardCount = deviceList.Count(d => d.ClassGuid == GUID_DEVCLASS_KEYBOARD);
-                var mouseCount = deviceList.Count(d => d.ClassGuid == GUID_DEVCLASS_MOUSE);
-                var gamepadCount = deviceList.Count(d => IsGamepadDevice(d.HardwareIds, d.DeviceDescription));
-                var presentCount = deviceList.Count(d => d.IsPresent);
-                var enabledCount = deviceList.Count(d => d.IsStarted);
-                var problemCount = deviceList.Count(d => d.ProblemCode != 0);
-
-                stopwatch.Stop();
-
-                deviceListDebugLines.Add($"\nDevicesPnPInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
-                    $"PnP Input Devices found: {deviceList.Count}, " +
-                    $"HID: {hidCount}, " +
-                    $"Gamepads: {gamepadCount}, " +
-                    $"Keyboards: {keyboardCount}, " +
-                    $"Mice: {mouseCount}, " +
-                    $"Present: {presentCount}, " +
-                    $"Enabled: {enabledCount}, " +
-                    $"With Problems: {problemCount}\n");
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Fatal error during PnP input device enumeration: {ex.Message}");
-                Debug.WriteLine($"PnPInputDevice: Stack trace: {ex.StackTrace}");
             }
-
-            foreach (var debugLine in deviceListDebugLines) { Debug.WriteLine(debugLine); }
 
             return deviceList;
         }
@@ -401,9 +356,8 @@ namespace x360ce.App.Input.Devices
         /// <param name="classGuid">Device class GUID</param>
         /// <param name="deviceListIndex">Current device index (will be incremented)</param>
         /// <param name="deviceList">List to add devices to</param>
-        /// <param name="deviceListDebugLines">Debug lines list</param>
         private void EnumerateDeviceClass(Guid classGuid, ref int deviceListIndex,
-            List<PnPInputDeviceInfo> deviceList, List<string> deviceListDebugLines)
+            List<PnPInputDeviceInfo> deviceList)
         {
             IntPtr deviceInfoSet = IntPtr.Zero;
 
@@ -414,8 +368,6 @@ namespace x360ce.App.Input.Devices
 
                 if (deviceInfoSet == IntPtr.Zero || deviceInfoSet.ToInt64() == -1)
                 {
-                    uint error = GetLastError();
-                    Debug.WriteLine($"PnPInputDevice: Failed to get device info set for class {classGuid}. Error: {error}");
                     return;
                 }
 
@@ -435,24 +387,17 @@ namespace x360ce.App.Input.Devices
                             deviceList.Add(deviceInfo);
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception)
                     {
-                        Debug.WriteLine($"PnPInputDevice: Error processing device {deviceIndex} in class {classGuid}: {ex.Message}");
                     }
 
                     deviceIndex++;
                     deviceInfoData.cbSize = (uint)Marshal.SizeOf(deviceInfoData);
                 }
 
-                uint lastError = GetLastError();
-                if (lastError != ERROR_NO_MORE_ITEMS)
-                {
-                    Debug.WriteLine($"PnPInputDevice: Enumeration ended with error {lastError} for class {classGuid}");
-                }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Error enumerating device class {classGuid}: {ex.Message}");
             }
             finally
             {
@@ -551,9 +496,8 @@ namespace x360ce.App.Input.Devices
 
                 return deviceInfo;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Error creating device info: {ex.Message}");
                 return null;
             }
         }
@@ -594,9 +538,8 @@ namespace x360ce.App.Input.Devices
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Error getting device property {property}: {ex.Message}");
             }
 
             return "";
@@ -951,9 +894,8 @@ namespace x360ce.App.Input.Devices
                 
                 return (vid, pid);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Error extracting VID/PID: {ex.Message}");
                 return (0, 0);
             }
         }
@@ -1179,9 +1121,8 @@ namespace x360ce.App.Input.Devices
                 deviceInfo.MiValue = mi ?? "";
                 deviceInfo.ColValue = col ?? "";
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Debug.WriteLine($"PnPInputDevice: Error generating sorting string: {ex.Message}");
                 deviceInfo.SortingString = "VID_0000&PID_0000";
                 deviceInfo.CommonIdentifier = "VID_0000&PID_0000";
                 deviceInfo.MiValue = "";
@@ -1229,268 +1170,6 @@ namespace x360ce.App.Input.Devices
             return null;
         }
 
-        /// <summary>
-        /// Gets a grouping key to identify devices belonging to the same physical device.
-        /// Devices from the same physical device will have the same VID/PID combination and manufacturer.
-        /// </summary>
-        /// <param name="deviceInfo">Device information</param>
-        /// <returns>Grouping key for physical device identification</returns>
-        private string GetPhysicalDeviceGroupKey(PnPInputDeviceInfo deviceInfo)
-        {
-            // Create a composite key that groups devices from the same physical device
-            // Use VID/PID as primary grouping factor, with manufacturer as secondary
-            var vidPid = $"{deviceInfo.VendorId:X4}_{deviceInfo.ProductId:X4}";
-            var manufacturer = deviceInfo.Manufacturer ?? "Unknown";
-            
-            // For devices without VID/PID (like some system devices), try to extract parent device info
-            if (deviceInfo.VendorId == 0 && deviceInfo.ProductId == 0)
-            {
-                // Try to extract parent device identifier from DeviceInstanceId
-                var parentKey = ExtractParentDeviceKey(deviceInfo.DeviceInstanceId);
-                if (!string.IsNullOrEmpty(parentKey))
-                {
-                    return $"{manufacturer}_{parentKey}";
-                }
-                
-                var description = deviceInfo.DeviceDescription ?? deviceInfo.FriendlyName ?? "Unknown";
-                return $"{manufacturer}_{description}";
-            }
-            
-            return $"{manufacturer}_{vidPid}";
-        }
-
-        /// <summary>
-        /// Extracts parent device key from DeviceInstanceId to group related interfaces.
-        /// </summary>
-        /// <param name="deviceInstanceId">Device instance ID</param>
-        /// <returns>Parent device key or empty string if not found</returns>
-        private string ExtractParentDeviceKey(string deviceInstanceId)
-        {
-            if (string.IsNullOrEmpty(deviceInstanceId))
-                return "";
-
-            try
-            {
-                // For USB devices with MI (Multiple Interface) like "USB\VID_046A&PID_C098&MI_00\..."
-                // Extract the base VID&PID part to group interfaces from the same physical device
-                if (deviceInstanceId.StartsWith("USB\\", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = deviceInstanceId.Split('\\');
-                    if (parts.Length >= 2)
-                    {
-                        // Remove MI identifier (e.g., "&MI_00")
-                        var devicePart = parts[1];
-                        var miIndex = devicePart.IndexOf("&MI_", StringComparison.OrdinalIgnoreCase);
-                        if (miIndex > 0)
-                        {
-                            devicePart = devicePart.Substring(0, miIndex);
-                        }
-                        return $"USB_{devicePart}";
-                    }
-                }
-                
-                // For HID devices like "HID\INTC816&COL01\3&D2322F2&0&0000"
-                // Extract the base part before the collection identifier
-                if (deviceInstanceId.StartsWith("HID\\", StringComparison.OrdinalIgnoreCase))
-                {
-                    var parts = deviceInstanceId.Split('\\');
-                    if (parts.Length >= 2)
-                    {
-                        // Remove collection identifier (e.g., "&COL01")
-                        var devicePart = parts[1];
-                        var colIndex = devicePart.IndexOf("&COL", StringComparison.OrdinalIgnoreCase);
-                        if (colIndex > 0)
-                        {
-                            devicePart = devicePart.Substring(0, colIndex);
-                        }
-                        return $"HID_{devicePart}";
-                    }
-                }
-                
-                // For other devices, use the first two parts of the instance ID
-                var instanceParts = deviceInstanceId.Split('\\');
-                if (instanceParts.Length >= 2)
-                {
-                    return $"{instanceParts[0]}_{instanceParts[1]}";
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"PnPInputDevice: Error extracting parent device key from '{deviceInstanceId}': {ex.Message}");
-            }
-
-            return "";
-        }
-
-        /// <summary>
-        /// Determines if a device is likely a parent device (physical device) or child interface.
-        /// </summary>
-        /// <param name="deviceInfo">Device information</param>
-        /// <returns>True if device is likely a parent device</returns>
-        private bool IsParentDevice(PnPInputDeviceInfo deviceInfo)
-        {
-            if (string.IsNullOrEmpty(deviceInfo.DeviceInstanceId))
-                return true; // Assume parent if we can't determine
-
-            var instanceId = deviceInfo.DeviceInstanceId.ToUpperInvariant();
-
-            // HID collection interfaces are child devices (contain &COL)
-            if (instanceId.Contains("&COL"))
-                return false;
-
-            // USB composite device interfaces are child devices (contain &MI_)
-            if (instanceId.Contains("&MI_"))
-                return false;
-
-            // Devices with specific interface indicators are child devices
-            if (instanceId.Contains("\\INTERFACE\\") || instanceId.Contains("\\CHILD\\"))
-                return false;
-
-            // For HID devices, check if this looks like a base device
-            if (deviceInfo.ClassGuid == GUID_DEVCLASS_HIDCLASS)
-            {
-                // If it's a simple HID device without collection or interface indicators, it's likely a parent
-                if (instanceId.StartsWith("HID\\") && !instanceId.Contains("&COL") && !instanceId.Contains("&MI_"))
-                    return true;
-                
-                // If it has collection indicators, it's a child
-                return false;
-            }
-
-            // For keyboard and mouse devices, they are typically parent devices unless they have interface indicators
-            if (deviceInfo.ClassGuid == GUID_DEVCLASS_KEYBOARD || deviceInfo.ClassGuid == GUID_DEVCLASS_MOUSE)
-            {
-                return true; // Most keyboard/mouse class devices are parent devices
-            }
-
-            // Default to parent device
-            return true;
-        }
-
-        /// <summary>
-        /// Logs devices with hierarchical display showing physical device grouping.
-        /// </summary>
-        /// <param name="deviceList">Ordered device list</param>
-        /// <param name="debugLines">Debug lines list</param>
-        private void LogHierarchicalDeviceList(List<PnPInputDeviceInfo> deviceList, List<string> debugLines)
-        {
-            var deviceIndex = 0;
-            string currentPhysicalGroup = "";
-            bool hasParentInGroup = false;
-
-            foreach (var device in deviceList)
-            {
-                deviceIndex++;
-                var physicalGroupKey = GetPhysicalDeviceGroupKey(device);
-                var isParent = IsParentDevice(device);
-                
-                // Check if we're starting a new physical device group
-                if (physicalGroupKey != currentPhysicalGroup)
-                {
-                    currentPhysicalGroup = physicalGroupKey;
-                    hasParentInGroup = false;
-                }
-
-                // Track if we've seen a parent device in this group
-                if (isParent)
-                {
-                    hasParentInGroup = true;
-                }
-
-                // Log device with appropriate formatting
-                LogDeviceInfoHierarchical(device, deviceIndex, debugLines, isParent, hasParentInGroup);
-            }
-        }
-
-        /// <summary>
-        /// Formats a property for debug output only if it has a non-empty value.
-        /// </summary>
-        /// <param name="name">Property name</param>
-        /// <param name="value">Property value</param>
-        /// <returns>Formatted string or empty string if value is null/empty</returns>
-        private string FormatProperty(string name, string value)
-        {
-            return !string.IsNullOrEmpty(value) ? $"{name}: {value}, " : "";
-        }
-
-        /// <summary>
-        /// Logs device information with hierarchical formatting based on MI and COL values.
-        /// </summary>
-        /// <param name="deviceInfo">Device information</param>
-        /// <param name="index">Device index</param>
-        /// <param name="debugLines">Debug lines list</param>
-        /// <param name="isParent">True if this is a parent device</param>
-        /// <param name="hasParentInGroup">True if the group already has a parent device</param>
-        private void LogDeviceInfoHierarchical(PnPInputDeviceInfo deviceInfo, int index, List<string> debugLines, bool isParent, bool hasParentInGroup)
-        {
-            // Determine device type prefix
-            string deviceTypePrefix;
-            string indentation = "";
-            
-            if (deviceInfo.ClassGuid == GUID_DEVCLASS_KEYBOARD)
-            {
-                deviceTypePrefix = "KEYBOARD";
-            }
-            else if (deviceInfo.ClassGuid == GUID_DEVCLASS_MOUSE)
-            {
-                deviceTypePrefix = "MOUSE";
-            }
-            else if (deviceInfo.ClassGuid == GUID_DEVCLASS_HIDCLASS)
-            {
-                deviceTypePrefix = "HID";
-            }
-            else
-            {
-                deviceTypePrefix = "UNKNOWN";
-            }
-
-            // Calculate indentation based on MI and COL values
-            int spaceCount = 0;
-            
-            // Add 5 spaces if MI exists and MI value is larger than 00
-            if (!string.IsNullOrEmpty(deviceInfo.MiValue))
-            {
-                if (int.TryParse(deviceInfo.MiValue, out int miNum) && miNum > 0)
-                {
-                    spaceCount += 5;
-                }
-            }
-            
-            // Add 5 spaces if COL value exists
-            if (!string.IsNullOrEmpty(deviceInfo.ColValue))
-            {
-                spaceCount += 5;
-            }
-            
-            indentation = new string(' ', spaceCount);
-
-            // Create hierarchical display with proper indentation
-            debugLines.Add($"\n{indentation}{index}. {deviceTypePrefix}: " +
-                $"CommonIdentifier (generated): {deviceInfo.CommonIdentifier}, " +
-                $"DeviceInstanceId: {deviceInfo.DeviceInstanceId}, " +
-                $"ClassGuid: {deviceInfo.ClassGuid}, " +
-                FormatProperty("FriendlyName", deviceInfo.FriendlyName) +
-                FormatProperty("DeviceDescription", deviceInfo.DeviceDescription) +
-                FormatProperty("Manufacturer", deviceInfo.Manufacturer) +
-                $"VidPidString: {deviceInfo.VidPidString}, " +
-                $"VendorId: {deviceInfo.VendorId} (0x{deviceInfo.VendorId:X4}), " +
-                $"ProductId: {deviceInfo.ProductId} (0x{deviceInfo.ProductId:X4}), " +
-                $"SortingString (generated): {deviceInfo.SortingString}");
-
-            debugLines.Add($"{indentation}{deviceTypePrefix} Status: " +
-                $"IsPresent: {deviceInfo.IsPresent}, " +
-                $"IsStarted: {deviceInfo.IsStarted}, " +
-                $"StatusDescription: {deviceInfo.StatusDescription}, " +
-                $"DeviceTypeName: {deviceInfo.DeviceTypeName}");
-
-            debugLines.Add($"{indentation}{deviceTypePrefix} Hardware: " +
-                FormatProperty("HardwareIds", deviceInfo.HardwareIds) +
-                FormatProperty("LocationInformation", deviceInfo.LocationInformation) +
-                FormatProperty("PhysicalDeviceObjectName", deviceInfo.PhysicalDeviceObjectName).TrimEnd(',', ' '));
-            
-            debugLines.Add($"{indentation}{deviceTypePrefix} Note: " +
-                $"Windows PnP does not provide capability information (AxeCount, SliderCount, ButtonCount, PovCount, HasForceFeedback, Usage, UsagePage) - use DirectInput for device capabilities");
-        }
 
         /// <summary>
         /// Filters out HID-class MI-only devices (USB composite parent nodes) that don't have COL values.
@@ -1520,7 +1199,6 @@ namespace x360ce.App.Input.Devices
                 if (hasMi && !hasCol && device.ClassGuid == GUID_DEVCLASS_HIDCLASS)
                 {
                     // Skip this HID-class MI-only device as it's just the parent transport node
-                    Debug.WriteLine($"PnPInputDevice: Filtering out HID-class MI-only transport node: {device.DeviceInstanceId}");
                     continue;
                 }
                 

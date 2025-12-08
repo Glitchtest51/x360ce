@@ -361,24 +361,46 @@
         </TabControl>
 
         <!-- Selected Device Information -->
-        <TabControl Margin="3,3,0,3" Grid.Row="2">
-            <TabItem>
+            <TabControl Margin="3,3,0,3" Grid.Row="2">
+            <TabItem Name="SelectedDeviceTabItem">
                 <TabItem.Header>
-                    <StackPanel Orientation="Horizontal">
+                    <StackPanel Orientation="Horizontal" PreviewMouseDown="TabItemHeader_PreviewMouseDown">
                         <ContentControl
-					Name="SelectedDeviceInformationTab"
-					Margin="0,0,3,0"
-					Content="{StaticResource Icon_gamepad}" />
+					        Margin="0,0,3,0"
+					        Content="{StaticResource Icon_gamepad}" />
                         <TextBlock Text="SELECTED DEVICE INFORMATION" />
                     </StackPanel>
                 </TabItem.Header>
                 
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Name="SelectedDeviceInformationStackPanel"/>
-                </ScrollViewer>
+                <TextBox
+                    Height="300"
+                    Name="SelectedDeviceInformationTextBox"
+                    IsReadOnly="True"
+                    TextWrapping="Wrap"
+                    VerticalScrollBarVisibility="Auto"
+                    FontFamily="Consolas" />
 
             </TabItem>
-        </TabControl>
+                <TabItem Name="AllDevicesTabItem">
+                    <TabItem.Header>
+                    <StackPanel Orientation="Horizontal" PreviewMouseDown="TabItemHeader_PreviewMouseDown">
+                            <ContentControl
+                                Margin="0,0,3,0"
+                                Content="{StaticResource Icon_gamepad}" />
+                            <TextBlock Text="ALL DEVICES INFORMATION" />
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <TextBox
+                    Height="300"
+                    Name="AllDevicesInformationTextBox"
+                    IsReadOnly="True"
+                    TextWrapping="Wrap"
+                    VerticalScrollBarVisibility="Auto"
+                    FontFamily="Consolas" />
+            </TabItem>
+            </TabControl>
+
 
     </Grid>
 </UserControl>

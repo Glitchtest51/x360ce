@@ -58,32 +58,7 @@ namespace x360ce.App.Input.States
         #region Windows Raw Input API
 
         [DllImport("user32.dll", SetLastError = true, EntryPoint = "RegisterRawInputDevices")]
-        private static extern bool RegisterRawInputDevicesNative(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize);
-
-        /// <summary>
-        /// Wrapper for RegisterRawInputDevices that logs all calls for debugging.
-        /// </summary>
-        private static bool RegisterRawInputDevices(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize)
-        {
-            // Log what devices are being registered
-            var deviceTypes = new System.Text.StringBuilder();
-            deviceTypes.Append("RegisterRawInputDevices called with devices: ");
-            for (int i = 0; i < uiNumDevices; i++)
-            {
-                var device = pRawInputDevices[i];
-                string deviceType = device.usUsage == 0x02 ? "Mouse" :
-                                   device.usUsage == 0x06 ? "Keyboard" :
-                                   device.usUsage == 0x04 ? "Joystick" :
-                                   device.usUsage == 0x05 ? "Gamepad" :
-                                   device.usUsage == 0x08 ? "MultiAxis" :
-                                   $"Unknown(0x{device.usUsage:X2})";
-                deviceTypes.Append($"{deviceType}(Page:0x{device.usUsagePage:X2}, Flags:0x{device.dwFlags:X8}) ");
-            }
-            System.Diagnostics.Debug.WriteLine(deviceTypes.ToString());
-            System.Diagnostics.Debug.WriteLine($"  Stack trace: {new System.Diagnostics.StackTrace(1, true).ToString().Split('\n')[0]}");
-            
-            return RegisterRawInputDevicesNative(pRawInputDevices, uiNumDevices, cbSize);
-        }
+        private static extern bool RegisterRawInputDevices(RAWINPUTDEVICE[] pRawInputDevices, uint uiNumDevices, uint cbSize);
 
         [DllImport("user32.dll", SetLastError = true)]
         private static extern uint GetRawInputData(IntPtr hRawInput, uint uiCommand, IntPtr pData, ref uint pcbSize, uint cbSizeHeader);
@@ -251,14 +226,6 @@ namespace x360ce.App.Input.States
                 {
                     _parent.ProcessRawInputMessage(m.LParam);
                 }
-                else if (m.Msg == 0x0002) // WM_DESTROY
-                {
-                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow: WM_DESTROY received for handle 0x{Handle:X}");
-                }
-                else if (m.Msg == 0x0082) // WM_NCDESTROY
-                {
-                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow: WM_NCDESTROY received for handle 0x{Handle:X}");
-                }
                 base.WndProc(ref m);
             }
 
@@ -266,7 +233,6 @@ namespace x360ce.App.Input.States
             {
                 if (Handle != IntPtr.Zero)
                 {
-                    System.Diagnostics.Debug.WriteLine($"RawInputMessageWindow.Dispose: Destroying handle 0x{Handle:X}");
                     DestroyHandle();
                 }
             }
@@ -331,7 +297,6 @@ namespace x360ce.App.Input.States
             // This prevents registration failures that cause mouse messages to stop
             if (_messageWindow == null || _messageWindow.Handle == IntPtr.Zero)
             {
-                System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Message window invalid (null={_messageWindow == null}, handle={_messageWindow?.Handle ?? IntPtr.Zero:X}), recreating...");
                 try
                 {
                     // Dispose old window if it exists
@@ -347,15 +312,12 @@ namespace x360ce.App.Input.States
                     // Verify handle was created successfully
                     if (_messageWindow.Handle == IntPtr.Zero)
                     {
-                        System.Diagnostics.Debug.WriteLine("RawInputState.RegisterDevices: CRITICAL - Failed to create valid window handle!");
                         return;
                     }
                     
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Created new message window with handle: 0x{_messageWindow.Handle:X}");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: CRITICAL - Failed to create message window: {ex.Message}");
                     _messageWindow = null;
                     return;
                 }
@@ -413,19 +375,11 @@ namespace x360ce.App.Input.States
                 bool success = RegisterRawInputDevices(devices, 7, (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
                 if (!success)
                 {
-                    uint errorCode = GetLastError();
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: CRITICAL - RegisterRawInputDevices failed with error code: {errorCode}");
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: This will cause mouse/keyboard/HID messages to stop arriving!");
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: ✅ Successfully registered all input devices (HID, Keyboard, Mouse) for window handle: 0x{_messageWindow.Handle:X}");
-                    System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Mouse messages should now arrive continuously");
+                    // uint errorCode = GetLastError();
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"RawInputState.RegisterDevices: Exception during registration: {ex.Message}");
             }
         }
 
@@ -564,8 +518,6 @@ namespace x360ce.App.Input.States
         /// </summary>
         private void ProcessHidInput(IntPtr buffer, uint dwSize, RAWINPUTHEADER header)
         {
-            //System.Diagnostics.Debug.WriteLine("RawInputState.ProcessHidInput: HID input received.");
-
             var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.HID);
             if (device == null) return;
 
@@ -950,8 +902,6 @@ namespace x360ce.App.Input.States
             var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.Mouse);
             if (device == null) return;
 
-            //System.Diagnostics.Debug.WriteLine($"RawInputState.ProcessMouseInput: MOUSE input received {device.InterfacePath}.");
-
             // Ensure ListInputState is initialized
             if (device.CustomInputState == null)
             {
@@ -1058,8 +1008,6 @@ namespace x360ce.App.Input.States
         /// </summary>
         private void ProcessKeyboardInput(IntPtr buffer, RAWINPUTHEADER header)
         {
-            //System.Diagnostics.Debug.WriteLine("RawInputState.ProcessKeyboardInput: KEYBOARD input received.");
-
             // Get device from
             var device = GetDeviceInfo(header.hDevice, RawInputDeviceType.Keyboard);
             if (device == null) return;

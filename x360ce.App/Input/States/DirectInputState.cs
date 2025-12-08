@@ -126,15 +126,13 @@ namespace x360ce.App.Input.States
 						return null;
 				}
 			}
-			catch (SharpDXException ex)
+			catch (SharpDXException)
 			{
 				// Device may be unplugged or access lost
-				System.Diagnostics.Debug.WriteLine($"DirectInputState: Error reading state for {diDeviceInfo.InstanceName}: {ex.Message}");
 				return null;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				System.Diagnostics.Debug.WriteLine($"DirectInputState: Unexpected error reading state for {diDeviceInfo.InstanceName}: {ex.Message}");
 				return null;
 			}
 		}

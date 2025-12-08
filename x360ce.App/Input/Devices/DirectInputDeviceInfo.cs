@@ -116,7 +116,6 @@ namespace x360ce.App.Input.Devices
 		/// This method performs comprehensive DirectInput device enumeration:
 		/// • Discovers all DirectInput-compatible devices (gamepads, keyboards, mice)
 		/// • Creates DirectInputDeviceInfo objects with device information AND live DirectInput device objects
-		/// • Logs detailed device properties using Debug.WriteLine for diagnostics
 		/// • Filters devices by type and availability
 		/// • Provides device capability information where available
 		/// • Keeps DirectInput devices alive for immediate input reading
@@ -129,16 +128,10 @@ namespace x360ce.App.Input.Devices
 
 		public List<DirectInputDeviceInfo> GetDirectInputDeviceInfoList()
 		{
-			var stopwatch = Stopwatch.StartNew();
 			var deviceList = new List<DirectInputDeviceInfo>();
-			var debugLines = new List<string>();
-			int deviceIndex = 0;
 
 			try
 			{
-				Debug.WriteLine("\n-----------------------------------------------------------------------------------------------------------------\n\n" +
-					"DeviceDirectInput: Starting DirectInput device enumeration...");
-
 				using (var directInput = new DirectInput())
 				{
 					// Get all devices and filter to input devices only (early filtering for performance)
@@ -146,11 +139,9 @@ namespace x360ce.App.Input.Devices
 						.Where(IsInputDevice)
 						.ToList();
 
-					Debug.WriteLine($"DeviceDirectInput: Found {inputDevices.Count} input devices");
-
 					foreach (var deviceInstance in inputDevices)
 					{
-						var deviceInfo = ProcessDevice(directInput, deviceInstance, ref deviceIndex, debugLines);
+						var deviceInfo = ProcessDevice(directInput, deviceInstance);
 						if (deviceInfo != null && !deviceInfo.IsVirtualConvertedDevice())
 							deviceList.Add(deviceInfo);
 					}
@@ -161,22 +152,12 @@ namespace x360ce.App.Input.Devices
 				var filteredDevices = FilterMiOnlyDevices(deviceList);
 				if (filteredDevices.Count != deviceList.Count)
 				{
-					Debug.WriteLine($"DeviceDirectInput: Filtered out {deviceList.Count - filteredDevices.Count} MI-only transport nodes");
 					deviceList = filteredDevices;
 				}
-	
-				// Generate summary statistics
-				stopwatch.Stop();
-				LogSummary(deviceList, stopwatch, debugLines);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Fatal error during device enumeration: {ex.Message}");
-				Debug.WriteLine($"DeviceDirectInput: Stack trace: {ex.StackTrace}");
 			}
-
-			foreach (var line in debugLines)
-				Debug.WriteLine(line);
 
 			return deviceList;
 		}
@@ -184,7 +165,7 @@ namespace x360ce.App.Input.Devices
 		/// <summary>
 		/// Processes a single DirectInput device instance and creates a DirectInputDeviceInfo object.
 		/// </summary>
-		private DirectInputDeviceInfo ProcessDevice(DirectInput directInput, DeviceInstance deviceInstance, ref int deviceIndex, List<string> debugLines)
+		private DirectInputDeviceInfo ProcessDevice(DirectInput directInput, DeviceInstance deviceInstance)
 		{
 			try
 			{
@@ -202,16 +183,16 @@ namespace x360ce.App.Input.Devices
 					DeviceTypeName = GetDeviceTypeName(deviceInstance.Type),
 					InputType = "DirectInput",
 					InterfacePath = "",
-                    HardwareIds = "",
+					HardwareIds = "",
 					ParentDeviceId = "",
-                    // Initial application profile state
-                    IsEnabled = false,
-                    AssignedToPad1 = false,
-                    AssignedToPad2 = false,
-                    AssignedToPad3 = false,
-                    AssignedToPad4 = false,
-                    MouseAxisStateEnabled = false
-                };
+					// Initial application profile state
+					IsEnabled = false,
+					AssignedToPad1 = false,
+					AssignedToPad2 = false,
+					AssignedToPad3 = false,
+					AssignedToPad4 = false,
+					MouseAxisStateEnabled = false
+				};
 
 				// Create DirectInput device object
 				var device = CreateDirectInputDevice(directInput, deviceInstance);
@@ -230,15 +211,10 @@ namespace x360ce.App.Input.Devices
 				deviceInfo.DirectInputDevice = device;
 				deviceInfo.IsOnline = true;
 
-				// Log device information
-				deviceIndex++;
-				LogDeviceInfo(deviceInfo, deviceIndex, debugLines);
-
 				return deviceInfo;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error processing device {deviceInstance.InstanceName}: {ex.Message}");
 				return null;
 			}
 		}
@@ -262,9 +238,8 @@ namespace x360ce.App.Input.Devices
 							var hwnd = Process.GetCurrentProcess().MainWindowHandle;
 							device.SetCooperativeLevel(hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
 						}
-						catch (Exception ex)
+						catch (Exception)
 						{
-							Debug.WriteLine($"DeviceDirectInput: Warning - Could not set cooperative level for mouse: {ex.Message}");
 						}
 						return device;
 						
@@ -276,9 +251,8 @@ namespace x360ce.App.Input.Devices
 							var hwnd = Process.GetCurrentProcess().MainWindowHandle;
 							device.SetCooperativeLevel(hwnd, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
 						}
-						catch (Exception ex)
+						catch (Exception)
 						{
-							Debug.WriteLine($"DeviceDirectInput: Warning - Could not set cooperative level for keyboard: {ex.Message}");
 						}
 						return device;
 						
@@ -290,13 +264,11 @@ namespace x360ce.App.Input.Devices
 						return new Joystick(directInput, deviceInstance.InstanceGuid);
 						
 					default:
-						Debug.WriteLine($"DeviceDirectInput: Unexpected device type {deviceInstance.Type} - {deviceInstance.InstanceName}");
 						return null;
 				}
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error creating device {deviceInstance.InstanceName}: {ex.Message}");
 				return null;
 			}
 		}
@@ -402,18 +374,17 @@ namespace x360ce.App.Input.Devices
 				}
 				else if (device is Mouse || device is Keyboard)
 				{
-                    var (vid, pid) = ParseVidPidFromGuid(deviceInfo.ProductGuid);
-                    deviceInfo.VendorId = vid;
-                    deviceInfo.ProductId = pid;
+					var (vid, pid) = ParseVidPidFromGuid(deviceInfo.ProductGuid);
+					deviceInfo.VendorId = vid;
+					deviceInfo.ProductId = pid;
 					deviceInfo.InterfacePath = deviceInfo.ProductGuid.ToString();
-                }
+				}
 
-                // Generate CommonIdentifier for all device types
-                GenerateCommonIdentifier(deviceInfo);
+				// Generate CommonIdentifier for all device types
+				GenerateCommonIdentifier(deviceInfo);
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error extracting hardware identification for {deviceInfo.InstanceName}: {ex.Message}");
 				deviceInfo.CommonIdentifier = "VID_0000&PID_0000";
 			}
 		}
@@ -480,9 +451,8 @@ namespace x360ce.App.Input.Devices
 					}
 				}
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error parsing VID/PID from path: {ex.Message}");
 			}
 
 			return (0, 0);
@@ -506,9 +476,8 @@ namespace x360ce.App.Input.Devices
 					}
 				}
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error parsing VID/PID from GUID: {ex.Message}");
 			}
 
 			return (0, 0);
@@ -529,9 +498,8 @@ namespace x360ce.App.Input.Devices
 				if (parts.Length >= 2)
 					return parts[1]; // Return hardware ID part
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error extracting device ID from path: {ex.Message}");
 			}
 
 			return interfacePath; // Return full path as fallback
@@ -583,62 +551,12 @@ namespace x360ce.App.Input.Devices
 				
 				deviceInfo.CommonIdentifier = commonId;
 			}
-			catch (Exception ex)
+			catch (Exception)
 			{
-				Debug.WriteLine($"DeviceDirectInput: Error generating CommonIdentifier: {ex.Message}");
 				deviceInfo.CommonIdentifier = "VID_0000&PID_0000";
 			}
 		}
 
-		/// <summary>
-		/// Logs comprehensive device information for debugging.
-		/// </summary>
-		private void LogDeviceInfo(DirectInputDeviceInfo deviceInfo, int deviceIndex, List<string> debugLines)
-		{
-			debugLines.Add($"\n{deviceIndex}. DeviceDirectInputInfo: " +
-				$"CommonIdentifier (generated): {deviceInfo.CommonIdentifier}, " +
-				$"InstanceGuid: {deviceInfo.InstanceGuid}, " +
-				$"ProductGuid: {deviceInfo.ProductGuid}, " +
-				$"InstanceName: {deviceInfo.InstanceName}, " +
-				$"ProductName: {deviceInfo.ProductName}, " +
-				$"DeviceType: {deviceInfo.DeviceType}, " +
-				$"DeviceTypeName: {deviceInfo.DeviceTypeName}, " +
-				$"DeviceSubtype: {deviceInfo.DeviceSubtype}, " +
-				$"Usage: {deviceInfo.Usage}, " +
-				$"UsagePage: {deviceInfo.UsagePage}, " +
-				$"DriverVersion: {deviceInfo.DriverVersion}, " +
-				$"HardwareRevision: {deviceInfo.HardwareRevision}, " +
-				$"FirmwareRevision: {deviceInfo.FirmwareRevision}, " +
-				(!string.IsNullOrEmpty(deviceInfo.InterfacePath) ? $"InterfacePath: {deviceInfo.InterfacePath}, " : "") +
-				$"VidPidString: {deviceInfo.VidPidString}, " +
-				$"VendorId: {deviceInfo.VendorId} (0x{deviceInfo.VendorId:X4}), " +
-				$"ProductId: {deviceInfo.ProductId} (0x{deviceInfo.ProductId:X4})");
-
-			debugLines.Add($"DeviceDirectInputInfo Capabilities: " +
-				$"AxeCount: {deviceInfo.AxeCount}, " +
-				$"SliderCount: {deviceInfo.SliderCount}, " +
-				$"ButtonCount: {deviceInfo.ButtonCount}, " +
-				$"PovCount: {deviceInfo.PovCount}, " +
-				$"HasForceFeedback: {deviceInfo.HasForceFeedback}");
-		}
-
-		/// <summary>
-		/// Logs summary statistics for device enumeration.
-		/// </summary>
-		private void LogSummary(List<DirectInputDeviceInfo> deviceList, Stopwatch stopwatch, List<string> debugLines)
-		{
-			var gamepadCount = deviceList.Count(d => IsGamepadType((DeviceType)d.DeviceType));
-			var keyboardCount = deviceList.Count(d => d.DeviceType == (int)DeviceType.Keyboard);
-			var mouseCount = deviceList.Count(d => d.DeviceType == (int)DeviceType.Mouse);
-			var offlineCount = deviceList.Count(d => !d.IsOnline);
-
-			debugLines.Add($"\nDeviceDirectInput: ({(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} ms) " +
-				$"Input Devices found: {deviceList.Count}, " +
-				$"Gamepads/Joysticks: {gamepadCount}, " +
-				$"Keyboards: {keyboardCount}, " +
-				$"Mice: {mouseCount}, " +
-				$"Offline/Failed: {offlineCount}\n");
-		}
 
 		/// <summary>
 		/// Disposes all DirectInput devices in the provided list to free resources.
@@ -649,25 +567,19 @@ namespace x360ce.App.Input.Devices
 		{
 			if (deviceList == null) return;
 
-			Debug.WriteLine($"DeviceDirectInput: Disposing {deviceList.Count} DirectInput devices...");
-
 			foreach (var deviceInfo in deviceList)
 			{
 				try
 				{
 					if (deviceInfo?.DirectInputDevice != null)
 					{
-						Debug.WriteLine($"DeviceDirectInput: Disposing device - {deviceInfo.InstanceName}");
 						deviceInfo.Dispose();
 					}
 				}
-				catch (Exception ex)
+				catch (Exception)
 				{
-					Debug.WriteLine($"DeviceDirectInput: Error disposing device {deviceInfo?.InstanceName}: {ex.Message}");
 				}
 			}
-
-			Debug.WriteLine("DeviceDirectInput: All devices disposed.");
 		}
 
 		/// <summary>
@@ -696,17 +608,6 @@ namespace x360ce.App.Input.Devices
 			}
 		}
 
-		/// <summary>
-		/// Determines if a device type is a gamepad/joystick type.
-		/// </summary>
-		private bool IsGamepadType(DeviceType deviceType)
-		{
-			return deviceType == DeviceType.Joystick ||
-				   deviceType == DeviceType.Gamepad ||
-				   deviceType == DeviceType.FirstPerson ||
-				   deviceType == DeviceType.Flight ||
-				   deviceType == DeviceType.Driving;
-		}
 
 		/// <summary>
 		/// Determines if a device instance represents an actual input device.
@@ -787,7 +688,6 @@ namespace x360ce.App.Input.Devices
 		        if (hasMi && !hasCol && !isKeyboardOrMouse)
 		        {
 		            // Skip this non-Keyboard/Mouse MI-only device as it's just the parent transport node
-		            Debug.WriteLine($"DeviceDirectInput: Filtering out MI-only transport node: {device.InterfacePath}");
 		            continue;
 		        }
 		        

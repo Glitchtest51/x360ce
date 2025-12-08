@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -22,7 +24,7 @@ namespace x360ce.App.Controls
     {
         private CollectionViewSource _viewSource;
         private string _highlightedText = string.Empty;
-        private static readonly string[] ExcludedSearchProperties = { "AxeCount", "SliderCount", "ButtonCount", "PovCount" };
+        private static readonly HashSet<string> ExcludedSearchProperties = new HashSet<string> { "AxeCount", "SliderCount", "ButtonCount", "PovCount" };
         private static readonly Brush HighlightBackground = Brushes.Yellow;
         private static readonly Brush HighlightForeground = Brushes.Black;
 
@@ -53,18 +55,21 @@ namespace x360ce.App.Controls
         /// </summary>
         private void FilterCheckBox_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is CheckBox checkBox)
-            {
-                // Update settings
-                if (checkBox == PnPInputDevicesCheckBox) SettingsManager.Options.ShowPnPDevices = checkBox.IsChecked ?? true;
-                else if (checkBox == RawInputDevicesCheckBox) SettingsManager.Options.ShowRawInputDevices = checkBox.IsChecked ?? true;
-                else if (checkBox == DirectInputDevicesCheckBox) SettingsManager.Options.ShowDirectInputDevices = checkBox.IsChecked ?? true;
-                else if (checkBox == XInputDevicesCheckBox) SettingsManager.Options.ShowXInputDevices = checkBox.IsChecked ?? true;
-                else if (checkBox == GamingInputDevicesCheckBox) SettingsManager.Options.ShowGamingInputDevices = checkBox.IsChecked ?? true;
+            if (!(sender is CheckBox checkBox))
+                return;
 
-                SettingsManager.Save();
-                _viewSource.View.Refresh();
-            }
+            // Update settings based on checkbox name
+            // Uses dictionary-like mapping logic to avoid multiple if/else blocks
+            bool isChecked = checkBox.IsChecked ?? true;
+
+            if (checkBox == PnPInputDevicesCheckBox) SettingsManager.Options.ShowPnPDevices = isChecked;
+            else if (checkBox == RawInputDevicesCheckBox) SettingsManager.Options.ShowRawInputDevices = isChecked;
+            else if (checkBox == DirectInputDevicesCheckBox) SettingsManager.Options.ShowDirectInputDevices = isChecked;
+            else if (checkBox == XInputDevicesCheckBox) SettingsManager.Options.ShowXInputDevices = isChecked;
+            else if (checkBox == GamingInputDevicesCheckBox) SettingsManager.Options.ShowGamingInputDevices = isChecked;
+
+            SettingsManager.Save();
+            _viewSource.View.Refresh();
         }
 
         /// <summary>
@@ -108,6 +113,8 @@ namespace x360ce.App.Controls
             InvalidateVisualCache();
 
             _viewSource.View.Refresh();
+
+            UpdateAllDevicesInformation();
         }
 
         private void InputDevicesControl_Loaded(object sender, RoutedEventArgs e)
@@ -173,6 +180,7 @@ namespace x360ce.App.Controls
                     // Manually trigger the display since SelectionChanged might not fire for initial selection
                     DisplaySelectedDeviceInformation();
                 }
+                UpdateAllDevicesInformation();
             }));
 
             // Initialize button check timer (includes visibility handling)
@@ -185,19 +193,19 @@ namespace x360ce.App.Controls
         /// </summary>
         private void StartDeviceConnectionMonitoring()
         {
-            // Subscribe to device connection events from all trigger sources
-            _pnpTrigger.DeviceChanged += OnDeviceConnectionChanged;
-            _rawInputTrigger.DeviceChanged += OnDeviceConnectionChanged;
-            _directInputTrigger.DeviceChanged += OnDeviceConnectionChanged;
-            _xinputTrigger.DeviceChanged += OnDeviceConnectionChanged;
-            _gamingInputTrigger.DeviceChanged += OnDeviceConnectionChanged;
+            // Helper to attach handler and start monitoring
+            void Start(dynamic trigger)
+            {
+                trigger.DeviceChanged += new EventHandler<DeviceConnectionEventArgs>(OnDeviceConnectionChanged);
+                trigger.StartMonitoring();
+            }
 
-            // Start monitoring for device changes
-            _pnpTrigger.StartMonitoring();
-            _rawInputTrigger.StartMonitoring();
-            _directInputTrigger.StartMonitoring();
-            _xinputTrigger.StartMonitoring();
-            _gamingInputTrigger.StartMonitoring();
+            // Start monitoring all triggers
+            Start(_pnpTrigger);
+            Start(_rawInputTrigger);
+            Start(_directInputTrigger);
+            Start(_xinputTrigger);
+            Start(_gamingInputTrigger);
         }
 
         /// <summary>
@@ -205,17 +213,19 @@ namespace x360ce.App.Controls
         /// </summary>
         private void StopDeviceConnectionMonitoring()
         {
-            _pnpTrigger.StopMonitoring();
-            _rawInputTrigger.StopMonitoring();
-            _directInputTrigger.StopMonitoring();
-            _xinputTrigger.StopMonitoring();
-            _gamingInputTrigger.StopMonitoring();
+            // Helper to stop monitoring and detach handler
+            void Stop(dynamic trigger)
+            {
+                trigger.StopMonitoring();
+                trigger.DeviceChanged -= new EventHandler<DeviceConnectionEventArgs>(OnDeviceConnectionChanged);
+            }
 
-            _pnpTrigger.DeviceChanged -= OnDeviceConnectionChanged;
-            _rawInputTrigger.DeviceChanged -= OnDeviceConnectionChanged;
-            _directInputTrigger.DeviceChanged -= OnDeviceConnectionChanged;
-            _xinputTrigger.DeviceChanged -= OnDeviceConnectionChanged;
-            _gamingInputTrigger.DeviceChanged -= OnDeviceConnectionChanged;
+            // Stop monitoring all triggers
+            Stop(_pnpTrigger);
+            Stop(_rawInputTrigger);
+            Stop(_directInputTrigger);
+            Stop(_xinputTrigger);
+            Stop(_gamingInputTrigger);
         }
 
         /// <summary>
@@ -246,6 +256,8 @@ namespace x360ce.App.Controls
 
             // Refresh the view to reflect changes
             _viewSource?.View?.Refresh();
+
+            UpdateAllDevicesInformation();
         }
 
         /// <summary>
@@ -620,7 +632,6 @@ namespace x360ce.App.Controls
             DisplaySelectedDeviceInformation();
         }
 
-        CustomInputDeviceManager customInputDeviceManager => _customInputDeviceManager;
 
         /// <summary>
         /// Displays information for the currently selected device.
@@ -628,58 +639,115 @@ namespace x360ce.App.Controls
         private void DisplaySelectedDeviceInformation()
         {
             // Clear previous content
-            SelectedDeviceInformationStackPanel.Children.Clear();
+            SelectedDeviceInformationTextBox.Text = string.Empty;
             SelectedDeviceInputStackPanel.Children.Clear();
 
             // Get selected device
-            if (CustomInputDeviceInfoDataGrid.SelectedItem is CustomInputDeviceInfo selectedDevice)
+            if (!(CustomInputDeviceInfoDataGrid.SelectedItem is CustomInputDeviceInfo selectedDevice))
+                return;
+
+            // Set the selected device in the input handler so it knows which device to update
+            _devicesTab_DeviceSelectedInput?.SetSelectedDevice(selectedDevice.InstanceGuid);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("SELECTED INPUT DEVICE");
+            sb.AppendLine(new string('-', 76));
+
+            // Determine list index and device object
+            var result = GetDeviceAndIndex(selectedDevice.InputType, selectedDevice.InstanceGuid);
+
+            if (result.index > -1)
+                sb.AppendLine($"ListIndex: {result.index}");
+
+            if (result.device is InputDeviceInfo deviceObject)
             {
-                // Set the selected device in the input handler so it knows which device to update
-                _devicesTab_DeviceSelectedInput?.SetSelectedDevice(selectedDevice.InstanceGuid);
-
-                // Get device information as XAML elements
-                var deviceInfoElement = _devicesTab_DeviceSelectedInfo?.GetDeviceInformationAsXamlElements(
-                    selectedDevice.InputType,
-                    selectedDevice.InstanceGuid);
-
-                // Add to StackPanel if we got valid content
-                if (deviceInfoElement != null)
+                var props = DevicesTab_DeviceSelectedInfo.ExtractDeviceProperties(deviceObject);
+                foreach (var (name, value) in props)
                 {
-                    SelectedDeviceInformationStackPanel.Children.Add(deviceInfoElement);
+                    sb.AppendLine($"{name}: {value}");
                 }
 
-                // Get current ListInputState directly from the appropriate source list
-                CustomInputState liState = null;
+                sb.AppendLine(new string('-', 76));
+                SelectedDeviceInformationTextBox.Text = sb.ToString();
 
-                switch (selectedDevice.InputType)
-                {
-                    case "RawInput":
-                        liState = customInputDeviceManager.RawInputDeviceInfoList?
-                            .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.CustomInputState;
-                        break;
-                    case "DirectInput":
-                        liState = customInputDeviceManager.DirectInputDeviceInfoList?
-                            .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.CustomInputState;
-                        break;
-                    case "XInput":
-                        liState = customInputDeviceManager.XInputDeviceInfoList?
-                            .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.CustomInputState;
-                        break;
-                    case "GamingInput":
-                        liState = customInputDeviceManager.GamingInputDeviceInfoList?
-                            .FirstOrDefault(d => d.InstanceGuid == selectedDevice.InstanceGuid)
-                            ?.CustomInputState;
-                        break;
-                }
+                // Get current ListInputState directly from the device object
+                var liState = deviceObject.CustomInputState;
 
                 // Get device input as XAML elements
                 var deviceInputElement = _devicesTab_DeviceSelectedInput?.CreateInputLayout(selectedDevice, liState);
+
                 // Add to StackPanel if we got valid content
-                if (deviceInputElement != null) { SelectedDeviceInputStackPanel.Children.Add(deviceInputElement); }
+                if (deviceInputElement != null)
+                    SelectedDeviceInputStackPanel.Children.Add(deviceInputElement);
             }
+        }
+
+        /// <summary>
+        /// Helper method to find device index and object in the appropriate list.
+        /// </summary>
+        private (int index, object device) GetDeviceAndIndex(string inputType, Guid instanceGuid)
+        {
+            IList list = null;
+            switch (inputType)
+            {
+                case "RawInput": list = _customInputDeviceManager.RawInputDeviceInfoList; break;
+                case "DirectInput": list = _customInputDeviceManager.DirectInputDeviceInfoList; break;
+                case "XInput": list = _customInputDeviceManager.XInputDeviceInfoList; break;
+                case "GamingInput": list = _customInputDeviceManager.GamingInputDeviceInfoList; break;
+                case "PnPInput": list = _customInputDeviceManager.PnPInputDeviceInfoList; break;
+            }
+
+            if (list != null)
+            {
+                for (int i = 0; i < list.Count; i++)
+                {
+                    if (list[i] is InputDeviceInfo info && info.InstanceGuid == instanceGuid)
+                    {
+                        return (i, info);
+                    }
+                }
+            }
+            return (-1, null);
+        }
+
+        private void UpdateAllDevicesInformation()
+        {
+            var sb = new StringBuilder();
+            var selectedDevice = CustomInputDeviceInfoDataGrid.SelectedItem as CustomInputDeviceInfo;
+
+            void ProcessList<T>(string header, List<T> list) where T : InputDeviceInfo
+            {
+                sb.AppendLine(header);
+                sb.AppendLine(new string('-', 76));
+                if (list != null)
+                {
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var item = list[i];
+                        var isSelected = selectedDevice != null && item.InstanceGuid == selectedDevice.InstanceGuid;
+
+                        sb.Append($"ListIndex: {i}");
+                        if (isSelected)
+                            sb.Append(" (SELECTED)");
+                        sb.AppendLine();
+
+                        var props = DevicesTab_DeviceSelectedInfo.ExtractDeviceProperties(item);
+                        foreach (var (name, value) in props)
+                        {
+                            sb.AppendLine($"{name}: {value}");
+                        }
+                        sb.AppendLine(new string('-', 76));
+                    }
+                }
+                sb.AppendLine();
+            }
+
+            ProcessList("RAW INPUT DEVICES", _customInputDeviceManager.RawInputDeviceInfoList);
+            ProcessList("DIRECT INPUT DEVICES", _customInputDeviceManager.DirectInputDeviceInfoList);
+            ProcessList("X INPUT DEVICES", _customInputDeviceManager.XInputDeviceInfoList);
+            ProcessList("GAMING INPUT DEVICES", _customInputDeviceManager.GamingInputDeviceInfoList);
+
+            AllDevicesInformationTextBox.Text = sb.ToString();
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
@@ -724,22 +792,27 @@ namespace x360ce.App.Controls
         /// <returns>True if any button is pressed (value 1) or any POV is pressed (value > -1)</returns>
         private static bool IsAnyButtonOrPovPressed(CustomInputState listState)
         {
+            if (listState == null)
+                return false;
+
             // Check buttons.
-            if (listState?.Buttons != null)
+            var buttons = listState.Buttons;
+            if (buttons != null)
             {
-                var buttons = listState.Buttons;
-                for (int i = 0; i < buttons.Count; i++)
+                var count = buttons.Count;
+                for (int i = 0; i < count; i++)
                 {
-                    if (buttons[i] == 1)
+                    if (buttons[i] != 0)
                         return true;
                 }
             }
 
             // Check POVs.
-            if (listState?.POVs != null)
+            var povs = listState.POVs;
+            if (povs != null)
             {
-                var povs = listState.POVs;
-                for (int i = 0; i < povs.Count; i++)
+                var count = povs.Count;
+                for (int i = 0; i < count; i++)
                 {
                     if (povs[i] > -1)
                         return true;
@@ -747,6 +820,40 @@ namespace x360ce.App.Controls
             }
 
             return false;
+        }
+
+        private void TabItemHeader_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender == SelectedDeviceTabItem.Header)
+            {
+                if (SelectedDeviceTabItem.IsSelected)
+                {
+                    // Toggle
+                    SelectedDeviceInformationTextBox.Visibility = SelectedDeviceInformationTextBox.Visibility == Visibility.Visible
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
+                }
+                else
+                {
+                    // Make visible
+                    SelectedDeviceInformationTextBox.Visibility = Visibility.Visible;
+                }
+            }
+            else if (sender == AllDevicesTabItem.Header)
+            {
+                if (AllDevicesTabItem.IsSelected)
+                {
+                    // Toggle
+                    AllDevicesInformationTextBox.Visibility = AllDevicesInformationTextBox.Visibility == Visibility.Visible
+                        ? Visibility.Collapsed
+                        : Visibility.Visible;
+                }
+                else
+                {
+                    // Make visible
+                    AllDevicesInformationTextBox.Visibility = Visibility.Visible;
+                }
+            }
         }
     }
 }

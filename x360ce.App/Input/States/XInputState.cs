@@ -1,6 +1,4 @@
 ﻿using SharpDX.XInput;
-using System;
-using System.Diagnostics;
 using x360ce.App.Input.Devices;
 
 namespace x360ce.App.Input.States
@@ -88,10 +86,7 @@ namespace x360ce.App.Input.States
 			int slotIndex = xiDeviceInfo.SlotIndex;
 
 			if (slotIndex < 0 || slotIndex >= MaxControllers)
-			{
-				Debug.WriteLine($"XInputState: Invalid slot index {slotIndex}. Must be 0-3.");
 				return null;
-			}
 
 			try
 			{
@@ -109,9 +104,8 @@ namespace x360ce.App.Input.States
 
 				return state;
 			}
-			catch (Exception ex)
+			catch
 			{
-				Debug.WriteLine($"XInputState: Error reading state for slot {slotIndex}: {ex.Message}");
 				return null;
 			}
 		}
