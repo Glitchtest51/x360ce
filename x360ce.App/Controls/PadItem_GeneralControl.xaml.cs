@@ -124,10 +124,12 @@ namespace x360ce.App.Controls
 
 		// Colors.
 		readonly SolidColorBrush colorActive = (SolidColorBrush)new BrushConverter().ConvertFrom("#FF42C765");
-		readonly SolidColorBrush colorLight = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFF0F0F0");
+        readonly SolidColorBrush colorActive05 = (SolidColorBrush)new BrushConverter().ConvertFrom("#8042C765");
+        readonly SolidColorBrush colorLight = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFF0F0F0");
 		readonly SolidColorBrush colorBackgroundDark = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFDEDEDE");
 		readonly SolidColorBrush colorNormal = (SolidColorBrush)new BrushConverter().ConvertFrom("#FF6699FF");
-		readonly SolidColorBrush colorRecord = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFFF6B66");
+        readonly SolidColorBrush colorNormal05 = (SolidColorBrush)new BrushConverter().ConvertFrom("#886699FF");
+        readonly SolidColorBrush colorRecord = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFFF6B66");
 
 		Dictionary<int, (Label, Label)> ButtonDictionary = new Dictionary<int, (Label, Label)>();
 		Dictionary<int, (Label, Label)> PovDictionary = new Dictionary<int, (Label, Label)>();
@@ -504,7 +506,7 @@ namespace x360ce.App.Controls
 			if (ud == null)
 			{
 				InputMethodStatusLabel.Content = "No Device";
-				InputMethodStatusBorder.Background = (SolidColorBrush)new BrushConverter().ConvertFrom("#FFCCCCCC");
+				InputMethodStatusBorder.Background = colorBackgroundDark;
 				UpdateXILabelsVisibility(null);
 				return;
 			}
@@ -526,7 +528,7 @@ namespace x360ce.App.Controls
 				// Input method is supported - show status
 				var statusText = hasActiveInput ? $"{currentMethod} - Active" : $"{currentMethod} - Ready";
 				InputMethodStatusLabel.Content = statusText;
-				InputMethodStatusBorder.Background = hasActiveInput ? colorActive : colorNormal;
+				InputMethodStatusBorder.Background = hasActiveInput ? colorActive05 : colorNormal05;
 				UpdateInputMethodTooltip(ud, currentMethod, true);
 			}
 
@@ -617,114 +619,63 @@ namespace x360ce.App.Controls
 		/// <param name="ud">The UserDevice to check XInput compatibility for</param>
 		public void UpdateXILabelsVisibility(UserDevice ud)
 		{
-			bool showXILabels = ud != null &&
-			                   ud.InputMethod == Engine.InputMethod.XInput &&
-			                   InputMethodDetector.SupportsXInput(ud);
-			var opacity = showXILabels ? 1.0 : 0.3;
-			var foregroundBrush = showXILabels ? Brushes.Green : Brushes.Gray;
-
-			// Update all XILabel controls to show appropriate visual feedback
-			TriggerLXILabel.Opacity = opacity;
-			TriggerLXILabel.Foreground = foregroundBrush;
-			TriggerRXILabel.Opacity = opacity;
-			TriggerRXILabel.Foreground = foregroundBrush;
-
-			BumperLXILabel.Opacity = opacity;
-			BumperLXILabel.Foreground = foregroundBrush;
-			BumperRXILabel.Opacity = opacity;
-			BumperRXILabel.Foreground = foregroundBrush;
-
-			MenuBackXILabel.Opacity = opacity;
-			MenuBackXILabel.Foreground = foregroundBrush;
-			MenuStartXILabel.Opacity = opacity;
-			MenuStartXILabel.Foreground = foregroundBrush;
-			MenuGuideXILabel.Opacity = opacity;
-			MenuGuideXILabel.Foreground = foregroundBrush;
-
-			ActionAXILabel.Opacity = opacity;
-			ActionAXILabel.Foreground = foregroundBrush;
-			ActionBXILabel.Opacity = opacity;
-			ActionBXILabel.Foreground = foregroundBrush;
-			ActionXXILabel.Opacity = opacity;
-			ActionXXILabel.Foreground = foregroundBrush;
-			ActionYXILabel.Opacity = opacity;
-			ActionYXILabel.Foreground = foregroundBrush;
-
-			DPadXILabel.Opacity = opacity;
-			DPadXILabel.Foreground = foregroundBrush;
-			DPadUpXILabel.Opacity = opacity;
-			DPadUpXILabel.Foreground = foregroundBrush;
-			DPadDownXILabel.Opacity = opacity;
-			DPadDownXILabel.Foreground = foregroundBrush;
-			DPadLeftXILabel.Opacity = opacity;
-			DPadLeftXILabel.Foreground = foregroundBrush;
-			DPadRightXILabel.Opacity = opacity;
-			DPadRightXILabel.Foreground = foregroundBrush;
-
-			StickLAxisXXILabel.Opacity = opacity;
-			StickLAxisXXILabel.Foreground = foregroundBrush;
-			StickLAxisYXILabel.Opacity = opacity;
-			StickLAxisYXILabel.Foreground = foregroundBrush;
-			StickLButtonXILabel.Opacity = opacity;
-			StickLButtonXILabel.Foreground = foregroundBrush;
-			StickLUpXILabel.Opacity = opacity;
-			StickLUpXILabel.Foreground = foregroundBrush;
-			StickLDownXILabel.Opacity = opacity;
-			StickLDownXILabel.Foreground = foregroundBrush;
-			StickLLeftXILabel.Opacity = opacity;
-			StickLLeftXILabel.Foreground = foregroundBrush;
-			StickLRightXILabel.Opacity = opacity;
-			StickLRightXILabel.Foreground = foregroundBrush;
-
-			StickRAxisXXILabel.Opacity = opacity;
-			StickRAxisXXILabel.Foreground = foregroundBrush;
-			StickRAxisYXILabel.Opacity = opacity;
-			StickRAxisYXILabel.Foreground = foregroundBrush;
-			StickRButtonXILabel.Opacity = opacity;
-			StickRButtonXILabel.Foreground = foregroundBrush;
-			StickRUpXILabel.Opacity = opacity;
-			StickRUpXILabel.Foreground = foregroundBrush;
-			StickRDownXILabel.Opacity = opacity;
-			StickRDownXILabel.Foreground = foregroundBrush;
-			StickRLeftXILabel.Opacity = opacity;
-			StickRLeftXILabel.Foreground = foregroundBrush;
-			StickRRightXILabel.Opacity = opacity;
-			StickRRightXILabel.Foreground = foregroundBrush;
-
-			// Set content to indicate unavailable state when not supported
-			if (!showXILabels && ud?.InputMethod == Engine.InputMethod.XInput)
+			var labels = new[]
 			{
-				var unavailableText = "-";
-				TriggerLXILabel.Content = unavailableText;
-				TriggerRXILabel.Content = unavailableText;
-				BumperLXILabel.Content = unavailableText;
-				BumperRXILabel.Content = unavailableText;
-				MenuBackXILabel.Content = unavailableText;
-				MenuStartXILabel.Content = unavailableText;
-				MenuGuideXILabel.Content = unavailableText;
-				ActionAXILabel.Content = unavailableText;
-				ActionBXILabel.Content = unavailableText;
-				ActionXXILabel.Content = unavailableText;
-				ActionYXILabel.Content = unavailableText;
-				DPadXILabel.Content = unavailableText;
-				DPadUpXILabel.Content = unavailableText;
-				DPadDownXILabel.Content = unavailableText;
-				DPadLeftXILabel.Content = unavailableText;
-				DPadRightXILabel.Content = unavailableText;
-				StickLAxisXXILabel.Content = unavailableText;
-				StickLAxisYXILabel.Content = unavailableText;
-				StickLButtonXILabel.Content = unavailableText;
-				StickLUpXILabel.Content = unavailableText;
-				StickLDownXILabel.Content = unavailableText;
-				StickLLeftXILabel.Content = unavailableText;
-				StickLRightXILabel.Content = unavailableText;
-				StickRAxisXXILabel.Content = unavailableText;
-				StickRAxisYXILabel.Content = unavailableText;
-				StickRButtonXILabel.Content = unavailableText;
-				StickRUpXILabel.Content = unavailableText;
-				StickRDownXILabel.Content = unavailableText;
-				StickRLeftXILabel.Content = unavailableText;
-				StickRRightXILabel.Content = unavailableText;
+				TriggerLXILabel,
+				TriggerRXILabel,
+
+				BumperLXILabel,
+				BumperRXILabel,
+
+				MenuBackXILabel,
+				MenuStartXILabel,
+				MenuGuideXILabel,
+
+				ActionAXILabel,
+				ActionBXILabel,
+				ActionXXILabel,
+				ActionYXILabel,
+
+				DPadXILabel,
+				DPadUpXILabel,
+				DPadDownXILabel,
+				DPadLeftXILabel,
+				DPadRightXILabel,
+
+				StickLAxisXXILabel,
+				StickLAxisYXILabel,
+				StickLButtonXILabel,
+				StickLUpXILabel,
+				StickLDownXILabel,
+				StickLLeftXILabel,
+				StickLRightXILabel,
+
+				StickRAxisXXILabel,
+				StickRAxisYXILabel,
+				StickRButtonXILabel,
+				StickRUpXILabel,
+				StickRDownXILabel,
+				StickRLeftXILabel,
+				StickRRightXILabel
+			};
+
+
+            // Update all XILabel controls to show appropriate visual feedback
+            bool showXILabels = ud != null && ud.InputMethod == Engine.InputMethod.XInput && InputMethodDetector.SupportsXInput(ud);
+            var foregroundBrush = showXILabels ? Brushes.Gray : Brushes.Green;
+            foreach (Label label in labels)
+			{
+				label.Foreground = foregroundBrush;
+            }
+
+            // Set content to indicate unavailable state when not supported
+            if (!showXILabels && ud?.InputMethod == Engine.InputMethod.XInput)
+			{
+                var unavailableText = "-";
+                foreach (Label label in labels)
+                {
+                    label.Content = unavailableText;
+                }
 			}
 		}
 

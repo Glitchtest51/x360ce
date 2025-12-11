@@ -44,7 +44,7 @@
 						<Setter Property="HorizontalAlignment" Value="Center" />
 						<Setter Property="Padding" Value="7,2,8,3" />
 						<Setter Property="IsHitTestVisible" Value="False" />
-						<Setter Property="Content" Value="Virtual Xbox 360 Controller" />
+						<Setter Property="Content" Value="Input Status" />
 					</Style>
 					<!--  Drag and Drop menu Title Label  -->
 					<Style x:Key="DragAndDropDInputTitleLabel" TargetType="Label">
@@ -129,11 +129,10 @@
 						<Setter Property="FontSize" Value="8" />
 						<Setter Property="Content" Value="0" />
 						<Setter Property="Margin" Value="3,-1,3,0" />
+                        <Setter Property="Opacity" Value="0.8" />
 					</Style>
 					<Style
-						x:Key="ValuesRightLabel"
-						BasedOn="{StaticResource ValuesLeftLabel}"
-						TargetType="Label">
+						x:Key="ValuesRightLabel" TargetType="Label" BasedOn="{StaticResource ValuesLeftLabel}">
 						<Setter Property="HorizontalAlignment" Value="Right" />
 					</Style>
                     <!--Button-->
@@ -186,33 +185,29 @@
 			<ColumnDefinition Width="Auto" />
 			<ColumnDefinition Width="*" />
 		</Grid.ColumnDefinitions>
-		<Border Grid.Column="2" Name="InputMethodStatusBorder" Style="{StaticResource DragAndDropXInputBorder}">
-			<Label Name="InputMethodStatusLabel" Style="{StaticResource DragAndDropXInputLabel}" />
-		</Border>
+        <Border Grid.Column="2" Style="{StaticResource DragAndDropXInputBorder}">
+            <Label Style="{StaticResource DragAndDropXInputLabel}" Content="Virtual Xbox 360 Controller" />
+        </Border>
 
 		<!--  Buttons and Axes  -->
-		<StackPanel Grid.RowSpan="3">
-			<TabControl Width="260" Margin="0,0,3,0">
+		<Grid Grid.RowSpan="3">
+
+            <TabControl Width="260" Margin="0,0,3,0">
 				<TabItem>
 					<TabItem.Header>
 						<StackPanel Orientation="Horizontal">
 							<ContentControl
 								Name="NormalTab"
 								Margin="0,0,3,0"
-								Content="{StaticResource Icon_DragAndDrop_Axis}" />
-							<TextBlock Text="NORMAL" />
-							<ContentControl
-								Name="InvertedTab"
-								Margin="20,0,3,0"
-								Content="{StaticResource Icon_DragAndDrop_Axis_Inverted}" />
-							<TextBlock Text="INVERTED" />
-						</StackPanel>
+								Content="{StaticResource Icon_gamepad}" />
+                            <TextBlock Text="INPUT" />
+                        </StackPanel>
 					</TabItem.Header>
 					<ScrollViewer VerticalScrollBarVisibility="Auto">
 						<StackPanel>
 							<Label Style="{StaticResource DragAndDropDInputTitleLabel}" />
 
-							<!--  Drag and Drop Help  -->
+                            <!--  Drag and Drop Help  -->
 							<Border Margin="3,3,3,0" Style="{StaticResource BorderDescriptionNormal}">
 								<Label
 									Padding="3,3,3,4"
@@ -220,7 +215,11 @@
 									Style="{StaticResource DragAndDropDInputLabel}" />
 							</Border>
 
-							<StackPanel Name="DragAndDropStackPanel" Margin="3,0,3,3">
+                            <Border Visibility="Collapsed" Name="InputMethodStatusBorder" Style="{StaticResource DragAndDropXInputBorder}" HorizontalAlignment="Stretch" Margin="3,3,3,0">
+                                <Label Name="InputMethodStatusLabel" Style="{StaticResource DragAndDropXInputLabel}" Padding="3,3,3,4"/>
+                            </Border>
+
+                            <StackPanel Name="DragAndDropStackPanel" Margin="3,0,3,3">
 								<StackPanel.Resources>
 									<Style BasedOn="{StaticResource DragAndDropGroupBox}" TargetType="GroupBox" />
 									<Style BasedOn="{StaticResource DragAndDropLabel}" TargetType="Label" />
@@ -231,7 +230,7 @@
 					</ScrollViewer>
 				</TabItem>
 			</TabControl>
-		</StackPanel>
+		</Grid>
 
 		<!--  Image  -->
 		<Viewbox
