@@ -878,11 +878,16 @@ namespace x360ce.App.Controls
 
         private void MiniMenu_MouseEnterStackPanel(object sender, MouseEventArgs e)
         {
-           var childTextBox = ((StackPanel)sender).Children.OfType<TextBox>().FirstOrDefault();
-		   if (childTextBox != null) { MiniMenu_MouseEnterTextBox(childTextBox, null); };
+            var childTextBox = ((StackPanel)sender).Children.OfType<TextBox>().FirstOrDefault();
+            if (childTextBox != null) { MiniMenu_MouseEnterTextBox(childTextBox, null); };
 
             var childButton = ((StackPanel)sender).Children.OfType<Button>().FirstOrDefault();
-            if (childButton != null) { childButton.MinWidth = 0; childButton.Width = 0; }
+            if (childButton != null)
+			{ 
+				childButton.MinWidth = 0;
+				childButton.Width = 0;
+				childButton.Margin = new Thickness(0);
+			}
         }
 
         private void MiniMenu_MouseLeaveStackPanel(object sender, MouseEventArgs e)
@@ -890,7 +895,12 @@ namespace x360ce.App.Controls
             MiniMenuStackPanel.Visibility = Visibility.Collapsed;
 
             var childButton = ((StackPanel)sender).Children.OfType<Button>().FirstOrDefault();
-            if (childButton != null) { childButton.MinWidth = 26; childButton.Width = 26; }
+            if (childButton != null)
+			{ 
+				childButton.ClearValue(MinWidthProperty);
+				childButton.ClearValue(WidthProperty);
+				childButton.ClearValue(MarginProperty);
+			}
         }
 
         /// <summary>
