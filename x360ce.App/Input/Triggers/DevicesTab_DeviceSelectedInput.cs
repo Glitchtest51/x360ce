@@ -195,7 +195,7 @@ namespace x360ce.App.Input.Triggers
                 // Input Label - shows zero-based index (0,1,2,3,4,5...)
                 var inputLabel = new Label
                 {
-                    Content = i.ToString(),
+                    Content = (i + 1).ToString(),
                 };
                 stackPanel.Children.Add(inputLabel);
 

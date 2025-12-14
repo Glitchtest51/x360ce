@@ -315,7 +315,7 @@
                         <!--  Input UniformGrid  -->
                         <Style TargetType="UniformGrid">
                             <Setter Property="Margin" Value="-2" />
-                            <Setter Property="Columns" Value="8" />
+                            <Setter Property="Columns" Value="10" />
                         </Style>
                         <!--  Input StackPanel  -->
                         <Style TargetType="StackPanel">
@@ -349,7 +349,7 @@
                         </Style>
                     </ScrollViewer.Resources>
 
-                    <StackPanel Name="SelectedDeviceInputStackPanel" Margin="1,1,0,1" MinWidth="250">
+                    <StackPanel Name="SelectedDeviceInputStackPanel" Margin="1,1,0,1" MinWidth="280">
                         <StackPanel.Resources>
                             <Style TargetType="Label" BasedOn="{StaticResource InputLabel}" />
                         </StackPanel.Resources>
@@ -361,45 +361,72 @@
         </TabControl>
 
         <!-- Selected Device Information -->
-            <TabControl Margin="3,3,0,3" Grid.Row="2">
-            <TabItem Name="SelectedDeviceTabItem">
-                <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" PreviewMouseDown="TabItemHeader_PreviewMouseDown">
-                        <ContentControl
+        <Grid Grid.Row="2">
+            <Button
+               Name="ShowDeviceInfoButton"
+               VerticalAlignment="Top"
+               HorizontalAlignment="Right"
+               Height="22"
+               Margin="0,3,0,3"
+               Padding="0,0,0,0"
+               PreviewMouseDown="TabItemHeader_PreviewMouseDown">
+                <StackPanel x:Name="ShowDeviceInfoButtonContentControl" RenderTransformOrigin="0.5,0.5">
+                    <StackPanel.RenderTransform>
+                        <RotateTransform Angle="180" />
+                    </StackPanel.RenderTransform>
+                    <ContentControl Content="{StaticResource Icon_navigate_down}" />
+                </StackPanel>
+            </Button>
+            <TabControl Margin="3,3,0,3">
+                <TabControl.Resources>
+                    <Style TargetType="TextBox" BasedOn="{StaticResource TextBox_Default}">
+                        <Setter Property="IsReadOnly" Value="True" />
+                        <Setter Property="FontFamily" Value="Consolas" />
+                        <Setter Property="TextWrapping" Value="Wrap" />
+                    </Style>
+                </TabControl.Resources>
+                <TabItem Name="SelectedDeviceTabItem">
+                    <TabItem.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <ContentControl
 					        Margin="0,0,3,0"
 					        Content="{StaticResource Icon_gamepad}" />
-                        <TextBlock Text="SELECTED DEVICE INFORMATION" />
-                    </StackPanel>
-                </TabItem.Header>
-                
-                <TextBox
-                    Height="300"
-                    Name="SelectedDeviceInformationTextBox"
-                    IsReadOnly="True"
-                    TextWrapping="Wrap"
-                    VerticalScrollBarVisibility="Auto"
-                    FontFamily="Consolas" />
+                            <TextBlock Text="SELECTED DEVICE INFORMATION" />
+                        </StackPanel>
+                    </TabItem.Header>
 
-            </TabItem>
+                    <StackPanel>
+                        <TextBox Name="SelectedDeviceInformationBlankTextBox" Text="···"/>
+                        <TextBox
+                            Height="300"
+                            Name="SelectedDeviceInformationTextBox"
+                            VerticalScrollBarVisibility="Auto"
+                            Visibility="Collapsed"/>
+                    </StackPanel>
+
+                </TabItem>
                 <TabItem Name="AllDevicesTabItem">
                     <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" PreviewMouseDown="TabItemHeader_PreviewMouseDown">
+                        <StackPanel Orientation="Horizontal">
                             <ContentControl
                                 Margin="0,0,3,0"
                                 Content="{StaticResource Icon_gamepad}" />
                             <TextBlock Text="ALL DEVICES INFORMATION" />
                         </StackPanel>
                     </TabItem.Header>
-
-                    <TextBox
-                    Height="300"
-                    Name="AllDevicesInformationTextBox"
-                    IsReadOnly="True"
-                    TextWrapping="Wrap"
-                    VerticalScrollBarVisibility="Auto"
-                    FontFamily="Consolas" />
-            </TabItem>
+                    
+                    <StackPanel>
+                        <TextBox Name="AllDevicesInformationBlankTextBox" Text="···"/>
+                        <TextBox
+                            Height="300"
+                            Name="AllDevicesInformationTextBox"
+                            VerticalScrollBarVisibility="Auto"
+                            Visibility="Collapsed" />
+                    </StackPanel>
+                    
+                </TabItem>
             </TabControl>
+        </Grid>
 
 
     </Grid>

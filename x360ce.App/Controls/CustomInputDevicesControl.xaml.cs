@@ -826,35 +826,22 @@ namespace x360ce.App.Controls
 
         private void TabItemHeader_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if (sender == SelectedDeviceTabItem.Header)
+            if (SelectedDeviceInformationBlankTextBox.Visibility == Visibility.Visible)
             {
-                if (SelectedDeviceTabItem.IsSelected)
-                {
-                    // Toggle
-                    SelectedDeviceInformationTextBox.Visibility = SelectedDeviceInformationTextBox.Visibility == Visibility.Visible
-                        ? Visibility.Collapsed
-                        : Visibility.Visible;
-                }
-                else
-                {
-                    // Make visible
-                    SelectedDeviceInformationTextBox.Visibility = Visibility.Visible;
-                }
+                SelectedDeviceInformationBlankTextBox.Visibility = Visibility.Collapsed;
+                AllDevicesInformationBlankTextBox.Visibility = Visibility.Collapsed;
+                SelectedDeviceInformationTextBox.Visibility = Visibility.Visible;
+                AllDevicesInformationTextBox.Visibility = Visibility.Visible;
+                ShowDeviceInfoButtonContentControl.RenderTransform = new RotateTransform(0);
+                
             }
-            else if (sender == AllDevicesTabItem.Header)
+            else
             {
-                if (AllDevicesTabItem.IsSelected)
-                {
-                    // Toggle
-                    AllDevicesInformationTextBox.Visibility = AllDevicesInformationTextBox.Visibility == Visibility.Visible
-                        ? Visibility.Collapsed
-                        : Visibility.Visible;
-                }
-                else
-                {
-                    // Make visible
-                    AllDevicesInformationTextBox.Visibility = Visibility.Visible;
-                }
+                SelectedDeviceInformationBlankTextBox.Visibility = Visibility.Visible;
+                AllDevicesInformationBlankTextBox.Visibility = Visibility.Visible;
+                SelectedDeviceInformationTextBox.Visibility = Visibility.Collapsed;
+                AllDevicesInformationTextBox.Visibility = Visibility.Collapsed;
+                ShowDeviceInfoButtonContentControl.RenderTransform = new RotateTransform(180);
             }
         }
     }
